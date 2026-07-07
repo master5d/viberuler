@@ -1,4 +1,5 @@
 import { handleSubmit } from './routes/submit.js';
+import { handleLeaderboard, handlePercentile } from './routes/leaderboard.js';
 
 export interface Env {
   DB: D1Database;
@@ -22,6 +23,8 @@ export default {
       if (request.method === 'GET' && pathname === '/api/health') {
         return json({ ok: true });
       }
+      if (request.method === 'GET' && pathname === '/api/leaderboard') return handleLeaderboard(request, env, url);
+      if (request.method === 'GET' && pathname === '/api/percentile') return handlePercentile(request, env, url);
       if (request.method === 'POST' && pathname === '/api/submit') {
         return handleSubmit(request, env, url);
       }
