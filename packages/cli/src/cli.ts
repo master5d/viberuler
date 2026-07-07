@@ -2,6 +2,7 @@ import { parseArgs } from 'node:util';
 import { homedir } from 'node:os';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { createInterface } from 'node:readline/promises';
 import type { Collector, ScanContext, RawStats } from './types.js';
 import { emptyStats, mergeStats } from './merge.js';
 import { claudeCodeCollector } from './collectors/claude-code.js';
@@ -11,6 +12,7 @@ import { githubCollector } from './collectors/github.js';
 import { computeScore } from './score.js';
 import { renderCard } from './render.js';
 import { buildPayload } from './payload.js';
+import { DEFAULT_API, DEFAULT_CLIENT_ID, githubDeviceFlow, fetchPercentile, submitScore, shareLinks } from './submit.js';
 
 const COLLECTORS: Collector[] = [claudeCodeCollector, codexCollector, gitCollector, githubCollector];
 
@@ -28,6 +30,8 @@ Options:
   --github <handle>    also pull public GitHub stars    (the only network call)
   --json               machine-readable full report
   --no-color           plain output
+  --submit             push your score to the global leaderboard (GitHub device flow)
+  --yes                skip the submit confirmation
   --version            print version
   --help               this help
 `;
@@ -50,7 +54,11 @@ export async function collectAll(ctx: ScanContext, warn: (s: string) => void): P
   return stats;
 }
 
-export async function main(argv: string[], out: (line: string) => void = console.log): Promise<number> {
+export async function main(
+  argv: string[],
+  out: (line: string) => void = console.log,
+  deps: { fetchImpl?: typeof fetch } = {},
+): Promise<number> {
   let parsed;
   try {
     parsed = parseArgs({
@@ -62,6 +70,8 @@ export async function main(argv: string[], out: (line: string) => void = console
         github: { type: 'string' },
         json: { type: 'boolean' },
         'no-color': { type: 'boolean' },
+        submit: { type: 'boolean' },
+        yes: { type: 'boolean' },
         version: { type: 'boolean' },
         help: { type: 'boolean' },
       },
@@ -97,7 +107,57 @@ export async function main(argv: string[], out: (line: string) => void = console
 
   const stats = await collectAll(ctx, (s) => process.stderr.write(s + '\n'));
   for (const w of stats.warnings) process.stderr.write(`[viberuler] ${w}\n`);
-  const report = computeScore(stats);
+  let report = computeScore(stats);
+
+  if (values.submit) {
+    const apiBase = process.env.VIBERULER_API ?? DEFAULT_API;
+    const clientId = process.env.VIBERULER_GITHUB_CLIENT_ID ?? DEFAULT_CLIENT_ID;
+
+    if (report.tokPerUsd !== null) {
+      const live = await fetchPercentile(apiBase, report.tokPerUsd, deps.fetchImpl);
+      if (live !== null) report = computeScore(stats, live);
+    }
+
+    const colors = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && !values['no-color'];
+    out(renderCard(report, { colors, version: version() }));
+
+    const payload = buildPayload(report, version());
+    out('');
+    out('This is EVERYTHING that leaves your machine:');
+    out(JSON.stringify(payload, null, 2));
+
+    if (!values.yes) {
+      if (!process.stdin.isTTY) {
+        process.stderr.write('refusing to submit without --yes in non-interactive mode\n');
+        return 1;
+      }
+      const rl = createInterface({ input: process.stdin, output: process.stderr });
+      const answer = (await rl.question('Submit to the global leaderboard? [y/N] ')).trim().toLowerCase();
+      rl.close();
+      if (answer !== 'y' && answer !== 'yes') { out('aborted.'); return 1; }
+    }
+
+    try {
+      const token = await githubDeviceFlow(clientId, { fetchImpl: deps.fetchImpl, out });
+      const result = await submitScore(apiBase, token, payload, deps.fetchImpl);
+      if (!result.ok) {
+        process.stderr.write(`submit failed (${result.status}): ${result.error ?? 'unknown'}\n`);
+        return 1;
+      }
+      out('');
+      out(`  LIVE: ${result.url}${result.rank ? `  ·  GLOBAL RANK #${result.rank}` : ''}${result.sus ? '  (under review)' : ''}`);
+      const links = shareLinks(result.url ?? apiBase, payload);
+      out('');
+      out('  Flex it:');
+      out(`    X:        ${links.x}`);
+      out(`    LinkedIn: ${links.linkedin}`);
+      out(`    Bluesky:  ${links.bluesky}`);
+      return 0;
+    } catch (err) {
+      process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+      return 1;
+    }
+  }
 
   if (command === 'payload') {
     out(JSON.stringify(buildPayload(report, version()), null, 2));
