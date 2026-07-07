@@ -1,3 +1,5 @@
+import { handleSubmit } from './routes/submit.js';
+
 export interface Env {
   DB: D1Database;
   GITHUB_CLIENT_ID: string;
@@ -19,6 +21,9 @@ export default {
     try {
       if (request.method === 'GET' && pathname === '/api/health') {
         return json({ ok: true });
+      }
+      if (request.method === 'POST' && pathname === '/api/submit') {
+        return handleSubmit(request, env, url);
       }
       return json({ error: 'not found' }, 404);
     } catch (err) {
