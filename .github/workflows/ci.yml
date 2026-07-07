@@ -22,4 +22,5 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm run check -w viberuler-api
       - run: node packages/cli/dist/bin.js --no-color --scan-dir .

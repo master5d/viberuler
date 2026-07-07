@@ -1,0 +1,16 @@
+# Deploying viberuler-api
+
+One-time (launch day):
+
+1. `npx wrangler d1 create viberuler` → paste `database_id` into wrangler.jsonc
+2. `npx wrangler d1 migrations apply viberuler --remote`
+3. Create a GitHub OAuth App (Settings → Developer settings → OAuth Apps):
+   - Device flow: ENABLED; callback URL not needed for device flow
+   - Put the Client ID into wrangler.jsonc `vars.GITHUB_CLIENT_ID` and ship the same
+     value as `DEFAULT_CLIENT_ID` in packages/cli/src/submit.ts (it is public)
+4. `npx wrangler deploy`
+5. Custom domain: Workers → viberuler-api → Domains → add viberuler.dev
+6. Smoke: `curl https://viberuler.dev/api/health` → `{"ok":true}`
+7. Seed the board: `npx viberuler --submit` from the owner machine
+
+No secrets exist in this worker. `GITHUB_CLIENT_ID` is public by design.
