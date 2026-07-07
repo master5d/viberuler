@@ -26,6 +26,7 @@ export interface ScanContext {
   scanDirs: string[];
   since?: Date;
   githubHandle?: string;
+  authorEmail?: string; // test seam / override — real runs read `git config --get user.email`
 }
 
 export interface Collector {
