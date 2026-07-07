@@ -8,6 +8,6 @@ describe('package', () => {
       readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'),
     );
     expect(pkg.name).toBe('viberuler');
-    expect(pkg.bin.viberuler).toBe('./dist/cli.js');
+    expect(pkg.bin.viberuler).toBe('./dist/bin.js');
   });
 });
