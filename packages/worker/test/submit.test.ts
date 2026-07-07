@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import { env, exports } from 'cloudflare:workers';
 
 // NOTE (API drift from the task brief): the installed @cloudflare/vitest-pool-workers
@@ -22,7 +22,7 @@ function installGithubFetchStub() {
       if (!next) throw new Error('unexpected github fetch: no mock queued');
       return new Response(JSON.stringify(next.body), { status: next.status });
     }
-    return originalFetch(url, init);
+    throw new Error('unexpected outbound fetch: ' + href);
   }) as typeof fetch;
 }
 
@@ -48,6 +48,10 @@ function post(payload: unknown, token = 'tok_1') {
 
 beforeAll(() => {
   installGithubFetchStub();
+});
+
+afterAll(() => {
+  globalThis.fetch = originalFetch;
 });
 
 beforeEach(async () => {
