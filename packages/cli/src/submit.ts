@@ -90,7 +90,7 @@ export async function submitScore(
     });
     const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) return { ok: false, status: res.status, error: String(body.error ?? res.status) };
-    return { ok: true, status: res.status, ...body } as SubmitResult;
+    return { ...(body as Partial<SubmitResult>), ok: true, status: res.status } as SubmitResult;
   } catch (err) {
     return { ok: false, status: 0, error: err instanceof Error ? err.message : String(err) };
   }

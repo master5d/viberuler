@@ -45,7 +45,8 @@ function page(title: string, ogLogin: string | null, body: string, origin: strin
 }
 
 export async function handleShare(_req: Request, env: Env, url: URL): Promise<Response> {
-  const login = decodeURIComponent(url.pathname.slice('/u/'.length));
+  let login: string;
+  try { login = decodeURIComponent(url.pathname.slice('/u/'.length)); } catch { login = ''; }
   const row = await latestForLogin(env.DB, login);
   const headers = { 'content-type': 'text/html; charset=utf-8' };
 
@@ -57,14 +58,17 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
 
   const safe = escapeHtml(row.gh_login);
   const achievements = (JSON.parse(row.achievements) as string[]).join(' · ');
-  const rankLine = row.sus ? '<div class="rank">UNRANKED (under review)</div>'
-    : `<div class="rank">GLOBAL RANK #${row.rank}</div>`;
+  const scoreBlock = row.sus
+    ? `<div class="vibe">—</div><div class="rank">UNDER REVIEW</div>`
+    : `<div class="vibe">${fmtInt(row.vibe_score)}</div><div class="rank">GLOBAL RANK #${row.rank}</div>`;
   const body = `<div class="card"><h1>@${safe} on VIBERULER</h1>
-    <div class="vibe">${fmtInt(row.vibe_score)}</div>
-    ${rankLine}
-    ${row.tok_per_usd !== null ? `<div>${fmtInt(row.tok_per_usd)} tokens per dollar</div>` : ''}
+    ${scoreBlock}
+    ${!row.sus && row.tok_per_usd !== null ? `<div>${fmtInt(row.tok_per_usd)} tokens per dollar</div>` : ''}
     <div class="badges">${escapeHtml(achievements)}</div></div>`;
-  return new Response(page(`@${row.gh_login} — VIBE ${fmtInt(row.vibe_score)}`, row.gh_login, body, url.origin), {
+  const title = row.sus
+    ? `@${row.gh_login} — under review`
+    : `VIBE ${fmtInt(row.vibe_score)}`;
+  return new Response(page(title, row.gh_login, body, url.origin), {
     status: 200, headers,
   });
 }

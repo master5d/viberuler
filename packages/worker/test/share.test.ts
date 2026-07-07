@@ -32,6 +32,18 @@ describe('GET /u/:login', () => {
     expect(res.status).toBe(404);
     expect(await res.text()).toContain('npx viberuler');
   });
+
+  it('sus rows do not expose the inflated score on the share page', async () => {
+    const b = await upsertUser(env.DB, { gh_id: 2, gh_login: 'cheater', avatar_url: null, gh_created_at: null });
+    await insertScore(env.DB, b, {
+      vibe_score: 999999, loc: 1, projects: 1, tokens: 1000, cost_usd: 1,
+      tok_per_usd: 1000, achievements: [], breakdown: {}, client_version: '0.1.0',
+    }, true);
+    const res = await exports.default.fetch('https://viberuler.dev/u/cheater');
+    const html = await res.text();
+    expect(html).toContain('UNDER REVIEW');
+    expect(html).not.toContain('999,999');
+  });
 });
 
 describe('escapeHtml', () => {
