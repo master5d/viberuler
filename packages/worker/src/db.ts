@@ -26,10 +26,11 @@ export interface BoardRow {
   submitted_at: string;
 }
 
-// Latest score row per user (by max id), non-sus only.
+// Latest non-sus score row per user (falls back to the user's last clean score
+// even if a newer sus row exists).
 const LATEST = `
   SELECT s.* FROM scores s
-  WHERE s.sus = 0 AND s.id IN (SELECT MAX(id) FROM scores GROUP BY user_id)
+  WHERE s.sus = 0 AND s.id = (SELECT MAX(s2.id) FROM scores s2 WHERE s2.user_id = s.user_id AND s2.sus = 0)
 `;
 
 export async function upsertUser(db: D1Database, u: GhUser): Promise<number> {

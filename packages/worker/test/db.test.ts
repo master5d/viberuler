@@ -90,4 +90,15 @@ describe('scores', () => {
     expect(t.users).toBe(1);
     expect(t.tokens).toBe(5_000_000);
   });
+
+  it('a newer sus row does not hide the user\'s last clean score', async () => {
+    const a = await upsertUser(env.DB, U(1));
+    await insertScore(env.DB, a, S(3000), false);
+    await insertScore(env.DB, a, S(99999), true); // sus arrives later
+    const { rows, total } = await leaderboard(env.DB, 1);
+    expect(total).toBe(1);
+    expect(rows[0]!.vibe_score).toBe(3000);
+    const t = await totals(env.DB);
+    expect(t.users).toBe(1);
+  });
 });
