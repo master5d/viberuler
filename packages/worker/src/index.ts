@@ -2,6 +2,7 @@ import { handleSubmit } from './routes/submit.js';
 import { handleLeaderboard, handlePercentile } from './routes/leaderboard.js';
 import { handleShare } from './routes/share.js';
 import { handleBadge } from './routes/badge.js';
+import { handleOg } from './routes/og.js';
 
 export interface Env {
   DB: D1Database;
@@ -32,6 +33,7 @@ export default {
         return handleSubmit(request, env, url);
       }
       if (request.method === 'GET' && pathname.startsWith('/u/')) return handleShare(request, env, url);
+      if (request.method === 'GET' && pathname.startsWith('/og/')) return handleOg(request, env, url);
       return json({ error: 'not found' }, 404);
     } catch (err) {
       console.log(JSON.stringify({ level: 'error', msg: String(err), path: pathname }));

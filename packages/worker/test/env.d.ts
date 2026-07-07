@@ -5,3 +5,8 @@ declare namespace Cloudflare {
     TEST_MIGRATIONS: import('cloudflare:test').D1Migration[];
   }
 }
+
+declare module '*.ttf' {
+  const data: ArrayBuffer;
+  export default data;
+}
