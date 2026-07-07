@@ -1,0 +1,10 @@
+{
+  "name": "viberuler-monorepo",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "npm test -w viberuler",
+    "build": "npm run build -w viberuler",
+    "typecheck": "npm run typecheck -w viberuler"
+  }
+}
