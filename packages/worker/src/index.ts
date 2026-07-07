@@ -1,5 +1,7 @@
 import { handleSubmit } from './routes/submit.js';
 import { handleLeaderboard, handlePercentile } from './routes/leaderboard.js';
+import { handleShare } from './routes/share.js';
+import { handleBadge } from './routes/badge.js';
 
 export interface Env {
   DB: D1Database;
@@ -25,9 +27,11 @@ export default {
       }
       if (request.method === 'GET' && pathname === '/api/leaderboard') return handleLeaderboard(request, env, url);
       if (request.method === 'GET' && pathname === '/api/percentile') return handlePercentile(request, env, url);
+      if (request.method === 'GET' && pathname === '/api/stats-badge') return handleBadge(request, env);
       if (request.method === 'POST' && pathname === '/api/submit') {
         return handleSubmit(request, env, url);
       }
+      if (request.method === 'GET' && pathname.startsWith('/u/')) return handleShare(request, env, url);
       return json({ error: 'not found' }, 404);
     } catch (err) {
       console.log(JSON.stringify({ level: 'error', msg: String(err), path: pathname }));
