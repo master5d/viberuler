@@ -3,8 +3,8 @@
   "private": true,
   "workspaces": ["packages/*"],
   "scripts": {
-    "test": "npm test -w viberuler",
+    "test": "npm test -w viberuler && npm test -w viberuler-api",
     "build": "npm run build -w viberuler",
-    "typecheck": "npm run typecheck -w viberuler"
+    "typecheck": "npm run typecheck -w viberuler && npm run typecheck -w viberuler-api"
   }
 }

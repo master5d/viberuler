@@ -1,0 +1,17 @@
+{
+  "name": "viberuler-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "viberuler",
+      // placeholder — replaced by `wrangler d1 create viberuler` output at launch
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "vars": { "GITHUB_CLIENT_ID": "GITHUB_CLIENT_ID_PLACEHOLDER" },
+  "rules": [{ "type": "Data", "globs": ["**/*.ttf"], "fallthrough": true }]
+}
