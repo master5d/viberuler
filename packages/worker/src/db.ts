@@ -145,7 +145,9 @@ export async function previousScore(
   userId: number,
 ): Promise<{ tokens: number; submittedAt: string } | null> {
   const row = await db
-    .prepare(`SELECT tokens, submitted_at AS submittedAt FROM scores WHERE user_id = ? ORDER BY id DESC LIMIT 1`)
+    .prepare(
+      `SELECT tokens, strftime('%Y-%m-%dT%H:%M:%SZ', submitted_at) AS submittedAt FROM scores WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
+    )
     .bind(userId)
     .first<{ tokens: number; submittedAt: string }>();
   return row ?? null;

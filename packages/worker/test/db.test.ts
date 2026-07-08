@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { env } from 'cloudflare:workers';
 import {
   upsertUser, insertScore, submitsInLastHour, leaderboard,
-  latestForLogin, rankFor, percentileFor, totals,
+  latestForLogin, rankFor, percentileFor, totals, previousScore,
 } from '../src/db.js';
 
 const U = (n: number) => ({ gh_id: n, gh_login: `user${n}`, avatar_url: null, gh_created_at: null });
@@ -100,5 +100,16 @@ describe('scores', () => {
     expect(rows[0]!.vibe_score).toBe(3000);
     const t = await totals(env.DB);
     expect(t.users).toBe(1);
+  });
+
+  it('previousScore returns submittedAt as UTC ISO with Z (not skewed by local TZ)', async () => {
+    const a = await upsertUser(env.DB, U(1));
+    await insertScore(env.DB, a, S(1000), false);
+    const prev = await previousScore(env.DB, a);
+    expect(prev).not.toBeNull();
+    expect(prev!.submittedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    const parsed = Date.parse(prev!.submittedAt);
+    expect(Number.isFinite(parsed)).toBe(true);
+    expect(Math.abs(Date.now() - parsed)).toBeLessThan(5 * 60 * 1000);
   });
 });
