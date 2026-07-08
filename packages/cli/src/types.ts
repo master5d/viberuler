@@ -20,12 +20,15 @@ export interface RawStats {
   agents: string[];           // coding agents detected on this rig (display names)
   sources: string[];
   warnings: string[];
+  busiestDay: string | null;   // YYYY-MM-DD with the most commits (windowed)
+  busiestDayCount: number;
 }
 
 export interface ScanContext {
   home: string;
   scanDirs: string[];
   since?: Date;
+  until?: Date; // exclusive upper bound for time-windowed recaps (wrapped)
   githubHandle?: string;
   authorEmail?: string; // test seam / override — real runs read `git config --get user.email`
   env?: Record<string, string | undefined>; // test seam — real runs pass process.env

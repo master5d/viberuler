@@ -8,6 +8,7 @@ describe('emptyStats', () => {
     expect(s.tokens).toEqual({ input: 0, output: 0, cacheWrite: 0, cacheRead: 0 });
     expect(s.locByLang).toEqual({});
     expect(s.sources).toEqual([]);
+    expect(emptyStats().busiestDay).toBeNull();
   });
 });
 
@@ -53,5 +54,12 @@ describe('mergeStats', () => {
     const base = emptyStats();
     mergeStats(base, { projects: 5 });
     expect(base.projects).toBe(0);
+  });
+
+  it('keeps the busiest day with the higher commit count', () => {
+    const a = mergeStats(emptyStats(), { busiestDay: '2026-06-14', busiestDayCount: 40 });
+    const b = mergeStats(a, { busiestDay: '2026-06-20', busiestDayCount: 12 });
+    expect(b.busiestDay).toBe('2026-06-14');
+    expect(b.busiestDayCount).toBe(40);
   });
 });

@@ -70,3 +70,16 @@ describe('claudeCodeCollector', () => {
     expect(await claudeCodeCollector.detect({ home, scanDirs: [] })).toBe(false);
   });
 });
+
+describe('parseClaudeJsonl time window', () => {
+  const line = (ts: string, id: string) =>
+    JSON.stringify({ type: 'assistant', timestamp: ts, requestId: id,
+      message: { id, model: 'claude-sonnet-5', usage: { input_tokens: 100, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } });
+  const content = [line('2026-05-31T12:00:00Z', 'r0'), line('2026-06-15T12:00:00Z', 'r1'), line('2026-07-01T00:00:00Z', 'r2')].join('\n');
+  it('excludes records at/after `until` and before `since`', () => {
+    const since = new Date('2026-06-01T00:00:00Z');
+    const until = new Date('2026-07-01T00:00:00Z');
+    const r = parseClaudeJsonl(content, new Set(), since, until);
+    expect(r.tokens.input).toBe(100); // only r1 (June); r0 before since, r2 at until
+  });
+});

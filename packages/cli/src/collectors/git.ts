@@ -126,6 +126,7 @@ export const gitCollector: Collector = {
           '--pretty=format:%ad',
         ];
         if (ctx.since) logArgs.push(`--since=${ctx.since.toISOString()}`);
+        if (ctx.until) logArgs.push(`--until=${ctx.until.toISOString()}`);
         const { stdout } = await exec('git', logArgs, { maxBuffer: 64 * 1024 * 1024 });
         const { dates, lateNight } = parseGitLog(stdout);
         if (dates.length === 0) continue; // not our repo
@@ -153,9 +154,19 @@ export const gitCollector: Collector = {
       }
     }
 
+    let busiestDay: string | null = null;
+    let busiestDayCount = 0;
+    const dayCounts = new Map<string, number>();
+    for (const d of allDates) {
+      const n = (dayCounts.get(d) ?? 0) + 1;
+      dayCounts.set(d, n);
+      if (n > busiestDayCount) { busiestDayCount = n; busiestDay = d; }
+    }
+
     return {
       projects, commits, streakDays: longestStreak(allDates), lateNightCommits, historyRewrites,
       locTotal, locByLang, maxRepoLoc, sources: ['git'], warnings,
+      busiestDay, busiestDayCount,
     };
   },
 };

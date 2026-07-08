@@ -7,6 +7,7 @@ export function parseClaudeJsonl(
   content: string,
   seen: Set<string>,
   since?: Date,
+  until?: Date,
 ): { tokens: TokenUsage; costUsd: number; skipped: number } {
   const tokens: TokenUsage = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 };
   let costUsd = 0;
@@ -25,6 +26,7 @@ export function parseClaudeJsonl(
     const usage = obj?.message?.usage;
     if (obj?.type !== 'assistant' || !usage) continue;
     if (since && obj.timestamp && Date.parse(obj.timestamp) < since.getTime()) continue;
+    if (until && obj.timestamp && Date.parse(obj.timestamp) >= until.getTime()) continue;
 
     const key = `${obj.message.id ?? 'nomsg'}:${obj.requestId ?? 'noreq'}`;
     if (seen.has(key)) continue;
@@ -81,7 +83,7 @@ export const claudeCodeCollector: Collector = {
 
     for await (const file of walkJsonl(projectsDir(ctx))) {
       try {
-        const r = parseClaudeJsonl(await readFile(file, 'utf8'), seen, ctx.since);
+        const r = parseClaudeJsonl(await readFile(file, 'utf8'), seen, ctx.since, ctx.until);
         tokens.input += r.tokens.input;
         tokens.output += r.tokens.output;
         tokens.cacheWrite += r.tokens.cacheWrite;

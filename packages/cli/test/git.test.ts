@@ -87,4 +87,18 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
     expect(r.projects).toBe(0);
     expect(r.locTotal).toBe(0);
   });
+
+  it('reports the busiest day (date with the most commits)', async () => {
+    // the beforeAll repo has one commit on 2026-06-01; add two more that day
+    execFileSync('git', ['-C', repo, 'config', 'user.email', 'vibe@test.local']);
+    await writeFile(join(repo, 'b.ts'), 'export const b = 1;\n');
+    execFileSync('git', ['-C', repo, 'add', '-A']);
+    execFileSync('git', ['-C', repo, 'commit', '-m', 'b', '--date', '2026-06-01T13:00:00']);
+    await writeFile(join(repo, 'c.ts'), 'export const c = 1;\n');
+    execFileSync('git', ['-C', repo, 'add', '-A']);
+    execFileSync('git', ['-C', repo, 'commit', '-m', 'c', '--date', '2026-06-01T14:00:00']);
+    const r = await gitCollector.collect({ home: scanRoot, scanDirs: [scanRoot], authorEmail: 'vibe@test.local' });
+    expect(r.busiestDay).toBe('2026-06-01');
+    expect(r.busiestDayCount).toBeGreaterThanOrEqual(3);
+  });
 });

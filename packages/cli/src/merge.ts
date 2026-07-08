@@ -6,6 +6,7 @@ export function emptyStats(): RawStats {
     locTotal: 0, locByLang: {}, maxRepoLoc: 0,
     tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
     costUsd: 0, ghStars: 0, agents: [], sources: [], warnings: [],
+    busiestDay: null, busiestDayCount: 0,
   };
 }
 
@@ -39,5 +40,7 @@ export function mergeStats(base: RawStats, add: Partial<RawStats>): RawStats {
     agents: [...new Set([...base.agents, ...(add.agents ?? [])])],
     sources: [...base.sources, ...(add.sources ?? [])],
     warnings: [...base.warnings, ...(add.warnings ?? [])],
+    busiestDay: (add.busiestDayCount ?? 0) > base.busiestDayCount ? (add.busiestDay ?? null) : base.busiestDay,
+    busiestDayCount: Math.max(base.busiestDayCount, add.busiestDayCount ?? 0),
   };
 }
