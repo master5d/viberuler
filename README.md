@@ -71,7 +71,7 @@ Full formula, price table, normalization and honest disclaimers in [METHODOLOGY.
 ```
 VIBE = 1000·log₁₀(1 + LoC/1000)          # shipping volume
      +  500·log₁₀(1 + tokens/1M)         # AI leverage
-     +  800·efficiency_percentile         # tokens/$ vs the world
+     +  800·efficiency_percentile        # tokens/$ vs the world
      +  300·log₁₀(1 + projects·10)       # breadth
      +  min(streak, 365) + 50·achievements
 ```
