@@ -7,10 +7,16 @@
   "bin": { "viberuler": "./dist/bin.js" },
   "files": ["dist"],
   "engines": { "node": ">=18.17" },
+  "repository": { "type": "git", "url": "git+https://github.com/master5d/viberuler.git" },
+  "homepage": "https://viberuler.dev",
+  "bugs": "https://github.com/master5d/viberuler/issues",
+  "author": "Sasha Mamaev (https://github.com/master5d)",
+  "keywords": ["cli", "benchmark", "ai", "claude", "codex", "vibe-coding", "leaderboard", "tokens", "developer-tools"],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "picocolors": "^1.1.0"

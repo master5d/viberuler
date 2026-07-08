@@ -18,9 +18,12 @@ jobs:
           node-version: 20
       - run: git config --global user.email ci@viberuler.test && git config --global user.name CI
         shell: bash
-      - run: npm install
+      - run: npm ci
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
       - run: npm run check -w viberuler-api
+      - run: npx wrangler types && git diff --exit-code worker-configuration.d.ts
+        working-directory: packages/worker
+        if: runner.os == 'Linux'
       - run: node packages/cli/dist/bin.js --no-color --scan-dir .

@@ -32,4 +32,22 @@ describe('githubCollector', () => {
     expect(r.ghStars).toBeUndefined();
     expect(r.warnings?.[0]).toContain('github');
   });
+
+  it('follows Link rel=next pagination and sums stars across pages', async () => {
+    const calls: string[] = [];
+    githubCollector.fetchImpl = (async (url: RequestInfo | URL) => {
+      const u = String(url);
+      calls.push(u);
+      if (!u.includes('page=2')) {
+        return new Response(JSON.stringify([{ stargazers_count: 10 }]), {
+          status: 200,
+          headers: { link: '<https://api.github.com/users/master5d/repos?per_page=100&type=owner&page=2>; rel="next"' },
+        });
+      }
+      return new Response(JSON.stringify([{ stargazers_count: 32 }]), { status: 200 });
+    }) as typeof fetch;
+    const r = await githubCollector.collect({ home: '/x', scanDirs: [], githubHandle: 'master5d' });
+    expect(r.ghStars).toBe(42);
+    expect(calls.length).toBe(2);
+  });
 });
