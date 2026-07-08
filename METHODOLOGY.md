@@ -18,7 +18,7 @@ Everything is read **locally**. The scanner never uploads raw data (see [PRIVACY
 | **LiteLLM gateway** (opt-in) | Spend logs of your self-hosted gateway — tokens your *self-built* agents burned | Activates only when you set `LITELLM_SPEND_DB` (SQLite path, needs Node 22.5+) or `LITELLM_BASE_URL` + `LITELLM_API_KEY` (`GET /spend/logs`). Cost: logged `spend` when present, else the price table below for known model prefixes, else **$0 with a printed warning** — free-tier tokens are honestly free, and yes, that inflates your tok/$. Source: [`packages/cli/src/collectors/litellm.ts`](packages/cli/src/collectors/litellm.ts) |
 | **Agents roster** | Marker dirs/files in your home (`.claude/projects`, `.codex/sessions`, `.cursor`, `.gemini/antigravity-cli`, …) | Pure local `stat` probes → the `🤖 N agents in the stable` card line. Display-only: the roster is **never** part of the submit payload. Source: [`packages/cli/src/collectors/agents.ts`](packages/cli/src/collectors/agents.ts) |
 
-Collectors are plugins behind a 2-method interface (`detect` / `collect`). Cursor, Gemini CLI, Windsurf, Aider: PRs welcome — see the README roadmap.
+Collectors are plugins behind a 2-method interface (`detect` / `collect`). Windsurf, Aider: PRs welcome — see the README roadmap.
 
 ## 2. Cost model
 
@@ -120,4 +120,4 @@ We catch the blatant — client-side and now server-side, cross-checked against 
 - LoC counts tracked text files by extension — generated code that you commit counts (we can't tell your `dist/` from your poetry; `.gitignore` it like an adult).
 - Offline percentile is a curve fit, not the real distribution — submit to get the real one.
 - Repos nested *inside* another git repo are not scanned (the walker stops at the first `.git` it meets). If your projects live under one umbrella repo, pass `--scan-dir` pointing below it (e.g. `--scan-dir ~/lab/projects`). Tracked as [#6](https://github.com/master5d/viberuler/issues/6).
-- Cursor figures are an **estimated lower bound** — only per-conversation input tokens are stored locally (`state.vscdb`); output and server-side cache tokens are not, so a Cursor-heavy user is undercounted. This is deliberate: the collector never inflates tokens-per-dollar.
+- Cursor figures are an **estimated lower bound** — only per-conversation input tokens are stored locally (`state.vscdb`); output and server-side cache tokens are not, so a Cursor-heavy user is undercounted. The collector invents nothing (it counts only real input tokens, priced at a conservative sonnet-tier rate ≈ 333K tok/$); it can't fabricate cheap tokens. One honest nuance: since Cursor's counted ratio is ~333K tok/$, mixing it into your aggregate nudges tok/$ *toward* that value — so if your other tools already run leaner than ~333K tok/$, adding Cursor slightly lowers your displayed efficiency, and if they run richer, it slightly raises it. Either way it's a conservative real number, never a fabricated one.
