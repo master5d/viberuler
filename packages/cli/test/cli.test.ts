@@ -92,4 +92,16 @@ describe('main', () => {
     const { code } = await run(['--bogus']);
     expect(code).toBe(1);
   });
+
+  it('wrapped renders a monthly recap card', async () => {
+    const { code, lines } = await run(['wrapped', '--month', '2026-06', '--no-color']);
+    expect(code).toBe(0);
+    expect(lines.join('\n')).toContain('VIBE WRAPPED');
+    expect(lines.join('\n')).toContain('2026-06');
+  });
+
+  it('wrapped rejects a malformed month', async () => {
+    const { code } = await run(['wrapped', '--month', 'June', '--no-color']);
+    expect(code).toBe(1);
+  });
 });

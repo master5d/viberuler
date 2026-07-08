@@ -16,6 +16,7 @@ import { gitCollector } from './collectors/git.js';
 import { githubCollector } from './collectors/github.js';
 import { computeScore } from './score.js';
 import { renderCard } from './render.js';
+import { renderWrapped } from './wrapped.js';
 import { buildPayload } from './payload.js';
 import { DEFAULT_API, DEFAULT_CLIENT_ID, githubDeviceFlow, fetchPercentile, submitScore, shareLinks } from './submit.js';
 
@@ -28,10 +29,12 @@ Usage: viberuler [payload] [options]
 Commands:
   (default)            scan + render your scorecard (100% local)
   payload              print the exact JSON that --submit WOULD send (nothing is sent)
+  wrapped              monthly recap card — needs --month YYYY-MM (Claude Code + git)
 
 Options:
   --scan-dir <path>    git scan root, repeatable        (default: your home dir)
   --since <date>       only count activity since YYYY-MM-DD
+  --month <YYYY-MM>    the month for \`wrapped\`
   --github <handle>    also pull public GitHub stars    (the only network call)
   --json               machine-readable full report
   --no-color           plain output
@@ -49,9 +52,13 @@ function version(): string {
   return pkg.version as string;
 }
 
-export async function collectAll(ctx: ScanContext, warn: (s: string) => void): Promise<RawStats> {
+export async function collectAll(
+  ctx: ScanContext,
+  warn: (s: string) => void,
+  collectors: Collector[] = COLLECTORS,
+): Promise<RawStats> {
   let stats = emptyStats();
-  for (const collector of COLLECTORS) {
+  for (const collector of collectors) {
     try {
       if (!(await collector.detect(ctx))) continue;
       stats = mergeStats(stats, await collector.collect(ctx));
@@ -75,6 +82,7 @@ export async function main(
       options: {
         'scan-dir': { type: 'string', multiple: true },
         since: { type: 'string' },
+        month: { type: 'string' },
         github: { type: 'string' },
         json: { type: 'boolean' },
         'no-color': { type: 'boolean' },
@@ -94,7 +102,7 @@ export async function main(
   if (values.help) { out(USAGE); return 0; }
 
   const command = positionals[0] ?? 'card';
-  if (command !== 'card' && command !== 'payload') {
+  if (command !== 'card' && command !== 'payload' && command !== 'wrapped') {
     process.stderr.write(`Unknown command: ${command}\n${USAGE}`);
     return 1;
   }
@@ -105,6 +113,34 @@ export async function main(
     process.stderr.write('Invalid --since date, expected YYYY-MM-DD\n');
     return 1;
   }
+
+  if (command === 'wrapped') {
+    const month = values.month;
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      process.stderr.write('wrapped requires --month YYYY-MM\n');
+      return 1;
+    }
+    const monthStart = new Date(`${month}-01T00:00:00Z`);
+    if (Number.isNaN(monthStart.getTime())) {
+      process.stderr.write('invalid --month, expected YYYY-MM\n');
+      return 1;
+    }
+    const nextMonth = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1));
+    const wctx: ScanContext = {
+      home,
+      scanDirs: values['scan-dir'] ?? [home],
+      since: monthStart,
+      until: nextMonth,
+      authorEmail: process.env.VIBERULER_AUTHOR_EMAIL,
+      env: process.env,
+    };
+    const wstats = await collectAll(wctx, (s) => process.stderr.write(s + '\n'), [claudeCodeCollector, gitCollector]);
+    for (const w of wstats.warnings) process.stderr.write(`[viberuler] ${w}\n`);
+    const colors = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && !values['no-color'];
+    out(renderWrapped(computeScore(wstats), month, { colors, version: version() }));
+    return 0;
+  }
+
   const ctx: ScanContext = {
     home,
     scanDirs: values['scan-dir'] ?? [home],
