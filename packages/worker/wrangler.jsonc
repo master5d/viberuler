@@ -9,9 +9,10 @@
       "binding": "DB",
       "database_name": "viberuler",
       // placeholder — replaced by `wrangler d1 create viberuler` output at launch
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "e48b8ccf-1e7d-40a0-8309-b7b428e9513d"
     }
   ],
+  "routes": [{ "pattern": "viberuler.dev", "custom_domain": true }],
   "vars": { "GITHUB_CLIENT_ID": "GITHUB_CLIENT_ID_PLACEHOLDER" },
   "rules": [{ "type": "Data", "globs": ["**/*.ttf"], "fallthrough": true }]
 }
