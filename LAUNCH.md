@@ -1,8 +1,8 @@
 # LAUNCH.md — day-zero runbook
 
 > **Status (2026-07-08): LAUNCHED.**
-> ✅ 0 preflight · ✅ 1 repo public · ✅ 2 D1+deploy · ✅ 3 viberuler.dev · ✅ 4 OAuth App (device flow verified in prod) · ✅ 5 `viberuler@0.1.0` on npm · ✅ 6 board seeded (`/u/master5d`, VIBE 6,065) · ⚪ 7 demo.gif (tape ready, needs vhs) · ✅ 8 six issues up · ⚪ 9 Show HN / X posts (drafts in `docs/launch/`) · 🔄 10 watch mode.
-> Field notes: seed with `--scan-dir` pointing BELOW an umbrella git repo (nested repos aren't scanned — [#6](https://github.com/master5d/viberuler/issues/6)); npm publish with passkey-2FA needs a real TTY (browser flow); satori root div needs explicit px dims (fixed).
+> ✅ 0 preflight · ✅ 1 repo public · ✅ 2 D1+deploy · ✅ 3 viberuler.dev · ✅ 4 OAuth App (device flow verified in prod) · ✅ 5 `viberuler@0.1.0` on npm · ✅ 6 board seeded (`/u/master5d`, VIBE 6,065) · ✅ 7 demo.gif (recorded 2026-07-08, in README) · ✅ 8 six issues up · ⚪ 9 Show HN / X posts (drafts in `docs/launch/`) · 🔄 10 watch mode.
+> Field notes: seed with `--scan-dir` pointing BELOW an umbrella git repo (nested repos aren't scanned — [#6](https://github.com/master5d/viberuler/issues/6)); npm publish with passkey-2FA needs a real TTY (browser flow); satori root div needs explicit px dims (fixed); vhs recording: headless macOS-over-SSH fails (`could not open ttyd: EOF`) — record in WSL/Linux as a NON-root user with a pre-warmed npx cache, and point `VIBERULER_HOME` at a staged demo home (`--author` match is case-sensitive: `git log --author=` vs UPPERCASE commit emails).
 
 Every step below is a **user-gated, outward-facing action**. Run them in order; each has a verify. Nothing in this file is automated by CI.
 

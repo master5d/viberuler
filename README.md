@@ -35,6 +35,10 @@ Then it prints a scorecard you'll screenshot before you can stop yourself.
 
 **`tokens per dollar` is the headline stat.** Anyone can burn tokens. Burning them *efficiently* is the game.
 
+<p align="center">
+  <img src="assets/demo.gif" width="760" alt="viberuler in action: scorecard, transparent payload, GitHub device-flow submit">
+</p>
+
 ## The ranks
 
 `Prompt Peasant` → `Vibe Apprentice` → `Token Burner` → `Context Goblin` → `Ship Machine` → `GIGACHAD SHIPPER` → `Singularity Adjacent`
