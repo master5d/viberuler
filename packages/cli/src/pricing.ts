@@ -27,6 +27,8 @@ export const PRICES: Record<string, ModelPrice> = {
   'claude-haiku':  { input: 1,    output: 5,  cacheWrite: 1.25,  cacheRead: 0.1 },
   'claude-fable':  { input: 15,   output: 75, cacheWrite: 18.75, cacheRead: 1.5 },
   'codex-default': { input: 1.25, output: 10, cacheWrite: 1.25,  cacheRead: 0.125 },
+  'gemini-2.5-pro': { input: 1.25, output: 10, cacheWrite: 1.25, cacheRead: 0.31 },
+  'gemini':         { input: 0.3,  output: 2.5, cacheWrite: 0.3, cacheRead: 0.075 },
 };
 
 const FALLBACK = PRICES['claude-sonnet']!;

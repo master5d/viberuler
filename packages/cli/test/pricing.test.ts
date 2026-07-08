@@ -46,6 +46,18 @@ describe('costForUsage cache-write tiers', () => {
   });
 });
 
+describe('gemini pricing', () => {
+  it('prices the flash/default tier via the generic gemini prefix', () => {
+    // gemini-3-flash-preview → 'gemini' row: in 0.30, out 2.50, cacheRead 0.075
+    const u = { input: 1000, output: 150, cacheWrite: 0, cacheRead: 500 };
+    expect(costForUsage('gemini-3-flash-preview', u)).toBeCloseTo((1000 * 0.3 + 150 * 2.5 + 500 * 0.075) / 1e6, 12);
+  });
+  it('prices gemini-2.5-pro via the longer, more specific prefix', () => {
+    const u = { input: 2000, output: 200, cacheWrite: 0, cacheRead: 0 };
+    expect(costForUsage('gemini-2.5-pro', u)).toBeCloseTo((2000 * 1.25 + 200 * 10) / 1e6, 12);
+  });
+});
+
 describe('PRICES_SNAPSHOT_DATE', () => {
   it('is a YYYY-MM-DD date string', () => {
     expect(PRICES_SNAPSHOT_DATE).toMatch(/^\d{4}-\d{2}-\d{2}$/);
