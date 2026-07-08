@@ -87,4 +87,38 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
     expect(r.projects).toBe(0);
     expect(r.locTotal).toBe(0);
   });
+
+  it('finds repos nested inside a parent repo (monorepo-of-repos layout)', async () => {
+    const nestedRoot = await mkdtemp(join(tmpdir(), 'vibe-git-nested-'));
+    const parent = join(nestedRoot, 'parent');
+    const child = join(parent, 'projects', 'child');
+    await mkdir(child, { recursive: true });
+
+    const initRepo = (dir: string) => {
+      const g = (...args: string[]) => execFileSync('git', ['-C', dir, ...args]);
+      g('init');
+      g('config', 'user.name', 'Vibe Tester');
+      g('config', 'user.email', 'vibe@test.local');
+      return g;
+    };
+
+    const gParent = initRepo(parent);
+    await writeFile(join(parent, 'parent.ts'), 'export const p = 1;\n');
+    gParent('add', 'parent.ts');
+    gParent('commit', '-m', 'parent init', '--date', '2026-06-01T12:00:00');
+
+    const gChild = initRepo(child);
+    await writeFile(join(child, 'child.ts'), 'export const c = 1;\n');
+    gChild('add', 'child.ts');
+    gChild('commit', '-m', 'child init', '--date', '2026-06-02T12:00:00');
+
+    const r = await gitCollector.collect({
+      home: nestedRoot,
+      scanDirs: [nestedRoot],
+      authorEmail: 'vibe@test.local',
+    });
+    // Both the parent repo and the nested child repo must be counted.
+    expect(r.projects).toBe(2);
+    expect(r.commits).toBe(2);
+  });
 });
