@@ -49,7 +49,10 @@ async function findRepos(root: string, depth = 0, acc: string[] = []): Promise<s
   }
   if (entries.some((e) => e.name === '.git' && e.isDirectory())) {
     acc.push(root);
-    return acc; // repo found — do not descend further
+    // Keep descending: projects can live nested inside a parent repo
+    // (monorepo-of-repos layout). The loop below already skips dot-dirs
+    // (including this repo's own .git) and SKIP_DIRS noise, so this only
+    // finds genuinely nested repos, not the current repo's internals.
   }
   for (const e of entries) {
     if (!e.isDirectory()) continue;
