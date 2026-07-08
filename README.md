@@ -106,7 +106,7 @@ Fable 5 · ⚡3982 Context Goblin · 481.5K tok/$
 
 - [x] Claude Code collector (tokens, cost, cache-hit dedup)
 - [x] Codex collector
-- [ ] Cursor collector — `good first issue`
+- [x] Cursor collector (input-side lower bound, estimated)
 - [x] Gemini CLI collector
 - [x] Cline / Roo Code / KiloCode collectors (one parser, three forks)
 - [ ] Windsurf / Aider collectors — `good first issue`
