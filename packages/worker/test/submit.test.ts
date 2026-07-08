@@ -29,7 +29,7 @@ function installGithubFetchStub() {
 const VALID = {
   client_version: '0.1.0', vibe_score: 3101, loc: 312441, projects: 47,
   tokens: 1_200_000_000, cost_usd: 184.2, tok_per_usd: 6_500_000,
-  achievements: ['token-billionaire'], breakdown: { volume: 1000 },
+  achievements: ['token-billionaire'], breakdown: { volume: 1000, leverage: 1500, efficiency: 400, breadth: 201 },
 };
 
 const GH_USER = { id: 42, login: 'master5d', avatar_url: 'https://a.png', created_at: '2020-01-01T00:00:00Z' };
@@ -112,5 +112,24 @@ describe('POST /api/submit', () => {
     }
     mockGithub();
     expect((await post(VALID)).status).toBe(429);
+  });
+
+  it('server-side plausibility flags an inconsistent breakdown as sus with a reason', async () => {
+    mockGithub();
+    const res = await post({ ...VALID, vibe_score: 9000, breakdown: { volume: 1, leverage: 1 } });
+    const body = (await res.json()) as any;
+    expect(res.status).toBe(200);
+    expect(body.sus).toBe(true);
+    const row = await env.DB.prepare('SELECT sus_reason FROM scores ORDER BY id DESC LIMIT 1')
+      .first<{ sus_reason: string }>();
+    expect(row?.sus_reason).toBe('inconsistent-breakdown');
+  });
+
+  it('stores tok_per_loc from a 0.3 payload', async () => {
+    mockGithub();
+    await post({ ...VALID, tok_per_loc: 8400 });
+    const row = await env.DB.prepare('SELECT tok_per_loc FROM scores ORDER BY id DESC LIMIT 1')
+      .first<{ tok_per_loc: number }>();
+    expect(row?.tok_per_loc).toBe(8400);
   });
 });

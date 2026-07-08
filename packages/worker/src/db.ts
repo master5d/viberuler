@@ -139,3 +139,29 @@ export async function totals(db: D1Database): Promise<{ users: number; tokens: n
     .first<{ users: number; tokens: number }>();
   return { users: row?.users ?? 0, tokens: row?.tokens ?? 0 };
 }
+
+export async function previousScore(
+  db: D1Database,
+  userId: number,
+): Promise<{ tokens: number; submittedAt: string } | null> {
+  const row = await db
+    .prepare(`SELECT tokens, submitted_at AS submittedAt FROM scores WHERE user_id = ? ORDER BY id DESC LIMIT 1`)
+    .bind(userId)
+    .first<{ tokens: number; submittedAt: string }>();
+  return row ?? null;
+}
+
+export async function susRows(
+  db: D1Database,
+  limit = 50,
+): Promise<Array<{ gh_login: string; sus_reason: string | null; vibe_score: number; submitted_at: string }>> {
+  const { results } = await db
+    .prepare(
+      `SELECT u.gh_login, s.sus_reason, s.vibe_score, s.submitted_at
+       FROM scores s JOIN users u ON u.id = s.user_id
+       WHERE s.sus = 1 ORDER BY s.id DESC LIMIT ?`,
+    )
+    .bind(limit)
+    .all<{ gh_login: string; sus_reason: string | null; vibe_score: number; submitted_at: string }>();
+  return results;
+}
