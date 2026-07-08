@@ -9,7 +9,7 @@ beforeEach(async () => {
   const a = await upsertUser(env.DB, { gh_id: 1, gh_login: 'master5d', avatar_url: null, gh_created_at: null });
   await insertScore(env.DB, a, {
     vibe_score: 3101, loc: 312441, projects: 47, tokens: 1_200_000_000, cost_usd: 184.2,
-    tok_per_usd: 6_500_000, achievements: ['token-billionaire'], breakdown: {}, client_version: '0.1.0',
+    tok_per_usd: 6_500_000, tok_per_loc: 8400, achievements: ['token-billionaire'], breakdown: {}, client_version: '0.1.0',
   }, false);
 });
 
@@ -43,6 +43,13 @@ describe('GET /u/:login', () => {
     const html = await res.text();
     expect(html).toContain('UNDER REVIEW');
     expect(html).not.toContain('999,999');
+  });
+
+  it('shows tok/line shipped for a clean row', async () => {
+    const res = await exports.default.fetch('https://viberuler.dev/u/master5d');
+    const html = await res.text();
+    expect(html).toContain('8,400');
+    expect(html).toContain('per line');
   });
 });
 

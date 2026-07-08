@@ -29,6 +29,9 @@ export async function handleOg(_req: Request, env: Env, url: URL): Promise<Respo
       ${!row.sus && row.tok_per_usd !== null
         ? `<div style="display:flex;font-size:30px;color:#ffd54f;margin-top:16px">${fmtInt(row.tok_per_usd)} tokens per dollar</div>`
         : ''}
+      ${!row.sus && row.tok_per_loc !== null
+        ? `<div style="display:flex;font-size:26px;color:#8c9eff;margin-top:8px">${fmtInt(row.tok_per_loc)} tokens / line shipped</div>`
+        : ''}
       <div style="display:flex;font-size:26px;color:#666;margin-top:30px">npx viberuler</div>
     </div>`;
 

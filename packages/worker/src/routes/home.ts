@@ -71,6 +71,7 @@ export async function handleHome(_req: Request, env: Env, url: URL): Promise<Res
       <code onclick="navigator.clipboard.writeText('npx viberuler')">npx viberuler</code>
       <div class="hint">click to copy — 100% local scan, nothing leaves your machine unless you --submit</div>
       <div class="totals">${fmtInt(t.users)} coder${t.users === 1 ? '' : 's'} on the board · ${fmtCompact(t.tokens)} tokens benchmarked</div>
+      <div class="sub" style="margin-top:8px">Every entry is GitHub-verified — submits go through GitHub device-flow OAuth.</div>
     </div>
     ${board}
     <div class="links">

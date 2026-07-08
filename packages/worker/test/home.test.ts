@@ -71,4 +71,10 @@ describe('GET /', () => {
     expect(res.status).toBe(200);
     expect(await res.text()).toContain('VIBERULER');
   });
+
+  it('states that every entry is GitHub-verified', async () => {
+    await seed('master5d', 1, 6065);
+    const html = await (await exports.default.fetch('https://viberuler.dev/')).text();
+    expect(html).toMatch(/GitHub-verified/i);
+  });
 });

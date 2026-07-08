@@ -23,6 +23,7 @@ export interface BoardRow {
   avatar_url: string | null;
   vibe_score: number;
   tok_per_usd: number | null;
+  tok_per_loc: number | null;
   achievements: string;
   submitted_at: string;
 }
@@ -82,7 +83,7 @@ export async function leaderboard(
   const offset = (Math.max(1, page) - 1) * perPage;
   const { results } = await db
     .prepare(
-      `SELECT u.gh_login, u.avatar_url, s.vibe_score, s.tok_per_usd, s.achievements, s.submitted_at
+      `SELECT u.gh_login, u.avatar_url, s.vibe_score, s.tok_per_usd, s.tok_per_loc, s.achievements, s.submitted_at
        FROM (${LATEST}) s JOIN users u ON u.id = s.user_id
        ORDER BY s.vibe_score DESC LIMIT ? OFFSET ?`,
     )
@@ -106,7 +107,7 @@ export async function latestForLogin(
 ): Promise<(BoardRow & { rank: number; sus: number }) | null> {
   const row = await db
     .prepare(
-      `SELECT u.gh_login, u.avatar_url, s.vibe_score, s.tok_per_usd, s.achievements, s.submitted_at, s.sus
+      `SELECT u.gh_login, u.avatar_url, s.vibe_score, s.tok_per_usd, s.tok_per_loc, s.achievements, s.submitted_at, s.sus
        FROM scores s JOIN users u ON u.id = s.user_id
        WHERE u.gh_login = ? AND s.id = (SELECT MAX(id) FROM scores WHERE user_id = u.id)`,
     )

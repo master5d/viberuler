@@ -65,6 +65,7 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
   const body = `<div class="card"><h1>@${safe} on VIBERULER</h1>
     ${scoreBlock}
     ${!row.sus && row.tok_per_usd !== null ? `<div>${fmtInt(row.tok_per_usd)} tokens per dollar</div>` : ''}
+    ${!row.sus && row.tok_per_loc !== null ? `<div>${fmtInt(row.tok_per_loc)} tokens per line shipped</div>` : ''}
     <div class="badges">${escapeHtml(achievements)}</div></div>`;
   const title = row.sus
     ? `@${row.gh_login} — under review`
