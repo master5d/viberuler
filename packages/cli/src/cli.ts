@@ -9,6 +9,7 @@ import { claudeCodeCollector } from './collectors/claude-code.js';
 import { codexCollector } from './collectors/codex.js';
 import { clineCollector } from './collectors/cline.js';
 import { geminiCollector } from './collectors/gemini.js';
+import { cursorCollector } from './collectors/cursor.js';
 import { litellmCollector } from './collectors/litellm.js';
 import { agentsCollector } from './collectors/agents.js';
 import { gitCollector } from './collectors/git.js';
@@ -18,7 +19,7 @@ import { renderCard } from './render.js';
 import { buildPayload } from './payload.js';
 import { DEFAULT_API, DEFAULT_CLIENT_ID, githubDeviceFlow, fetchPercentile, submitScore, shareLinks } from './submit.js';
 
-const COLLECTORS: Collector[] = [claudeCodeCollector, codexCollector, clineCollector, geminiCollector, litellmCollector, agentsCollector, gitCollector, githubCollector];
+const COLLECTORS: Collector[] = [claudeCodeCollector, codexCollector, clineCollector, geminiCollector, cursorCollector, litellmCollector, agentsCollector, gitCollector, githubCollector];
 
 const USAGE = `viberuler — the benchmark for vibe coders
 
