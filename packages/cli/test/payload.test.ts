@@ -28,7 +28,7 @@ describe('buildPayload', () => {
     const p = buildPayload(computeScore(stats), '0.1.0');
     expect(Object.keys(p).sort()).toEqual([
       'achievements', 'breakdown', 'client_version', 'cost_usd',
-      'loc', 'projects', 'tok_per_usd', 'tokens', 'vibe_score',
+      'loc', 'projects', 'tok_per_loc', 'tok_per_usd', 'tokens', 'vibe_score',
     ]);
     // no locByLang, no paths, no repo names anywhere in the JSON
     const json = JSON.stringify(p);
@@ -40,5 +40,19 @@ describe('buildPayload', () => {
   it('serializes null tok_per_usd for zero-cost stats', () => {
     const p = buildPayload(computeScore({ ...emptyStats(), commits: 1, sources: ['git'] }), '0.1.0');
     expect(p.tok_per_usd).toBeNull();
+  });
+
+  it('includes tok_per_loc (rounded, null-safe) as the tenth field', () => {
+    const stats = { ...emptyStats(), locTotal: 1000, commits: 1, sources: ['git'],
+      tokens: { input: 2_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 4 };
+    const p = buildPayload(computeScore(stats), '0.3.0');
+    expect(p.tok_per_loc).toBe(2000); // 2,000,000 / 1000
+    expect(Object.keys(p)).toHaveLength(10);
+  });
+
+  it('sends tok_per_loc: null when there is no LoC', () => {
+    const stats = { ...emptyStats(), locTotal: 0, commits: 1, sources: ['git'],
+      tokens: { input: 2_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 4 };
+    expect(buildPayload(computeScore(stats), '0.3.0').tok_per_loc).toBeNull();
   });
 });

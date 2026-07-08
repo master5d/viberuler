@@ -14,6 +14,7 @@ export const submitPayloadSchema = z
     tokens: z.number().int().nonnegative(),
     cost_usd: z.number().nonnegative(),
     tok_per_usd: z.number().nonnegative().nullable(),
+    tok_per_loc: z.number().nonnegative().nullable().optional(),
     achievements: z.array(z.string().max(40)).max(32),
     breakdown: z.record(z.string().max(40), z.number()),
   })

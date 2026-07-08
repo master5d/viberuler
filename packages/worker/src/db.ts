@@ -12,6 +12,7 @@ export interface ScoreInput {
   tokens: number;
   cost_usd: number;
   tok_per_usd: number | null;
+  tok_per_loc?: number | null;
   achievements: string[];
   breakdown: Record<string, number>;
   client_version: string;
@@ -46,15 +47,21 @@ export async function upsertUser(db: D1Database, u: GhUser): Promise<number> {
   return row.id;
 }
 
-export async function insertScore(db: D1Database, userId: number, s: ScoreInput, sus: boolean): Promise<void> {
+export async function insertScore(
+  db: D1Database,
+  userId: number,
+  s: ScoreInput,
+  sus: boolean,
+  reason: string | null = null,
+): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO scores (user_id, vibe_score, loc, projects, tokens, cost_usd, tok_per_usd, achievements, breakdown, sus, client_version)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO scores (user_id, vibe_score, loc, projects, tokens, cost_usd, tok_per_usd, tok_per_loc, achievements, breakdown, sus, sus_reason, client_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
-      userId, s.vibe_score, s.loc, s.projects, s.tokens, s.cost_usd, s.tok_per_usd,
-      JSON.stringify(s.achievements), JSON.stringify(s.breakdown), sus ? 1 : 0, s.client_version,
+      userId, s.vibe_score, s.loc, s.projects, s.tokens, s.cost_usd, s.tok_per_usd, s.tok_per_loc ?? null,
+      JSON.stringify(s.achievements), JSON.stringify(s.breakdown), sus ? 1 : 0, reason, s.client_version,
     )
     .run();
 }

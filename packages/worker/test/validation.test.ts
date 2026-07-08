@@ -27,6 +27,18 @@ describe('submitPayloadSchema', () => {
     expect(() => submitPayloadSchema.parse({ ...VALID, loc: -1 })).toThrow();
     expect(() => submitPayloadSchema.parse({ ...VALID, achievements: [1] })).toThrow();
   });
+
+  it('accepts a 0.3 payload carrying tok_per_loc', () => {
+    expect(submitPayloadSchema.parse({ ...VALID, tok_per_loc: 8400 }).tok_per_loc).toBe(8400);
+  });
+  it('accepts a 0.2 payload with tok_per_loc absent (backwards compat)', () => {
+    const parsed = submitPayloadSchema.parse(VALID); // VALID has no tok_per_loc
+    expect(parsed.tok_per_loc).toBeUndefined();
+  });
+  it('accepts null tok_per_loc and rejects a negative one', () => {
+    expect(submitPayloadSchema.parse({ ...VALID, tok_per_loc: null }).tok_per_loc).toBeNull();
+    expect(() => submitPayloadSchema.parse({ ...VALID, tok_per_loc: -1 })).toThrow();
+  });
 });
 
 describe('susReason', () => {
