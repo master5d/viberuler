@@ -19,6 +19,10 @@ const LANG_BY_EXT: Record<string, string> = {
   '.html': 'HTML', '.css': 'CSS', '.scss': 'CSS', '.sql': 'SQL', '.vue': 'Vue', '.svelte': 'Svelte',
 };
 
+function escapeGitAuthorPattern(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function classifyExt(filePath: string): string | null {
   return LANG_BY_EXT[extname(filePath).toLowerCase()] ?? null;
 }
@@ -112,7 +116,15 @@ export const gitCollector: Collector = {
 
     for (const repo of repos) {
       try {
-        const logArgs = ['-C', repo, 'log', `--author=${email}`, '--date=format:%Y-%m-%d %H', '--pretty=format:%ad'];
+        const logArgs = [
+          '-C',
+          repo,
+          'log',
+          '--regexp-ignore-case',
+          `--author=${escapeGitAuthorPattern(email)}`,
+          '--date=format:%Y-%m-%d %H',
+          '--pretty=format:%ad',
+        ];
         if (ctx.since) logArgs.push(`--since=${ctx.since.toISOString()}`);
         const { stdout } = await exec('git', logArgs, { maxBuffer: 64 * 1024 * 1024 });
         const { dates, lateNight } = parseGitLog(stdout);
