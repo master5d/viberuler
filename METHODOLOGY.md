@@ -60,6 +60,10 @@ Why logarithms: a 10M-LoC whale should not be untouchable, and a newcomer's firs
 
 Offline scores are labeled `(est.)` on the card for exactly this reason.
 
+### Shipped efficiency (tokens per line)
+
+Your card also shows **`tok / line shipped`** = total tokens ÷ your LoC (the git figure from §1). It's the "did the tokens actually produce code?" axis: lower is leaner. Two honest caveats — (1) LoC here is *lines in your repos* (`git ls-files`), not blame-attributed authorship, so shared and vendored code you committed counts; (2) it is **display-only** — it does **not** feed the VIBE score in this version (we're collecting a release of real data before deciding its weight). It's `—`/omitted when you have no scanned LoC. Source: [`packages/cli/src/score.ts`](packages/cli/src/score.ts).
+
 ## 4. Ranks
 
 | VIBE | Rank |
