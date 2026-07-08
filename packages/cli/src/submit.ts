@@ -2,7 +2,7 @@ import type { SubmitPayload } from './payload.js';
 import { fmtCompact, fmtUsd } from './format.js';
 
 export const DEFAULT_API = 'https://viberuler.dev';
-export const DEFAULT_CLIENT_ID = 'GITHUB_CLIENT_ID_PLACEHOLDER';
+export const DEFAULT_CLIENT_ID = 'Ov23li4ZfCaG86O8UGR3';
 
 export interface SubmitDeps {
   fetchImpl?: typeof fetch;

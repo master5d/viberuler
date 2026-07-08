@@ -13,6 +13,6 @@
     }
   ],
   "routes": [{ "pattern": "viberuler.dev", "custom_domain": true }],
-  "vars": { "GITHUB_CLIENT_ID": "GITHUB_CLIENT_ID_PLACEHOLDER" },
+  "vars": { "GITHUB_CLIENT_ID": "Ov23li4ZfCaG86O8UGR3" },
   "rules": [{ "type": "Data", "globs": ["**/*.ttf"], "fallthrough": true }]
 }
