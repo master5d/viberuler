@@ -39,6 +39,17 @@ describe('parseClaudeJsonl', () => {
   });
 });
 
+describe('cache-write tier pricing', () => {
+  it('bills ephemeral_1h at 2x input and falls back to 5m without the breakdown', () => {
+    const fixture1h = fileURLToPath(new URL('./fixtures/claude/session-cache1h.jsonl', import.meta.url));
+    const r = parseClaudeJsonl(readFileSync(fixture1h, 'utf8'), new Set());
+    expect(r.tokens).toEqual({ input: 110, output: 220, cacheWrite: 1100, cacheRead: 5000 });
+    // rec1 (breakdown): (100*3 + 200*15 + 400*3.75 + 600*6 + 5000*0.3)/1e6 = 0.0099
+    // rec2 (legacy):    (10*3 + 20*15 + 100*3.75 + 0*0.3)/1e6            = 0.000705
+    expect(r.costUsd).toBeCloseTo(0.0099 + 0.000705, 12);
+  });
+});
+
 describe('claudeCodeCollector', () => {
   it('detects and aggregates a fake ~/.claude/projects tree', async () => {
     const home = await mkdtemp(join(tmpdir(), 'vibe-home-'));

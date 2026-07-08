@@ -40,7 +40,8 @@ export function parseClaudeJsonl(
     tokens.output += u.output;
     tokens.cacheWrite += u.cacheWrite;
     tokens.cacheRead += u.cacheRead;
-    costUsd += costForUsage(obj.message.model ?? '', u);
+    const cacheWrite1h = usage.cache_creation?.ephemeral_1h_input_tokens ?? 0;
+    costUsd += costForUsage(obj.message.model ?? '', u, { cacheWrite1h });
   }
   return { tokens, costUsd, skipped };
 }
