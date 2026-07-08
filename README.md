@@ -83,6 +83,14 @@ VIBE = 1000·log₁₀(1 + LoC/1000)          # shipping volume
 
 Logarithms everywhere — whales get compressed, newcomers have room to climb.
 
+## Monthly recap
+
+```bash
+npx viberuler wrapped --month 2026-06
+```
+
+Your **Vibe Wrapped** for the month — commits, busiest day, streak, top language, and Claude Code tokens/cost for that window. 100% local; screenshot and flex.
+
 ## Flags
 
 ```
@@ -110,6 +118,7 @@ Fable 5 · ⚡3982 Context Goblin · 481.5K tok/$
 - [x] Gemini CLI collector
 - [x] Cline / Roo Code / KiloCode collectors (one parser, three forks)
 - [ ] Windsurf / Aider collectors — `good first issue`
+- [x] Vibe Wrapped — monthly recap card
 - [ ] Team leaderboards
 
 A collector is one file implementing a 2-method interface: [`packages/cli/src/types.ts`](packages/cli/src/types.ts).
