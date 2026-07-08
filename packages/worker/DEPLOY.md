@@ -1,6 +1,8 @@
 # Deploying viberuler-api
 
-One-time (launch day):
+> **Status: DEPLOYED 2026-07-08.** Prod = `viberuler.dev` (custom domain via `routes` in wrangler.jsonc), D1 `viberuler` (id already in wrangler.jsonc), `GITHUB_CLIENT_ID` = real OAuth App id. Redeploy: `npx wrangler deploy`; new migrations first: `npx wrangler d1 migrations apply viberuler --remote`.
+
+The original launch-day sequence, kept for reference:
 
 1. `npx wrangler d1 create viberuler` → paste `database_id` into wrangler.jsonc
 2. `npx wrangler d1 migrations apply viberuler --remote`

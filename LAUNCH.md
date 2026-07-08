@@ -1,5 +1,9 @@
 # LAUNCH.md — day-zero runbook
 
+> **Status (2026-07-08): LAUNCHED.**
+> ✅ 0 preflight · ✅ 1 repo public · ✅ 2 D1+deploy · ✅ 3 viberuler.dev · ✅ 4 OAuth App (device flow verified in prod) · ✅ 5 `viberuler@0.1.0` on npm · ✅ 6 board seeded (`/u/master5d`, VIBE 6,065) · ⚪ 7 demo.gif (tape ready, needs vhs) · ✅ 8 six issues up · ⚪ 9 Show HN / X posts (drafts in `docs/launch/`) · 🔄 10 watch mode.
+> Field notes: seed with `--scan-dir` pointing BELOW an umbrella git repo (nested repos aren't scanned — [#6](https://github.com/master5d/viberuler/issues/6)); npm publish with passkey-2FA needs a real TTY (browser flow); satori root div needs explicit px dims (fixed).
+
 Every step below is a **user-gated, outward-facing action**. Run them in order; each has a verify. Nothing in this file is automated by CI.
 
 ## 0. Preflight
