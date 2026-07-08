@@ -16,6 +16,7 @@ export interface ScoreReport {
   rank: string;
   breakdown: ScoreBreakdown;
   tokPerUsd: number | null;
+  tokPerLoc: number | null;
   effPercentile: number;
   achievements: Achievement[];
   stats: RawStats;
@@ -58,6 +59,7 @@ export function rankFor(vibe: number, hasData: boolean): string {
 export function computeScore(stats: RawStats, effPercentile?: number): ScoreReport {
   const tokens = totalTokens(stats.tokens);
   const tokPerUsd = stats.costUsd > 0 ? tokens / stats.costUsd : null;
+  const tokPerLoc = stats.locTotal > 0 ? tokens / stats.locTotal : null;
   const pct = effPercentile ?? (tokPerUsd !== null ? offlinePercentile(tokPerUsd) : 0);
   const earned = evalAchievements(stats);
 
@@ -75,5 +77,5 @@ export function computeScore(stats: RawStats, effPercentile?: number): ScoreRepo
   );
   const hasData = stats.sources.length > 0 && (tokens > 0 || stats.commits > 0);
 
-  return { vibe, rank: rankFor(vibe, hasData), breakdown, tokPerUsd, effPercentile: pct, achievements: earned, stats };
+  return { vibe, rank: rankFor(vibe, hasData), breakdown, tokPerUsd, tokPerLoc, effPercentile: pct, achievements: earned, stats };
 }

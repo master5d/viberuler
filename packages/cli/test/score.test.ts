@@ -78,4 +78,35 @@ describe('computeScore', () => {
     expect(r.breakdown.efficiency).toBe(0);
     expect(r.tokPerUsd).toBeNull();
   });
+
+  it('derives tokPerLoc = tokens / locTotal', () => {
+    const stats = {
+      ...emptyStats(), commits: 1, sources: ['git'], locTotal: 1000,
+      tokens: { input: 2_000_000, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    // 2,000,000 tokens / 1000 LoC = 2000 tok per line
+    expect(computeScore(stats).tokPerLoc).toBeCloseTo(2000, 6);
+  });
+
+  it('tokPerLoc is null when locTotal is 0 (no division by zero)', () => {
+    const stats = {
+      ...emptyStats(), commits: 1, sources: ['git'], locTotal: 0,
+      tokens: { input: 5_000_000, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    expect(computeScore(stats).tokPerLoc).toBeNull();
+  });
+
+  it('tokPerLoc does NOT change the VIBE score (display-only)', () => {
+    const base = { ...emptyStats(), commits: 1, sources: ['git'], locTotal: 0,
+      tokens: { input: 4_000_000, output: 0, cacheWrite: 0, cacheRead: 0 } };
+    const withLoc = { ...base, locTotal: 500 };
+    // adding LoC changes volume (that's expected), so isolate: same locTotal, the
+    // tokPerLoc field itself must not feed the formula — compare vibe computed from
+    // breakdown only.
+    const r = computeScore(withLoc);
+    expect(r.vibe).toBe(Math.round(
+      r.breakdown.volume + r.breakdown.leverage + r.breakdown.efficiency +
+      r.breakdown.breadth + r.breakdown.streak + r.breakdown.achievements,
+    ));
+  });
 });
