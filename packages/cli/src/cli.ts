@@ -6,6 +6,7 @@ import { createInterface } from 'node:readline/promises';
 import type { Collector, ScanContext, RawStats } from './types.js';
 import { emptyStats, mergeStats } from './merge.js';
 import { claudeCodeCollector } from './collectors/claude-code.js';
+import { clineCollector } from './collectors/cline.js';
 import { codexCollector } from './collectors/codex.js';
 import { gitCollector } from './collectors/git.js';
 import { githubCollector } from './collectors/github.js';
@@ -14,7 +15,7 @@ import { renderCard } from './render.js';
 import { buildPayload } from './payload.js';
 import { DEFAULT_API, DEFAULT_CLIENT_ID, githubDeviceFlow, fetchPercentile, submitScore, shareLinks } from './submit.js';
 
-const COLLECTORS: Collector[] = [claudeCodeCollector, codexCollector, gitCollector, githubCollector];
+const COLLECTORS: Collector[] = [claudeCodeCollector, clineCollector, codexCollector, gitCollector, githubCollector];
 
 const USAGE = `viberuler — the benchmark for vibe coders
 

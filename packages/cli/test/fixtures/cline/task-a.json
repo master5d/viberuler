@@ -1,0 +1,28 @@
+{
+  "taskId": "task-001",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello, how can I help?",
+      "apiMetrics": {
+        "inputTokens": 100,
+        "outputTokens": 200,
+        "cost": 0.005
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "I can help you with coding tasks.",
+      "apiMetrics": {
+        "inputTokens": 50,
+        "outputTokens": 150,
+        "cost": 0.003
+      }
+    }
+  ],
+  "apiMetrics": {
+    "totalTokensIn": 150,
+    "totalTokensOut": 350,
+    "totalCost": 0.008
+  }
+}
