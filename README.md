@@ -108,7 +108,8 @@ Fable 5 · ⚡3982 Context Goblin · 481.5K tok/$
 - [x] Codex collector
 - [ ] Cursor collector — `good first issue`
 - [ ] Gemini CLI collector — `good first issue`
-- [ ] Windsurf / Aider / Cline collectors — `good first issue`
+- [x] Cline / Roo Code / KiloCode collectors (one parser, three forks)
+- [ ] Windsurf / Aider collectors — `good first issue`
 - [ ] Team leaderboards
 
 A collector is one file implementing a 2-method interface: [`packages/cli/src/types.ts`](packages/cli/src/types.ts).
