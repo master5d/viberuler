@@ -2,7 +2,7 @@ import type { Env } from '../index.js';
 import { json } from '../index.js';
 import { totals } from '../db.js';
 
-function fmtCompact(n: number): string {
+export function fmtCompact(n: number): string {
   if (n >= 1e9) return `${(n / 1e9).toFixed(1).replace(/\.0$/, '')}B`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(1).replace(/\.0$/, '')}K`;
