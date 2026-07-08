@@ -5,6 +5,11 @@ import { fmtCompact, fmtInt, fmtUsd } from './format.js';
 
 const WIDTH = 46;
 
+// Achievements derived from all-time repo STATE (git ls-files) or the full reflog
+// rather than the month's flow — excluded from a monthly recap so the card can't
+// claim a state-based badge was "earned this month".
+const NOT_WINDOWABLE = new Set(['polyglot', 'monorepo-menace', 'yolo-force-pusher']);
+
 function topLanguage(byLang: Record<string, number>): string | null {
   let top: string | null = null;
   let max = -1;
@@ -34,14 +39,15 @@ export function renderWrapped(
     if (s.busiestDay) lines.push(`📅 busiest day ${c.bold(s.busiestDay)} (${c.bold(fmtInt(s.busiestDayCount))} commits)`);
     if (s.lateNightCommits > 0) lines.push(`🌙 ${c.bold(fmtInt(s.lateNightCommits))} late-night commits`);
     const lang = topLanguage(s.locByLang);
-    if (lang) lines.push(`🏆 top language: ${c.bold(lang)}`);
+    if (lang) lines.push(`🏆 top language overall: ${c.bold(lang)}`);
     if (tokens > 0) {
       lines.push(`🧠 ${c.bold(fmtCompact(tokens))} tokens · ${c.bold(fmtUsd(s.costUsd))} (Claude Code)`);
       if (report.tokPerUsd !== null) lines.push(`💸 ${c.bold(fmtCompact(report.tokPerUsd))} tok/$`);
     }
-    if (report.achievements.length > 0) {
+    const monthAchievements = report.achievements.filter((a) => !NOT_WINDOWABLE.has(a.id));
+    if (monthAchievements.length > 0) {
       lines.push('');
-      lines.push(`unlocked: ${report.achievements.map((a) => `${a.emoji} ${a.title}`).join(' · ')}`);
+      lines.push(`unlocked: ${monthAchievements.map((a) => `${a.emoji} ${a.title}`).join(' · ')}`);
     }
   }
 

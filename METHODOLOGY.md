@@ -70,7 +70,7 @@ Your card also shows **`tok / line shipped`** = total tokens ÷ your LoC (the gi
 
 ### Vibe Wrapped (`wrapped --month`)
 
-`viberuler wrapped --month YYYY-MM` renders a monthly recap from the two sources that can be **accurately time-windowed locally**: git activity (`git log --since/--until`) and Claude Code tokens (per-message timestamps). Cumulative or timeless sources (Codex, Cline, Cursor, Gemini, LiteLLM) are **excluded** from the monthly view — their month splits aren't reliably reconstructable on your machine. It reports flow metrics (commits, streak, busiest day, late-night, tokens, cost, tok/$) — not LoC, which is a state metric. Achievements shown are those the month's activity alone would earn.
+`viberuler wrapped --month YYYY-MM` renders a monthly recap from the two sources that can be **accurately time-windowed locally**: git activity (`git log --since/--until`) and Claude Code tokens (per-message timestamps). Cumulative or timeless sources (Codex, Cline, Cursor, Gemini, LiteLLM) are **excluded** from the monthly view — their month splits aren't reliably reconstructable on your machine. It reports flow metrics (commits, streak, busiest day, late-night, tokens, cost, tok/$) — not LoC, which is a state metric. Achievements shown are only the ones the month's flow can honestly earn (token badges, `3am-committer`); the state/history-based badges (`polyglot`, `monorepo-menace`, `yolo-force-pusher`) are excluded from the monthly card because they're computed from your all-time repo composition and reflog, not the month. The one intentionally-labeled exception is **top language overall**, shown as a bit of flavor and marked *overall* precisely because it reflects your current repo mix rather than the month.
 
 ## 4. Ranks
 
