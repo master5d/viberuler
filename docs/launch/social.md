@@ -5,7 +5,7 @@
 **1/**
 I burned 8.9B tokens this year for $18K of API-equivalent value — on a subscription.
 
-My tokens-per-dollar puts me in the global top N%.
+My tokens-per-dollar just went live on the global leaderboard.
 
 What's yours?
 
@@ -33,7 +33,7 @@ github.com/master5d/viberuler
 ## Reply-bait variants
 
 - «GIGACHAD SHIPPER starts at 6500. Post your rank, cowards.»
-- «If your tok/$ is under 1M you're literally paying retail for intelligence. npx viberuler»
+- «No Cache Whisperer badge? You're literally paying retail for intelligence. npx viberuler»
 
 ## LinkedIn
 

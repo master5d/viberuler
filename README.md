@@ -60,9 +60,9 @@ GitHub device-flow login → your score goes live at `viberuler.dev/u/<you>` wit
 ## Privacy (read this, HN)
 
 - The default run makes **zero network calls**. Zero.
-- `--submit` sends **aggregates only** — nine numbers and a list of achievement ids. No paths, no repo names, no prompts, no code. Ever.
+- `--submit` sends **aggregates only** — nine fields of aggregate stats and achievement ids. No paths, no repo names, no prompts, no code. Ever.
 - Before anything is sent, the CLI prints the **exact JSON payload** and asks.
-- Don't trust us — read the ~40 lines: [`packages/cli/src/payload.ts`](packages/cli/src/payload.ts) and [`packages/cli/src/submit.ts`](packages/cli/src/submit.ts). Details: [PRIVACY.md](PRIVACY.md).
+- Don't trust us — read the ~140 lines: [`packages/cli/src/payload.ts`](packages/cli/src/payload.ts) and [`packages/cli/src/submit.ts`](packages/cli/src/submit.ts). Details: [PRIVACY.md](PRIVACY.md).
 
 ## The math
 

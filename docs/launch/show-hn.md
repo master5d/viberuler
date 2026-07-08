@@ -13,7 +13,7 @@ Hi HN — I built a benchmark for the way a lot of us actually work now.
 
 Things HN will (rightly) want to know:
 
-- The default run makes zero network calls. `--submit` is opt-in, sends nine aggregate numbers + achievement ids, and prints the exact JSON payload for confirmation before anything leaves your machine. `viberuler payload` shows the same without sending. The relevant code is ~70 lines total (payload.ts, submit.ts) and the backend (CF Worker + D1) is in the same repo.
+- The default run makes zero network calls. `--submit` is opt-in, sends nine aggregate numbers + achievement ids, and prints the exact JSON payload for confirmation before anything leaves your machine. `viberuler payload` shows the same without sending. The relevant code is ~140 lines total (payload.ts, submit.ts) and the backend (CF Worker + D1) is in the same repo.
 - The formula, price table, and every threshold are published in METHODOLOGY.md, and yes — it's self-reported. Sanity caps catch the blatant; the clever are only lying to the group chat. Rank names are memes on purpose; the math underneath is not.
 - Cost is API-equivalent value, so subscription users get the "extracted $18K of value from a $200 plan" flex — which felt like the honest way to frame it.
 

@@ -26,6 +26,7 @@ npx wrangler d1 migrations apply viberuler --remote
 npx wrangler deploy
 ```
 Verify: `curl https://viberuler-api.<account>.workers.dev/api/health` → `{"ok":true}`.
+(Note: `GITHUB_CLIENT_ID` is still the placeholder at this point — step 4 sets it and redeploys.)
 
 ## 3. Domain
 
