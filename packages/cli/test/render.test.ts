@@ -51,4 +51,22 @@ describe('renderCard', () => {
     const out = renderCard(computeScore(emptyStats()), { colors: true, version: '0.1.0' });
     expect(out).toMatch(/\[/);
   });
+
+  it('renders the shipped-efficiency line when LoC is present', () => {
+    const stats = {
+      ...emptyStats(), commits: 10, locTotal: 1000, sources: ['claude-code', 'git'],
+      tokens: { input: 2_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 4,
+    };
+    const out = renderCard(computeScore(stats), { colors: false, version: '0.1.0' });
+    expect(out).toContain('🎯 2K tok / line shipped');
+  });
+
+  it('omits the shipped-efficiency line when there is no LoC', () => {
+    const stats = {
+      ...emptyStats(), commits: 10, locTotal: 0, sources: ['claude-code'],
+      tokens: { input: 2_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 4,
+    };
+    const out = renderCard(computeScore(stats), { colors: false, version: '0.1.0' });
+    expect(out).not.toContain('line shipped');
+  });
 });

@@ -31,6 +31,9 @@ export function renderCard(report: ScoreReport, opts: { colors: boolean; version
       const pct = Math.round((1 - report.effPercentile) * 100);
       lines.push(`💸 ${c.bold(fmtCompact(report.tokPerUsd))} tok/$ · TOP ${c.bold(String(Math.max(1, pct)))}% (est.)`);
     }
+    if (report.tokPerLoc !== null) {
+      lines.push(`🎯 ${c.bold(fmtCompact(report.tokPerLoc))} tok / line shipped`);
+    }
     if (s.commits > 0) lines.push(`🔥 ${c.bold(String(s.streakDays))}-day streak · ${c.bold(fmtInt(s.commits))} commits`);
     if (s.ghStars > 0) lines.push(`⭐ ${c.bold(fmtInt(s.ghStars))} GitHub stars`);
     if (s.agents.length > 0) {
