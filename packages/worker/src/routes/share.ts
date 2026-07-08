@@ -67,7 +67,7 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
     <div class="badges">${escapeHtml(achievements)}</div></div>`;
   const title = row.sus
     ? `@${row.gh_login} — under review`
-    : `VIBE ${fmtInt(row.vibe_score)}`;
+    : `@${row.gh_login} — VIBE ${fmtInt(row.vibe_score)}`;
   return new Response(page(title, row.gh_login, body, url.origin), {
     status: 200, headers,
   });

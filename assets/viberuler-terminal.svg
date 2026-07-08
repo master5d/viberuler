@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 460" font-family="ui-monospace,Consolas,Menlo,monospace" font-size="16">
+  <rect width="760" height="460" rx="12" fill="#0b0e14"/>
+  <rect width="760" height="34" rx="12" fill="#11151f"/>
+  <circle cx="22" cy="17" r="6" fill="#ff5f56"/><circle cx="44" cy="17" r="6" fill="#ffbd2e"/><circle cx="66" cy="17" r="6" fill="#27c93f"/>
+  <text x="380" y="22" fill="#666" text-anchor="middle" font-size="12">~ viberuler</text>
+
+  <text x="24" y="70" fill="#69f0ae">$</text>
+  <g>
+    <clipPath id="type"><rect x="44" y="52" width="0" height="26">
+      <animate attributeName="width" from="0" to="150" begin="0.5s" dur="1.2s" fill="freeze"/>
+    </rect></clipPath>
+    <text x="44" y="70" fill="#e6e6e6" clip-path="url(#type)">npx viberuler</text>
+  </g>
+  <rect x="196" y="54" width="9" height="20" fill="#69f0ae">
+    <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="3"/>
+    <animate attributeName="opacity" to="0" begin="2.2s" dur="0.1s" fill="freeze"/>
+  </rect>
+
+  <g opacity="0"><animate attributeName="opacity" to="1" begin="2.4s" dur="0.3s" fill="freeze"/>
+    <text x="24" y="110" fill="#b388ff" font-weight="bold">VIBERULER v0.1.0 — scanning your rig…</text></g>
+  <g opacity="0"><animate attributeName="opacity" to="1" begin="3.0s" dur="0.3s" fill="freeze"/>
+    <text x="24" y="150" fill="#e6e6e6">⚡ <tspan font-weight="bold">47</tspan> projects · <tspan font-weight="bold">312,441</tspan> LoC shipped</text></g>
+  <g opacity="0"><animate attributeName="opacity" to="1" begin="3.4s" dur="0.3s" fill="freeze"/>
+    <text x="24" y="180" fill="#e6e6e6">🧠 <tspan font-weight="bold">1.2B</tspan> tokens · <tspan font-weight="bold">$184.20</tspan> burned</text></g>
+  <g opacity="0"><animate attributeName="opacity" to="1" begin="3.8s" dur="0.3s" fill="freeze"/>
+    <text x="24" y="210" fill="#ffd54f">💸 <tspan font-weight="bold">6.5M</tspan> tok/$ · TOP <tspan font-weight="bold">3%</tspan> GLOBAL</text></g>
+  <g opacity="0"><animate attributeName="opacity" to="1" begin="4.2s" dur="0.3s" fill="freeze"/>
+    <text x="24" y="240" fill="#e6e6e6">🔥 <tspan font-weight="bold">212</tspan>-day streak · <tspan font-weight="bold">8,921</tspan> commits</text></g>
+
+  <g opacity="0"><animate attributeName="opacity" to="1" begin="4.8s" dur="0.4s" fill="freeze"/>
+    <rect x="24" y="270" width="712" height="90" rx="8" fill="#11151f" stroke="#2a2f3a"/>
+    <text x="44" y="305" fill="#e6e6e6">VIBE SCORE <tspan fill="#b388ff">▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░</tspan>  <tspan font-weight="bold" font-size="20">7,204</tspan></text>
+    <text x="44" y="340" fill="#ff80ab" font-weight="bold" letter-spacing="2">RANK: GIGACHAD SHIPPER</text></g>
+
+  <g opacity="0"><animate attributeName="opacity" to="1" begin="5.5s" dur="0.4s" fill="freeze"/>
+    <text x="24" y="400" fill="#ffd54f">💰 Token Billionaire · 🗄️ Cache Whisperer · 🌙 3AM Committer</text></g>
+  <g opacity="0"><animate attributeName="opacity" to="1" begin="6.0s" dur="0.4s" fill="freeze"/>
+    <text x="24" y="435" fill="#666">→ viberuler.dev/u/you — what's YOUR score?</text></g>
+</svg>

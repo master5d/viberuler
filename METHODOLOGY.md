@@ -1,0 +1,103 @@
+# Methodology
+
+The meme is the interface. The math is real. This document is the full, honest account of how your VIBE SCORE is computed — every weight, every price, every cap. If a number on your card can't be traced to this page and the source files it cites, that's a bug.
+
+## 1. Data sources
+
+Everything is read **locally**. The scanner never uploads raw data (see [PRIVACY.md](PRIVACY.md)).
+
+| Source | What we read | Notes |
+|---|---|---|
+| **Claude Code** | `~/.claude/projects/**/*.jsonl` — per-message `usage` records (input / output / cache-write / cache-read tokens, model id) | Deduplicated by `message.id + requestId`, so replayed or resumed sessions are never double-counted. Malformed lines are skipped and counted, never crash the scan. Source: [`packages/cli/src/collectors/claude-code.ts`](packages/cli/src/collectors/claude-code.ts) |
+| **Codex** | `~/.codex/sessions/**/*.jsonl` — `token_count` events | These are **cumulative** per session, so we take the *last* record per file, not the sum. Source: [`packages/cli/src/collectors/codex.ts`](packages/cli/src/collectors/codex.ts) |
+| **git** | Repos discovered under `--scan-dir` (default: your home dir, depth ≤ 5, `node_modules`/`.venv`/`dist`-style dirs skipped) | LoC = line counts of `git ls-files` files with recognized code extensions, files > 1 MB skipped. Commits/streaks come from `git log --author=<your git user.email>` — only repos where **you** authored commits count. `--since` filters commits, not LoC (LoC is a state metric, not a flow metric). Source: [`packages/cli/src/collectors/git.ts`](packages/cli/src/collectors/git.ts) |
+| **GitHub** (opt-in) | Public repos of `--github <handle>` — star counts only | The only network call outside `--submit`. Paginated up to 5 pages (500 repos). Source: [`packages/cli/src/collectors/github.ts`](packages/cli/src/collectors/github.ts) |
+
+Collectors are plugins behind a 2-method interface (`detect` / `collect`). Cursor, Gemini CLI, Windsurf, Aider, Cline: PRs welcome — see the README roadmap.
+
+## 2. Cost model
+
+Costs are computed from a **bundled static price table** (USD per million tokens), refreshed each release. Source: [`packages/cli/src/pricing.ts`](packages/cli/src/pricing.ts).
+
+| Model family (prefix match) | Input | Output | Cache write | Cache read |
+|---|---|---|---|---|
+| `claude-opus` | 15 | 75 | 18.75 | 1.50 |
+| `claude-sonnet` | 3 | 15 | 3.75 | 0.30 |
+| `claude-haiku` | 1 | 5 | 1.25 | 0.10 |
+| `claude-fable` | 15 | 75 | 18.75 | 1.50 |
+| `codex-default` | 1.25 | 10 | 1.25 | 0.125 |
+
+- Unknown Claude models fall back to the **sonnet** tier.
+- Codex tokens are costed at the fixed `codex-default` rate.
+- **If you're on a subscription**, this is *API-equivalent value*, not what you actually paid. That's deliberate — "I extracted $18,000 of API value from a $200 subscription" **is** the flex, and tokens-per-dollar rewards exactly that.
+
+## 3. The formula
+
+Source of truth: [`packages/cli/src/score.ts`](packages/cli/src/score.ts).
+
+```
+volume       = 1000 · log₁₀(1 + LoC / 1000)
+leverage     =  500 · log₁₀(1 + tokens / 1,000,000)
+efficiency   =  800 · efficiency_percentile          (0 if total cost is $0)
+breadth      =  300 · log₁₀(1 + projects · 10)
+streak       =  min(streak_days, 365)
+achievements =  50 · achievements_earned
+
+VIBE = round(volume + leverage + efficiency + breadth + streak + achievements)
+```
+
+Why logarithms: a 10M-LoC whale should not be untouchable, and a newcomer's first 10K lines should feel like progress. Log compression keeps the ladder climbable at both ends.
+
+**Efficiency percentile.** `tokens_per_dollar = total_tokens / total_cost`. When you `--submit`, the percentile is computed **live** against the actual leaderboard. Offline, we use a fixed reference curve, linearly interpolated over log₁₀(tok/$):
+
+| log₁₀(tok/$) | 4 | 5 | 6 | 6.7 | 7.3 | 8 |
+|---|---|---|---|---|---|---|
+| percentile | 5% | 20% | 50% | 80% | 95% | 99% |
+
+Offline scores are labeled `(est.)` on the card for exactly this reason.
+
+## 4. Ranks
+
+| VIBE | Rank |
+|---|---|
+| ≥ 8000 | Singularity Adjacent |
+| ≥ 6500 | GIGACHAD SHIPPER |
+| ≥ 5000 | Ship Machine |
+| ≥ 3500 | Context Goblin |
+| ≥ 2000 | Token Burner |
+| ≥ 800 | Vibe Apprentice |
+| < 800 | Prompt Peasant |
+| no data | NPC (no vibes detected) |
+
+## 5. Achievements
+
+Source: [`packages/cli/src/achievements.ts`](packages/cli/src/achievements.ts). Each earned badge adds 50 points.
+
+| Badge | Predicate |
+|---|---|
+| 💰 Token Billionaire | total tokens ≥ 1,000,000,000 |
+| 🪦 Free Tier Martyr | ≥ 1M tokens **and** total cost < $1 |
+| 🗄️ Cache Whisperer | cache-read share of all tokens > 90% |
+| 🌐 Polyglot | 5+ languages in your LoC mix |
+| 🐘 Monorepo Menace | a single repo > 100,000 LoC |
+| 🔥 Streak Freak | commit streak ≥ 100 days |
+| 🌙 3AM Committer | ≥ 10 commits between 00:00–04:59 |
+| 💥 YOLO Force Pusher | ≥ 20 rebase/reset entries in your reflogs |
+
+## 6. Anti-cheat, honestly
+
+This is a **self-reported benchmark**. Here is exactly what we enforce and what we don't:
+
+- **One GitHub account = one leaderboard entry.** Submits go through GitHub device-flow OAuth.
+- **Sanity caps.** A submission is flagged `sus` (stored, but hidden from the board, the rank, and the public share/OG cards until reviewed) if any of these trip: LoC > 50,000,000 · tokens > 100,000,000,000 · more than 1M tokens claimed under $0.01 · tok/$ > 100,000,000 · VIBE > 50,000 · unknown achievement id. Source: [`packages/worker/src/validation.ts`](packages/worker/src/validation.ts).
+- **Rate limit:** 5 submits per hour per account.
+
+We catch the blatant. We can't catch the clever — a determined liar can hand-craft plausible aggregates, and no client-side benchmark can prevent that without shipping spyware, which we will not do. It's a meme benchmark: cheat and you're only lying to the group chat.
+
+## 7. Known limitations
+
+- GitHub stars are capped at 500 repos (5 pages × 100).
+- The price table is a snapshot; provider price changes land with the next release.
+- Codex costs use one fixed rate regardless of the underlying model.
+- LoC counts tracked text files by extension — generated code that you commit counts (we can't tell your `dist/` from your poetry; `.gitignore` it like an adult).
+- Offline percentile is a curve fit, not the real distribution — submit to get the real one.
