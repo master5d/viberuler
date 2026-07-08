@@ -49,6 +49,23 @@ describe('GET /', () => {
     expect(html).toContain('Be the first');
   });
 
+  it('serves the brand favicon at /favicon.svg and /favicon.ico', async () => {
+    for (const path of ['/favicon.svg', '/favicon.ico']) {
+      const res = await exports.default.fetch(`https://viberuler.dev${path}`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toBe('image/svg+xml');
+      expect(await res.text()).toContain('<svg');
+    }
+  });
+
+  it('links the favicon from home and share pages', async () => {
+    await seed('master5d', 1, 6065);
+    const home = await (await exports.default.fetch('https://viberuler.dev/')).text();
+    const share = await (await exports.default.fetch('https://viberuler.dev/u/master5d')).text();
+    expect(home).toContain('href="/favicon.svg"');
+    expect(share).toContain('href="/favicon.svg"');
+  });
+
   it('serves /leaderboard as an alias', async () => {
     const res = await exports.default.fetch('https://viberuler.dev/leaderboard');
     expect(res.status).toBe(200);

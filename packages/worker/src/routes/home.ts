@@ -31,9 +31,6 @@ const HOME_CSS = `
   img.av{width:20px;height:20px;border-radius:50%;vertical-align:-4px;margin-right:8px}
 `;
 
-const FAVICON =
-  'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📏</text></svg>';
-
 export async function handleHome(_req: Request, env: Env, url: URL): Promise<Response> {
   const [{ rows }, t] = await Promise.all([leaderboard(env.DB, 1, 25), totals(env.DB)]);
 
@@ -64,7 +61,7 @@ export async function handleHome(_req: Request, env: Env, url: URL): Promise<Res
     <meta name="description" content="How hard do you actually vibe? Scan your rig, get your VIBE SCORE, flex it. Headline stat: tokens per dollar.">
     <meta property="og:title" content="viberuler — the benchmark for vibe coders">
     <meta property="og:description" content="LoC shipped, tokens burned, tokens per dollar. npx viberuler.">
-    <link rel="icon" href="${FAVICON}">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <style>${HOME_CSS}</style></head>
     <body>
     <div class="hero">

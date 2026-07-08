@@ -1,3 +1,4 @@
+import { handleFavicon } from './routes/favicon.js';
 import { handleHome } from './routes/home.js';
 import { handleSubmit } from './routes/submit.js';
 import { handleLeaderboard, handlePercentile } from './routes/leaderboard.js';
@@ -26,6 +27,9 @@ export default {
     try {
       if (request.method === 'GET' && (pathname === '/' || pathname === '/leaderboard')) {
         return handleHome(request, env, url);
+      }
+      if (request.method === 'GET' && (pathname === '/favicon.svg' || pathname === '/favicon.ico')) {
+        return handleFavicon();
       }
       if (request.method === 'GET' && pathname === '/api/health') {
         return json({ ok: true });
