@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -28,19 +28,24 @@ describe('parseGitLog', () => {
 
 describe('gitCollector (integration, sacrificial temp repo)', () => {
   let scanRoot: string;
+  let repo: string;
+  const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args]);
 
   beforeAll(async () => {
     scanRoot = await mkdtemp(join(tmpdir(), 'vibe-git-'));
-    const repo = join(scanRoot, 'myproject');
+    repo = join(scanRoot, 'myproject');
     await mkdir(repo, { recursive: true });
-    const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args]);
     git('init');
-    git('config', 'user.email', 'vibe@test.local');
     git('config', 'user.name', 'Vibe Tester');
+    git('config', 'user.email', 'vibe@test.local');
     await writeFile(join(repo, 'index.ts'), 'const a = 1;\nconst b = 2;\nexport { a, b };\n');
     await writeFile(join(repo, 'notes.txt'), 'not code\n');
     git('add', '-A');
     git('commit', '-m', 'init', '--date', '2026-06-01T12:00:00');
+  });
+
+  beforeEach(() => {
+    git('config', 'user.email', 'vibe@test.local');
   });
 
   it('finds the repo and counts LoC/commits for the repo author', async () => {
@@ -56,6 +61,21 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
     expect(r.locTotal).toBe(3);
     expect(r.maxRepoLoc).toBe(3);
     expect(r.sources).toEqual(['git']);
+  });
+
+  it('matches author email case-insensitively', async () => {
+    await writeFile(join(repo, 'case.ts'), 'export const value = 1;\n');
+    git('config', 'user.email', 'VIBE@TEST.LOCAL');
+    git('add', 'case.ts');
+    git('commit', '-m', 'case commit', '--date', '2026-06-02T12:00:00');
+
+    const r = await gitCollector.collect({
+      home: scanRoot,
+      scanDirs: [scanRoot],
+      authorEmail: 'vibe@test.local',
+    });
+    expect(r.projects).toBe(1);
+    expect(r.commits).toBe(2);
   });
 
   it('reports zero projects when author has no commits anywhere', async () => {
