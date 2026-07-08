@@ -51,6 +51,17 @@ describe('GET /u/:login', () => {
     expect(html).toContain('8,400');
     expect(html).toContain('per line');
   });
+
+  it('hides tok/line for a sus row even when tok_per_loc is set', async () => {
+    const b = await upsertUser(env.DB, { gh_id: 3, gh_login: 'cheater2', avatar_url: null, gh_created_at: null });
+    await insertScore(env.DB, b, {
+      vibe_score: 999999, loc: 1, projects: 1, tokens: 1000, cost_usd: 1,
+      tok_per_usd: 1000, tok_per_loc: 500, achievements: [], breakdown: {}, client_version: '0.1.0',
+    }, true);
+    const html = await (await exports.default.fetch('https://viberuler.dev/u/cheater2')).text();
+    expect(html).toContain('UNDER REVIEW');
+    expect(html).not.toContain('per line');
+  });
 });
 
 describe('escapeHtml', () => {

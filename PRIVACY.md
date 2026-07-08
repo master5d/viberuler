@@ -24,7 +24,7 @@ Exactly ten fields — aggregates only. This is the complete, real shape (built 
   "tok_per_usd": 6500000,
   "tok_per_loc": 8400,
   "achievements": ["token-billionaire", "cache-whisperer"],
-  "breakdown": { "volume": 1000, "leverage": 1500, "efficiency": 400, "breadth": 801, "streak": 212, "achievements": 100 }
+  "breakdown": { "volume": 1000, "leverage": 1500, "efficiency": 300, "breadth": 101, "streak": 100, "achievements": 100 }
 }
 ```
 
