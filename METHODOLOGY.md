@@ -62,7 +62,7 @@ Offline scores are labeled `(est.)` on the card for exactly this reason.
 
 ### Shipped efficiency (tokens per line)
 
-Your card also shows **`tok / line shipped`** = total tokens ÷ your LoC (the git figure from §1). It's the "did the tokens actually produce code?" axis: lower is leaner. Two honest caveats — (1) LoC here is *lines in your repos* (`git ls-files`), not blame-attributed authorship, so shared and vendored code you committed counts; (2) it is **display-only** — it does **not** feed the VIBE score in this version (we're collecting a release of real data before deciding its weight). It's `—`/omitted when you have no scanned LoC. Source: [`packages/cli/src/score.ts`](packages/cli/src/score.ts).
+Your card also shows **`tok / line shipped`** = total tokens ÷ your LoC (the git figure from §1). It's the "did the tokens actually produce code?" axis: lower is leaner. Two honest caveats — (1) LoC here is *lines in your repos* (`git ls-files`), not blame-attributed authorship, so shared and vendored code you committed counts; (2) it is **display-only** — it does **not** feed the VIBE score in this version (we're collecting a release of real data before deciding its weight). It's `—`/omitted when you have no scanned LoC. Note on `--since`: the token numerator is time-filtered but LoC (a state metric) is not, so a bounded window *understates* tok/line. Source: [`packages/cli/src/score.ts`](packages/cli/src/score.ts).
 
 ## 4. Ranks
 
