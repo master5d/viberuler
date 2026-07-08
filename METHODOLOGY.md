@@ -29,7 +29,7 @@ Costs are computed from a **bundled static price table** (USD per million tokens
 | `claude-fable` | 15 | 75 | 18.75 | 1.50 |
 | `codex-default` | 1.25 | 10 | 1.25 | 0.125 |
 
-- **Cache writes are tiered.** The table's cache-write column is the 5-minute (1.25× input) rate. When Claude Code logs carry the `usage.cache_creation` breakdown, the 1-hour portion is billed at **2× input** (`ephemeral_1h_input_tokens`). Legacy logs without the breakdown fall back to the 5-minute rate, which **undercounts** 1h-heavy sessions — a documented, conservative-for-your-wallet simplification.
+- **Cache writes are tiered.** The Claude rows' cache-write column is the 5-minute (1.25× input) rate. When Claude Code logs carry the `usage.cache_creation` breakdown, the 1-hour portion is billed at **2× input** (`ephemeral_1h_input_tokens`). Legacy logs without the breakdown fall back to the 5-minute rate, which **undercounts** 1h-heavy sessions — a documented, conservative-for-your-wallet simplification.
 - Unknown Claude models fall back to the **sonnet** tier.
 - Codex tokens are costed at the fixed `codex-default` rate.
 - **If you're on a subscription**, this is *API-equivalent value*, not what you actually paid. That's deliberate — "I extracted $18,000 of API value from a $200 subscription" **is** the flex, and tokens-per-dollar rewards exactly that.
