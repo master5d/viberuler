@@ -21,7 +21,7 @@ export async function handleOg(_req: Request, env: Env, url: URL): Promise<Respo
   const scoreDisplay = row.sus ? '—' : fmtInt(row.vibe_score);
   const html = `
     <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;
-                width:100%;height:100%;background:#0b0e14;color:#e6e6e6;
+                width:1200px;height:630px;background:#0b0e14;color:#e6e6e6;
                 font-family:'JetBrains Mono';padding:60px">
       <div style="display:flex;font-size:36px;color:#b388ff">@${escapeHtml(row.gh_login)} · VIBERULER</div>
       <div style="display:flex;font-size:120px;color:#69f0ae;margin:20px 0">${scoreDisplay}</div>
