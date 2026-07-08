@@ -11,7 +11,7 @@ Short version: **the scanner reads your machine so that nothing else has to.**
 
 ## What `--submit` sends
 
-Exactly nine fields — aggregates only. This is the complete, real shape (built in [`packages/cli/src/payload.ts`](packages/cli/src/payload.ts), ~30 lines):
+Exactly ten fields — aggregates only. This is the complete, real shape (built in [`packages/cli/src/payload.ts`](packages/cli/src/payload.ts), ~30 lines):
 
 ```json
 {
@@ -22,6 +22,7 @@ Exactly nine fields — aggregates only. This is the complete, real shape (built
   "tokens": 1200000000,
   "cost_usd": 184.2,
   "tok_per_usd": 6500000,
+  "tok_per_loc": 8400,
   "achievements": ["token-billionaire", "cache-whisperer"],
   "breakdown": { "volume": 1000, "leverage": 1500, "efficiency": 400, "breadth": 801, "streak": 212, "achievements": 100 }
 }
@@ -42,7 +43,7 @@ Identity comes from GitHub device-flow OAuth: we store your GitHub login, numeri
 | Flag | Endpoint(s) | Purpose |
 |---|---|---|
 | `--github <handle>` | `api.github.com/users/<handle>/repos` | Public star counts (opt-in) |
-| `--submit` | `viberuler.dev/api/percentile` · `github.com/login/device/code` + `github.com/login/oauth/access_token` · `viberuler.dev/api/submit` | Live percentile · device-flow login · the nine-field payload |
+| `--submit` | `viberuler.dev/api/percentile` · `github.com/login/device/code` + `github.com/login/oauth/access_token` · `viberuler.dev/api/submit` | Live percentile · device-flow login · the ten-field payload |
 
 No telemetry, no analytics, no "anonymous usage statistics", no phone-home version check.
 

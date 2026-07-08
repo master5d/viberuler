@@ -98,9 +98,15 @@ This is a **self-reported benchmark**. Here is exactly what we enforce and what 
 
 - **One GitHub account = one leaderboard entry.** Submits go through GitHub device-flow OAuth.
 - **Sanity caps.** A submission is flagged `sus` (stored, but hidden from the board, the rank, and the public share/OG cards until reviewed) if any of these trip: LoC > 50,000,000 · tokens > 100,000,000,000 · more than 1M tokens claimed under $0.01 · tok/$ > 100,000,000 · VIBE > 50,000 · unknown achievement id. Source: [`packages/worker/src/validation.ts`](packages/worker/src/validation.ts).
+- **Server-side plausibility scoring.** Beyond the static caps, each submit is checked against your GitHub account and history; tripping any of these stores the row as `sus` with a reason (hidden from the board until reviewed). Source: [`packages/worker/src/validation.ts`](packages/worker/src/validation.ts).
+  - `inconsistent-breakdown` — the score components don't sum to the claimed VIBE (±max(50, 5%)).
+  - `inconsistent-efficiency` — `tok_per_usd` doesn't match `tokens ÷ cost` (±10%).
+  - `new-account-volume` — a GitHub account younger than 7 days claiming over 1B tokens.
+  - `token-rate` — more than 2B tokens per day of account age (superhuman accumulation).
+  - `velocity` — a jump of over 5B tokens versus your previous submit less than 24h earlier.
 - **Rate limit:** 5 submits per hour per account.
 
-We catch the blatant. We can't catch the clever — a determined liar can hand-craft plausible aggregates, and no client-side benchmark can prevent that without shipping spyware, which we will not do. It's a meme benchmark: cheat and you're only lying to the group chat.
+We catch the blatant — client-side and now server-side, cross-checked against your GitHub account. We still can't catch the truly clever: a determined liar can hand-craft internally-consistent aggregates, and no benchmark can prevent that without shipping spyware, which we will not do. It's a meme benchmark: cheat and you're only lying to the group chat. Every leaderboard entry is GitHub-verified (device-flow OAuth), so at least the name attached to a lie is real.
 
 ## 7. Known limitations
 
