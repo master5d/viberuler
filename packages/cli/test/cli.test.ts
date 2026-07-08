@@ -29,11 +29,16 @@ beforeAll(async () => {
   git('commit', '-m', 'x');
   process.env.VIBERULER_HOME = home;
   process.env.VIBERULER_AUTHOR_EMAIL = 'vibe@test.local';
+  // Pin the Cline collector dormant: it derives VS Code globalStorage from the
+  // real APPDATA (correct in prod, but escapes this fake home), which would flip
+  // the token assertions red on a dev box that has used Cline/Roo/Kilo.
+  process.env.VIBERULER_CLINE_STORAGE = join(home, 'no-cline');
 });
 
 afterAll(() => {
   delete process.env.VIBERULER_HOME;
   delete process.env.VIBERULER_AUTHOR_EMAIL;
+  delete process.env.VIBERULER_CLINE_STORAGE;
 });
 
 async function run(args: string[]): Promise<{ code: number; lines: string[] }> {
