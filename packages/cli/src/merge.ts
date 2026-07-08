@@ -5,7 +5,7 @@ export function emptyStats(): RawStats {
     projects: 0, commits: 0, streakDays: 0, lateNightCommits: 0, historyRewrites: 0,
     locTotal: 0, locByLang: {}, maxRepoLoc: 0,
     tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
-    costUsd: 0, ghStars: 0, sources: [], warnings: [],
+    costUsd: 0, ghStars: 0, agents: [], sources: [], warnings: [],
   };
 }
 
@@ -36,6 +36,7 @@ export function mergeStats(base: RawStats, add: Partial<RawStats>): RawStats {
     },
     costUsd: base.costUsd + (add.costUsd ?? 0),
     ghStars: base.ghStars + (add.ghStars ?? 0),
+    agents: [...new Set([...base.agents, ...(add.agents ?? [])])],
     sources: [...base.sources, ...(add.sources ?? [])],
     warnings: [...base.warnings, ...(add.warnings ?? [])],
   };

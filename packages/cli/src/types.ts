@@ -17,6 +17,7 @@ export interface RawStats {
   tokens: TokenUsage;
   costUsd: number;
   ghStars: number;
+  agents: string[];           // coding agents detected on this rig (display names)
   sources: string[];
   warnings: string[];
 }
@@ -27,6 +28,7 @@ export interface ScanContext {
   since?: Date;
   githubHandle?: string;
   authorEmail?: string; // test seam / override — real runs read `git config --get user.email`
+  env?: Record<string, string | undefined>; // test seam — real runs pass process.env
 }
 
 export interface Collector {

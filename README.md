@@ -24,12 +24,13 @@ npx viberuler
 
 | Signal | Source | Flex |
 |---|---|---|
-| 🧠 tokens burned | Claude Code + Codex session logs | `1.2B tokens` |
+| 🧠 tokens burned | Claude Code + Codex session logs (+ your LiteLLM gateway, opt-in) | `1.2B tokens` |
 | 💸 **tokens per dollar** | tokens ÷ spend (bundled price table) | `6.5M tok/$ — TOP 3%` |
 | ⚡ LoC shipped | `git ls-files` across your repos | `312K LoC` |
 | 📦 projects | repos where *you* authored commits | `47 projects` |
 | 🔥 streak | consecutive commit days | `212-day streak` |
 | 🏆 achievements | see below | `Token Billionaire` |
+| 🤖 agents in the stable | marker dirs of known coding agents in your home | `5 agents · Claude Code · Codex · Cursor` |
 
 Then it prints a scorecard you'll screenshot before you can stop yourself.
 

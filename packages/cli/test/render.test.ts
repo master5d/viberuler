@@ -24,6 +24,23 @@ describe('renderCard', () => {
     expect(out).not.toMatch(/\[/); // zero ANSI escapes in plain mode
   });
 
+  it('renders the agents stable line, truncated past three', () => {
+    const stats = {
+      ...emptyStats(),
+      commits: 10, tokens: { input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 },
+      costUsd: 3, sources: ['claude-code'],
+      agents: ['Claude Code', 'Codex', 'Antigravity', 'Cursor', 'Aider'],
+    };
+    const out = renderCard(computeScore(stats), { colors: false, version: '0.1.0' });
+    expect(out).toContain('🤖 5 agents in the stable · Claude Code · Codex · Antigravity +2 more');
+  });
+
+  it('omits the agents line when none are detected', () => {
+    const stats = { ...emptyStats(), commits: 10, sources: ['git'] };
+    const out = renderCard(computeScore(stats), { colors: false, version: '0.1.0' });
+    expect(out).not.toContain('agents in the stable');
+  });
+
   it('renders NPC guidance when no data was found', () => {
     const out = renderCard(computeScore(emptyStats()), { colors: false, version: '0.1.0' });
     expect(out).toContain('NPC (no vibes detected)');

@@ -7,6 +7,8 @@ import type { Collector, ScanContext, RawStats } from './types.js';
 import { emptyStats, mergeStats } from './merge.js';
 import { claudeCodeCollector } from './collectors/claude-code.js';
 import { codexCollector } from './collectors/codex.js';
+import { litellmCollector } from './collectors/litellm.js';
+import { agentsCollector } from './collectors/agents.js';
 import { gitCollector } from './collectors/git.js';
 import { githubCollector } from './collectors/github.js';
 import { computeScore } from './score.js';
@@ -14,7 +16,7 @@ import { renderCard } from './render.js';
 import { buildPayload } from './payload.js';
 import { DEFAULT_API, DEFAULT_CLIENT_ID, githubDeviceFlow, fetchPercentile, submitScore, shareLinks } from './submit.js';
 
-const COLLECTORS: Collector[] = [claudeCodeCollector, codexCollector, gitCollector, githubCollector];
+const COLLECTORS: Collector[] = [claudeCodeCollector, codexCollector, litellmCollector, agentsCollector, gitCollector, githubCollector];
 
 const USAGE = `viberuler — the benchmark for vibe coders
 
@@ -34,6 +36,9 @@ Options:
   --yes                skip the submit confirmation
   --version            print version
   --help               this help
+
+Env (opt-in): LITELLM_SPEND_DB=<sqlite path> or LITELLM_BASE_URL(+LITELLM_API_KEY)
+  count tokens your self-built agents burned through a LiteLLM gateway
 `;
 
 function version(): string {
@@ -103,6 +108,7 @@ export async function main(
     since,
     githubHandle: values.github,
     authorEmail: process.env.VIBERULER_AUTHOR_EMAIL,
+    env: process.env,
   };
 
   const stats = await collectAll(ctx, (s) => process.stderr.write(s + '\n'));

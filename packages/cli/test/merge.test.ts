@@ -43,6 +43,12 @@ describe('mergeStats', () => {
     expect(b.warnings).toEqual(['w1']);
   });
 
+  it('unions agents without duplicates', () => {
+    const a = mergeStats(emptyStats(), { agents: ['Claude Code', 'Codex'] });
+    const b = mergeStats(a, { agents: ['Codex', 'Cursor'] });
+    expect(b.agents).toEqual(['Claude Code', 'Codex', 'Cursor']);
+  });
+
   it('does not mutate the base', () => {
     const base = emptyStats();
     mergeStats(base, { projects: 5 });

@@ -33,6 +33,11 @@ export function renderCard(report: ScoreReport, opts: { colors: boolean; version
     }
     if (s.commits > 0) lines.push(`🔥 ${c.bold(String(s.streakDays))}-day streak · ${c.bold(fmtInt(s.commits))} commits`);
     if (s.ghStars > 0) lines.push(`⭐ ${c.bold(fmtInt(s.ghStars))} GitHub stars`);
+    if (s.agents.length > 0) {
+      const shown = s.agents.slice(0, 3).join(' · ');
+      const extra = s.agents.length > 3 ? ` +${s.agents.length - 3} more` : '';
+      lines.push(`🤖 ${c.bold(String(s.agents.length))} agents in the stable · ${shown}${extra}`);
+    }
   }
 
   lines.push('');
