@@ -101,3 +101,4 @@ We catch the blatant. We can't catch the clever — a determined liar can hand-c
 - Codex costs use one fixed rate regardless of the underlying model.
 - LoC counts tracked text files by extension — generated code that you commit counts (we can't tell your `dist/` from your poetry; `.gitignore` it like an adult).
 - Offline percentile is a curve fit, not the real distribution — submit to get the real one.
+- Repos nested *inside* another git repo are not scanned (the walker stops at the first `.git` it meets). If your projects live under one umbrella repo, pass `--scan-dir` pointing below it (e.g. `--scan-dir ~/lab/projects`). Tracked as [#6](https://github.com/master5d/viberuler/issues/6).
