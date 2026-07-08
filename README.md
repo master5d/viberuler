@@ -89,6 +89,14 @@ npx viberuler --scan-dir ~/code --since 2026-01-01
 npx viberuler --github <handle>   # add your stars (the only other network call)
 ```
 
+## Statusline
+
+Put your score where your ego lives — ready-to-paste snippets for **Claude Code**, **Starship**, **oh-my-posh**, **tmux**, and raw shell prompts in [`integrations/statusline/`](integrations/statusline/). One cache file, sub-millisecond reads:
+
+```
+Fable 5 · ⚡3982 Context Goblin · 481.5K tok/$
+```
+
 ## Roadmap — PRs welcome
 
 - [x] Claude Code collector (tokens, cost, cache-hit dedup)
