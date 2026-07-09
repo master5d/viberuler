@@ -108,16 +108,27 @@ export async function latestForLogin(
   db: D1Database,
   login: string,
 ): Promise<
-  (BoardRow & { rank: number; sus: number; loc: number; streak_days: number | null; agents: string | null }) | null
+  | (BoardRow & {
+      rank: number;
+      sus: number;
+      loc: number;
+      tokens: number;
+      projects: number;
+      streak_days: number | null;
+      agents: string | null;
+    })
+  | null
 > {
   const row = await db
     .prepare(
-      `SELECT u.gh_login, u.avatar_url, s.vibe_score, s.loc, s.tok_per_usd, s.tok_per_loc, s.streak_days, s.agents, s.achievements, s.submitted_at, s.sus
+      `SELECT u.gh_login, u.avatar_url, s.vibe_score, s.loc, s.tokens, s.projects, s.tok_per_usd, s.tok_per_loc, s.streak_days, s.agents, s.achievements, s.submitted_at, s.sus
        FROM scores s JOIN users u ON u.id = s.user_id
        WHERE u.gh_login = ? AND s.id = (SELECT MAX(id) FROM scores WHERE user_id = u.id)`,
     )
     .bind(login)
-    .first<BoardRow & { sus: number; loc: number; streak_days: number | null; agents: string | null }>();
+    .first<
+      BoardRow & { sus: number; loc: number; tokens: number; projects: number; streak_days: number | null; agents: string | null }
+    >();
   if (!row) return null;
   const rank = row.sus ? 0 : await rankFor(db, row.vibe_score);
   return { ...row, rank };

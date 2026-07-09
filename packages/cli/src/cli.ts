@@ -198,6 +198,8 @@ export async function main(
       out(`    LinkedIn: ${links.linkedin}`);
       out(`    Facebook: ${links.facebook}`);
       out(`    Bluesky:  ${links.bluesky}`);
+      out('');
+      out(`  📲 Stories: open ${result.url} on your phone → "Share to Stories" (Instagram · WhatsApp · Facebook)`);
       return 0;
     } catch (err) {
       process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);

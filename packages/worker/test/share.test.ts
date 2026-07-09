@@ -33,6 +33,11 @@ describe('GET /u/:login', () => {
     expect(html).toContain('property="og:type"');
     expect(html).toContain('property="og:image:width"');
     expect(html).toMatch(/og:description" content="VIBE 3,101[^"]*312,441 lines shipped/);
+    // story/reels share: button + path-versioned vertical image + Web Share script
+    expect(html).toContain('Share to Stories');
+    expect(html).toMatch(/\/story\/master5d\/\d+\.png/);
+    expect(html).toContain('navigator.share');
+    expect(html).toContain('wa.me');
   });
 
   it('renders the certificate framing: subject, tier, paper texture', async () => {

@@ -33,6 +33,12 @@ const PAGE_CSS = `
   code{background:${PALETTE.surface};border:1px solid ${PALETTE.hairline};border-radius:8px;padding:12px 20px;
        font-size:18px;color:${PALETTE.green};display:inline-block;cursor:pointer}
   .hint{color:${PALETTE.muted};font-size:12px;margin-top:8px}
+  .share{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:24px}
+  .share button{background:${PALETTE.violet};color:${PALETTE.base};border:none;border-radius:10px;
+       padding:14px 28px;font-size:18px;font-weight:700;font-family:inherit;cursor:pointer}
+  .share button:hover{filter:brightness(1.08)}
+  .share .wa{color:${PALETTE.green};font-size:14px;text-decoration:none;border-bottom:1px dotted ${PALETTE.green}}
+  .share .stint{color:${PALETTE.muted};font-size:12px;max-width:340px;text-align:center}
 `;
 
 function page(
@@ -129,7 +135,7 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
       ? `<div class="meta">${agentsList.length} agents in the stable: ${agentsList.map(escapeHtml).join(' · ')}</div>`
       : '';
 
-  const body = `<div class="card paper">${SEAL_SVG(78)}
+  const card = `<div class="card paper">${SEAL_SVG(78)}
     <div class="title">CERTIFICATE OF VIBE MEASUREMENT</div>
     <div class="subject">subject: @${safe}</div>
     <div class="vibe">${scoreDisplay}</div>
@@ -143,6 +149,24 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
     ${certOrPending}
     <div class="signoff">— The Bureau · calibrated to ±0.001 vibes</div>
     </div>`;
+
+  // Story/reels share: a vertical 9:16 card handed to the phone's native share
+  // sheet via the Web Share API (files) — Instagram, WhatsApp, Facebook stories
+  // are app-only, so this (or a download fallback on desktop) is the only way
+  // to get the image into a story. Version the story image URL the same way as
+  // the og image so re-submits re-render.
+  const ogVersionForStory = String(row.submitted_at ?? '').replace(/[^0-9]/g, '') || String(row.vibe_score);
+  const storyImg = `${url.origin}/story/${encodeURIComponent(row.gh_login)}/${ogVersionForStory}.png`;
+  const caption = `My VIBE score is ${fmtInt(row.vibe_score)} — certified ${rank.toUpperCase()}. What's yours? npx viberuler  ${url.origin}/u/${encodeURIComponent(row.gh_login)}`;
+  const shareBlock = sus
+    ? ''
+    : `<div class="share">
+      <button id="story-share" type="button">📲 Share to Stories</button>
+      <a class="wa" href="https://wa.me/?text=${encodeURIComponent(caption)}" target="_blank" rel="noopener">or send via WhatsApp</a>
+      <div class="stint">opens your phone's share sheet — Instagram, Facebook, WhatsApp. On desktop it downloads the card to post.</div>
+    </div>
+    <script>(function(){var S=${JSON.stringify(storyImg)},C=${JSON.stringify(caption)},b=document.getElementById('story-share');if(!b)return;b.addEventListener('click',async function(){try{var r=await fetch(S);var f=new File([await r.blob()],'viberuler-story.png',{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:C});return;}}catch(e){}var a=document.createElement('a');a.href=S;a.download='viberuler-story.png';document.body.appendChild(a);a.click();a.remove();});})();</script>`;
+  const body = card + shareBlock;
   const title = sus
     ? `@${row.gh_login} — under review`
     : `@${row.gh_login} — VIBE ${fmtInt(row.vibe_score)}`;
