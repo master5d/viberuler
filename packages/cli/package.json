@@ -4,7 +4,7 @@
   "description": "The benchmark for vibe coders. Scan your rig, get your Vibe Score.",
   "type": "module",
   "license": "MIT",
-  "bin": { "viberuler": "./dist/bin.js" },
+  "bin": { "viberuler": "dist/bin.js" },
   "files": ["dist"],
   "engines": { "node": ">=18.17" },
   "repository": { "type": "git", "url": "git+https://github.com/master5d/viberuler.git" },
