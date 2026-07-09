@@ -69,8 +69,8 @@ describe('GET /', () => {
     await seed('master5d', 1, 6065);
     const home = await (await exports.default.fetch('https://viberuler.dev/')).text();
     const share = await (await exports.default.fetch('https://viberuler.dev/u/master5d')).text();
-    expect(home).toContain('href="/favicon.svg"');
-    expect(share).toContain('href="/favicon.svg"');
+    expect(home).toContain('href="/favicon.svg?v=2"');
+    expect(share).toContain('href="/favicon.svg?v=2"');
   });
 
   it('serves /leaderboard as an alias', async () => {

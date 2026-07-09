@@ -42,7 +42,7 @@ function page(title: string, ogLogin: string | null, body: string, origin: strin
     : '';
   return `<!doctype html><html><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
     <title>${escapeHtml(title)}</title>
     <meta property="og:title" content="${escapeHtml(title)}">${og}
     <style>${PAGE_CSS}</style></head>
