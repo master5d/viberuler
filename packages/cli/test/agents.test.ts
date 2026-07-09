@@ -17,13 +17,22 @@ describe('detectAgents', () => {
     expect(await detectAgents({ home, scanDirs: [] })).toEqual(['Claude Code', 'Codex', 'Cursor']);
   });
 
-  it('distinguishes Antigravity from Gemini CLI under the shared .gemini dir', async () => {
+  it('lets Antigravity supersede Gemini CLI under the shared .gemini dir', async () => {
     const home = await fakeHome();
     await mkdir(join(home, '.gemini', 'antigravity-cli'), { recursive: true });
     expect(await detectAgents({ home, scanDirs: [] })).toEqual(['Antigravity']);
 
+    // a leftover gemini settings.json (Antigravity's home) must NOT re-add a
+    // "Gemini CLI" the user has replaced with Antigravity
     await writeFile(join(home, '.gemini', 'settings.json'), '{}');
-    expect(await detectAgents({ home, scanDirs: [] })).toEqual(['Antigravity', 'Gemini CLI']);
+    expect(await detectAgents({ home, scanDirs: [] })).toEqual(['Antigravity']);
+  });
+
+  it('still reports Gemini CLI when Antigravity is absent', async () => {
+    const home = await fakeHome();
+    await mkdir(join(home, '.gemini'), { recursive: true });
+    await writeFile(join(home, '.gemini', 'settings.json'), '{}');
+    expect(await detectAgents({ home, scanDirs: [] })).toEqual(['Gemini CLI']);
   });
 
   it('reports an agent once even when several markers match', async () => {

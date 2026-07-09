@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Collector, ScanContext, TokenUsage } from '../types.js';
 import { costForUsage } from '../pricing.js';
@@ -59,6 +59,16 @@ function geminiDir(ctx: ScanContext): string {
   return env.GEMINI_DATA_DIR ?? join(ctx.home, '.gemini');
 }
 
+// Antigravity is a Gemini CLI fork that reuses the ~/.gemini home (chats still
+// land in tmp/*/chats). When its dir is present the usage belongs to Antigravity,
+// so we attribute the collected sessions to it rather than a removed Gemini CLI.
+async function ownerLabel(ctx: ScanContext): Promise<string> {
+  for (const p of [join(geminiDir(ctx), 'antigravity-cli'), join(ctx.home, '.antigravity')]) {
+    try { await stat(p); return 'Antigravity'; } catch { /* absent */ }
+  }
+  return 'Gemini CLI';
+}
+
 // Yield every *.jsonl under <geminiDir>/tmp/<project>/chats/** (recursive for
 // nested subagent UUID dirs). Never touches <geminiDir>/antigravity-cli.
 async function* sessionFiles(ctx: ScanContext): AsyncGenerator<string> {
@@ -102,6 +112,6 @@ export const geminiCollector: Collector = {
       } catch { /* unreadable file — skip */ }
     }
     if (!found) return {};
-    return { tokens, costUsd, sources: ['gemini'], agents: ['Gemini CLI'] };
+    return { tokens, costUsd, sources: ['gemini'], agents: [await ownerLabel(ctx)] };
   },
 };

@@ -59,6 +59,15 @@ describe('geminiCollector', () => {
     expect(r.agents).toEqual(['Gemini CLI']);
   });
 
+  it('attributes the sessions to Antigravity when its dir shares the .gemini home', async () => {
+    const gdir = await mkdtemp(join(tmpdir(), 'vibe-gemag2-'));
+    await seed(gdir, 'proj-a', '.', sessionFile);
+    await mkdir(join(gdir, 'antigravity-cli'), { recursive: true }); // Antigravity present
+    const r = await geminiCollector.collect({ home: '/', scanDirs: [], env: { GEMINI_DATA_DIR: gdir } });
+    expect(r.agents).toEqual(['Antigravity']);
+    expect(r.sources).toEqual(['gemini']); // token source label unchanged
+  });
+
   it('does not detect without a gemini tmp/chats tree', async () => {
     const gdir = await mkdtemp(join(tmpdir(), 'vibe-nogem-'));
     expect(await geminiCollector.detect({ home: '/', scanDirs: [], env: { GEMINI_DATA_DIR: gdir } })).toBe(false);

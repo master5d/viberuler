@@ -36,6 +36,10 @@ export async function detectAgents(ctx: ScanContext): Promise<string[]> {
       }
     }
   }
+  // Antigravity reuses the ~/.gemini home, so a leftover .gemini/settings.json
+  // would otherwise report a "Gemini CLI" the user has replaced. When Antigravity
+  // is present it supersedes Gemini CLI in the stable.
+  if (found.includes('Antigravity')) return found.filter((n) => n !== 'Gemini CLI');
   return found;
 }
 
