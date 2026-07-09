@@ -51,6 +51,16 @@ describe('brand', () => {
     expect(SCALE_LABELS[SCALE_LABELS.length - 1]).toBe('AGI (by accident)');
   });
 
+  it('compact gauge shows only 3 labels (endpoints + midpoint) so fixed-width rasters do not collide', () => {
+    const html = gaugeHtml(5343, { compact: true });
+    expect(html).toContain('hello world');
+    expect(html).toContain('a wrapper');
+    expect(html).toContain('AGI (by accident)');
+    expect(html).not.toContain('a CRUD app');
+    expect(html).not.toContain('another wrapper');
+    expect(html).not.toContain('an AI startup');
+  });
+
   // RANK_TABLE thresholds duplicated here as fixture — SOURCE OF TRUTH is
   // packages/cli/src/score.ts RANK_TABLE. If this drifts, fix brand.ts to match score.ts.
   it('rankForVibe agrees with score.ts RANK_TABLE at boundaries', () => {

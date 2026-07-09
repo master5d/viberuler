@@ -112,8 +112,14 @@ export function guillocheCss(): string {
 }`;
 }
 
-export function gaugeHtml(vibe: number, opts?: { sus?: boolean }): string {
+export function gaugeHtml(vibe: number, opts?: { sus?: boolean; compact?: boolean }): string {
   const sus = opts?.sus ?? false;
+  const compact = opts?.compact ?? false;
+  // Fixed-width raster surfaces (OG image) can't fit all six labels without
+  // collision; compact keeps the escalation joke's endpoints + midpoint.
+  const labels = compact
+    ? [SCALE_LABELS[0], SCALE_LABELS[2], SCALE_LABELS[5]]
+    : SCALE_LABELS;
 
   const cells: string[] = [];
   const fillCount = sus ? 0 : gaugeFill(vibe);
@@ -133,10 +139,12 @@ export function gaugeHtml(vibe: number, opts?: { sus?: boolean }): string {
     ? `<div style="display:flex;align-items:center;justify-content:center;padding:8px 16px;color:${PALETTE.stamp};font-family:ui-monospace,monospace;font-weight:700;">— UNDER REVIEW —</div>`
     : `<div style="display:flex;align-items:center;justify-content:flex-end;padding-left:16px;color:${PALETTE.ivory};font-family:ui-monospace,monospace;font-weight:700;font-size:32px;">${Math.round(vibe).toLocaleString('en-US')}</div>`;
 
-  const scaleRow = `<div style="display:flex;flex-direction:row;justify-content:space-between;width:400px;">${SCALE_LABELS.map(
-    (label) =>
-      `<div style="display:flex;color:${PALETTE.muted};font-family:ui-monospace,monospace;font-size:10px;">${label}</div>`,
-  ).join('')}</div>`;
+  const scaleRow = `<div style="display:flex;flex-direction:row;justify-content:space-between;width:400px;">${labels
+    .map(
+      (label) =>
+        `<div style="display:flex;color:${PALETTE.muted};font-family:ui-monospace,monospace;font-size:10px;">${label}</div>`,
+    )
+    .join('')}</div>`;
 
   return `<div style="display:flex;flex-direction:column;">
   <div style="display:flex;flex-direction:row;align-items:center;">

@@ -36,7 +36,7 @@ export function certificateHtml(row: OgRow): string {
       <div style="display:flex;font-size:28px;letter-spacing:4px;color:${PALETTE.violet}">CERTIFICATE OF VIBE MEASUREMENT</div>
       <div style="display:flex;font-size:26px;color:${PALETTE.ivory};margin-top:12px">subject: @${escapeHtml(row.gh_login)}</div>
       <div style="display:flex;font-size:110px;color:${PALETTE.green};margin:20px 0">${scoreDisplay}</div>
-      ${gaugeHtml(row.vibe_score, { sus })}
+      ${gaugeHtml(row.vibe_score, { sus, compact: true })}
       ${tokPerUsd}
       ${tokPerLoc}
       <div style="display:flex;font-size:36px;color:${PALETTE.stamp};margin-top:24px">${rankLine}</div>
