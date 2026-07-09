@@ -1,6 +1,6 @@
 {
   "name": "viberuler",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The benchmark for vibe coders. Scan your rig, get your Vibe Score.",
   "type": "module",
   "license": "MIT",
