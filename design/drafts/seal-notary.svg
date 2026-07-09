@@ -1,0 +1,25 @@
+<!-- VibeRuler VR seal — variation A "Notary Stamp" (chosen 2026-07-09). -->
+<!-- Canonical reference for brand.ts SEAL_SVG. ring=true (full); favicon uses ring=false. -->
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bureau of Vibe Measurement seal">
+  <defs>
+    <linearGradient id="vrg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b388ff"/><stop offset="1" stop-color="#69f0ae"/>
+    </linearGradient>
+    <path id="ring" d="M30,100 A70,70 0 0 1 170,100" fill="none"/>
+  </defs>
+  <circle cx="100" cy="100" r="97" fill="#0b0e14"/>
+  <circle cx="100" cy="100" r="95" fill="none" stroke="#b388ff" stroke-width="2"/>
+  <circle cx="100" cy="100" r="86" fill="none" stroke="#2a2f3a" stroke-width="1"/>
+  <circle cx="100" cy="100" r="82" fill="none" stroke="#ffd54f" stroke-width="5" stroke-dasharray="1 8" opacity="0.55"/>
+  <text font-family="ui-monospace,monospace" font-size="12.5" letter-spacing="1.5" fill="#c9c2ad">
+    <textPath href="#ring" startOffset="50%" text-anchor="middle">BUREAU OF VIBE MEASUREMENT</textPath>
+  </text>
+  <text x="100" y="118" text-anchor="middle" font-family="ui-monospace,monospace" font-weight="700" font-size="58" fill="url(#vrg)">VR</text>
+  <g stroke="#69f0ae" stroke-width="2" opacity="0.8">
+    <line x1="72" y1="132" x2="128" y2="132"/>
+    <line x1="72" y1="132" x2="72" y2="127"/><line x1="86" y1="132" x2="86" y2="129"/>
+    <line x1="100" y1="132" x2="100" y2="127"/><line x1="114" y1="132" x2="114" y2="129"/>
+    <line x1="128" y1="132" x2="128" y2="127"/>
+  </g>
+  <text x="100" y="158" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" letter-spacing="2" fill="#ffd54f">CERTIFIED &#183; 2026</text>
+</svg>
