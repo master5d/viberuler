@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env, exports } from 'cloudflare:workers';
 import { upsertUser, insertScore } from '../src/db.js';
+import { rankForVibe } from '../src/brand.js';
 
 beforeEach(async () => {
   await env.DB.prepare('DELETE FROM scores').run();
@@ -16,18 +17,23 @@ async function seed(login: string, ghId: number, vibe: number, sus = false): Pro
 }
 
 describe('GET /', () => {
-  it('renders the landing page with the top of the board and the CTA', async () => {
+  it('renders the Bureau letterhead landing with the top of the board and the CTA', async () => {
     await seed('master5d', 1, 6065);
     await seed('runnerup', 2, 3000);
     const res = await exports.default.fetch('https://viberuler.dev/');
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/html');
     const html = await res.text();
-    expect(html).toContain('VIBERULER');
+    expect(html).toContain('THE INTERNATIONAL BUREAU OF VIBE MEASUREMENT');
+    expect(html).toContain('OFFICIAL STANDINGS');
+    expect(html).toContain('This measurement is scientifically meaningless. Notarized anyway.');
+    expect(html).toContain('Every certificate is GitHub-notarized (device-flow OAuth).');
+    expect(html).toContain('.paper');
     expect(html).toContain('npx viberuler');
     expect(html).toContain('@master5d');
     expect(html).toContain('6,065');
-    expect(html).toContain('2 coders on the board');
+    expect(html).toContain('2 coders certified');
+    expect(html).toContain(rankForVibe(6065));
     // #1 listed before #2
     expect(html.indexOf('master5d')).toBeLessThan(html.indexOf('runnerup'));
     // share links wired
@@ -47,6 +53,7 @@ describe('GET /', () => {
     const html = await (await exports.default.fetch('https://viberuler.dev/')).text();
     expect(html).toContain('npx viberuler');
     expect(html).toContain('Be the first');
+    expect(html).toContain('THE INTERNATIONAL BUREAU OF VIBE MEASUREMENT');
   });
 
   it('serves the brand favicon at /favicon.svg and /favicon.ico', async () => {
@@ -69,12 +76,12 @@ describe('GET /', () => {
   it('serves /leaderboard as an alias', async () => {
     const res = await exports.default.fetch('https://viberuler.dev/leaderboard');
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain('VIBERULER');
+    expect(await res.text()).toContain('THE INTERNATIONAL BUREAU OF VIBE MEASUREMENT');
   });
 
-  it('states that every entry is GitHub-verified', async () => {
+  it('carries the GitHub-notarization trust line', async () => {
     await seed('master5d', 1, 6065);
     const html = await (await exports.default.fetch('https://viberuler.dev/')).text();
-    expect(html).toMatch(/GitHub-verified/i);
+    expect(html).toMatch(/GitHub-notarized/i);
   });
 });
