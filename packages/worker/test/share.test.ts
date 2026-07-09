@@ -35,6 +35,7 @@ describe('GET /u/:login', () => {
     expect(html).toContain('master5d');
     expect(html).toContain('The Bureau certifies: TOKEN BURNER');
     expect(html).toContain('.paper');
+    expect(html).toContain('312,441 lines of code shipped');
     expect(html).toContain('tokens per dollar');
     expect(html).toContain('6,500,000');
   });
@@ -60,6 +61,7 @@ describe('GET /u/:login', () => {
     expect(html).not.toContain('999,999');
     expect(html).not.toContain('tokens per dollar');
     expect(html).not.toContain('per line');
+    expect(html).not.toContain('lines of code shipped');
     expect(html).not.toContain('TOKEN BURNER');
     expect(html).not.toContain('GLOBAL RANK');
   });

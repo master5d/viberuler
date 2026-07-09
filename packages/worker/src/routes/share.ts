@@ -22,6 +22,7 @@ const PAGE_CSS = `
   .title{color:${PALETTE.violet};font-size:16px;letter-spacing:4px;margin:12px 0 4px}
   .subject{color:${PALETTE.ivory};font-size:18px;margin:8px 0 16px}
   .vibe{font-size:56px;color:${PALETTE.green};margin:8px 0}
+  .loc{color:${PALETTE.green};font-size:20px;margin-top:6px}
   .gauge{display:flex;flex-direction:column;align-items:center;margin:16px 0}
   .rank{color:${PALETTE.stamp};letter-spacing:1px;margin-top:16px}
   .certify{color:${PALETTE.amber};font-size:16px;margin-top:12px}
@@ -72,6 +73,7 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
   const certOrPending = sus
     ? `<div class="pending">— PENDING CERTIFICATION —</div>`
     : `<div class="certify">${escapeHtml(certifyLine(rank))}</div>`;
+  const locLine = !sus ? `<div class="loc">${fmtInt(row.loc)} lines of code shipped</div>` : '';
   const tokPerUsd =
     !sus && row.tok_per_usd !== null ? `<div>${fmtInt(row.tok_per_usd)} tokens per dollar</div>` : '';
   const tokPerLoc =
@@ -82,6 +84,7 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
     <div class="subject">subject: @${safe}</div>
     <div class="vibe">${scoreDisplay}</div>
     <div class="gauge">${gaugeHtml(row.vibe_score, { sus })}</div>
+    ${locLine}
     ${tokPerUsd}
     ${tokPerLoc}
     ${rankLine}

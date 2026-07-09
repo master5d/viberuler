@@ -104,15 +104,15 @@ export async function rankFor(db: D1Database, vibeScore: number): Promise<number
 export async function latestForLogin(
   db: D1Database,
   login: string,
-): Promise<(BoardRow & { rank: number; sus: number }) | null> {
+): Promise<(BoardRow & { rank: number; sus: number; loc: number }) | null> {
   const row = await db
     .prepare(
-      `SELECT u.gh_login, u.avatar_url, s.vibe_score, s.tok_per_usd, s.tok_per_loc, s.achievements, s.submitted_at, s.sus
+      `SELECT u.gh_login, u.avatar_url, s.vibe_score, s.loc, s.tok_per_usd, s.tok_per_loc, s.achievements, s.submitted_at, s.sus
        FROM scores s JOIN users u ON u.id = s.user_id
        WHERE u.gh_login = ? AND s.id = (SELECT MAX(id) FROM scores WHERE user_id = u.id)`,
     )
     .bind(login)
-    .first<BoardRow & { sus: number }>();
+    .first<BoardRow & { sus: number; loc: number }>();
   if (!row) return null;
   const rank = row.sus ? 0 : await rankFor(db, row.vibe_score);
   return { ...row, rank };

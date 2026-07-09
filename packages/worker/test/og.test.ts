@@ -33,6 +33,7 @@ describe('certificateHtml', () => {
     const html = certificateHtml({
       gh_login: 'master5d',
       vibe_score: 3101,
+      loc: 277690,
       rank: 4,
       sus: 0,
       tok_per_usd: 1000,
@@ -44,6 +45,7 @@ describe('certificateHtml', () => {
     expect(html).toContain('TOKEN BURNER');
     expect(html).toContain('GLOBAL RANK #4');
     expect(html).toContain('3,101');
+    expect(html).toContain('277,690 lines of code shipped');
     expect(html).toContain('1,000 tokens per dollar');
     expect(html).toContain('42 tokens / line shipped');
     expect(html).toContain('npx viberuler');
@@ -53,6 +55,7 @@ describe('certificateHtml', () => {
     const html = certificateHtml({
       gh_login: 'sussy',
       vibe_score: 9999,
+      loc: 88888,
       rank: 0,
       sus: 1,
       tok_per_usd: 500,
@@ -65,6 +68,8 @@ describe('certificateHtml', () => {
     expect(html).not.toContain('SINGULARITY ADJACENT');
     expect(html).not.toContain('tokens per dollar');
     expect(html).not.toContain('tokens / line shipped');
+    expect(html).not.toContain('lines of code shipped');
+    expect(html).not.toContain('88,888');
     expect(html).not.toContain('500');
     expect(html).not.toContain('20 tokens');
   });

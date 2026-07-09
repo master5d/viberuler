@@ -9,7 +9,7 @@ import font from '../assets/JetBrainsMono-Regular.ttf';
 
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
-type OgRow = BoardRow & { rank: number; sus: number };
+type OgRow = BoardRow & { rank: number; sus: number; loc: number };
 
 export function certificateHtml(row: OgRow): string {
   const sus = !!row.sus;
@@ -19,6 +19,10 @@ export function certificateHtml(row: OgRow): string {
   const certLine = sus
     ? `<div style="display:flex;font-size:24px;color:${PALETTE.stamp};margin-top:16px">— PENDING CERTIFICATION —</div>`
     : `<div style="display:flex;font-size:24px;color:${PALETTE.amber};margin-top:16px">${escapeHtml(certifyLine(rank))}</div>`;
+
+  const locLine = !sus
+    ? `<div style="display:flex;font-size:26px;color:${PALETTE.green};margin-top:14px">${fmtInt(row.loc)} lines of code shipped</div>`
+    : '';
 
   const tokPerUsd =
     !sus && row.tok_per_usd !== null
@@ -37,6 +41,7 @@ export function certificateHtml(row: OgRow): string {
       <div style="display:flex;font-size:26px;color:${PALETTE.ivory};margin-top:12px">subject: @${escapeHtml(row.gh_login)}</div>
       <div style="display:flex;font-size:110px;color:${PALETTE.green};margin:20px 0">${scoreDisplay}</div>
       ${gaugeHtml(row.vibe_score, { sus, compact: true })}
+      ${locLine}
       ${tokPerUsd}
       ${tokPerLoc}
       <div style="display:flex;font-size:36px;color:${PALETTE.stamp};margin-top:24px">${rankLine}</div>
