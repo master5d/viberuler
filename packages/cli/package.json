@@ -1,17 +1,36 @@
 {
   "name": "viberuler",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "The benchmark for vibe coders. Scan your rig, get your Vibe Score.",
   "type": "module",
   "license": "MIT",
-  "bin": { "viberuler": "dist/bin.js" },
-  "files": ["dist"],
-  "engines": { "node": ">=18.17" },
-  "repository": { "type": "git", "url": "git+https://github.com/master5d/viberuler.git" },
+  "bin": {
+    "viberuler": "dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/master5d/viberuler.git"
+  },
   "homepage": "https://viberuler.dev",
   "bugs": "https://github.com/master5d/viberuler/issues",
   "author": "Sasha Mamaev (https://github.com/master5d)",
-  "keywords": ["cli", "benchmark", "ai", "claude", "codex", "vibe-coding", "leaderboard", "tokens", "developer-tools"],
+  "keywords": [
+    "cli",
+    "benchmark",
+    "ai",
+    "claude",
+    "codex",
+    "vibe-coding",
+    "leaderboard",
+    "tokens",
+    "developer-tools"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
