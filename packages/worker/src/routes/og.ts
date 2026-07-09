@@ -1,12 +1,36 @@
 import { ImageResponse } from 'workers-og';
 import type { Env } from '../index.js';
 import { json } from '../index.js';
-import { latestForLogin } from '../db.js';
+import { latestForLogin, type BoardRow } from '../db.js';
 import { escapeHtml } from './share.js';
+import { gaugeHtml, rankForVibe, certifyLine, PALETTE } from '../brand.js';
 // wrangler Data rule (wrangler.jsonc "rules") imports .ttf as ArrayBuffer
 import font from '../assets/JetBrainsMono-Regular.ttf';
 
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
+
+type OgRow = BoardRow & { rank: number; sus: number };
+
+export function certificateHtml(row: OgRow): string {
+  const sus = !!row.sus;
+  const rankLine = sus ? 'UNDER REVIEW' : `GLOBAL RANK #${row.rank}`;
+  const scoreDisplay = sus ? '—' : fmtInt(row.vibe_score);
+  const rank = rankForVibe(row.vibe_score);
+
+  return `
+    <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;
+                width:1200px;height:630px;background:${PALETTE.base};color:${PALETTE.ivory};
+                font-family:'JetBrains Mono';padding:60px">
+      <div style="display:flex;font-size:28px;letter-spacing:4px;color:${PALETTE.violet}">CERTIFICATE OF VIBE MEASUREMENT</div>
+      <div style="display:flex;font-size:26px;color:${PALETTE.ivory};margin-top:12px">subject: @${escapeHtml(row.gh_login)}</div>
+      <div style="display:flex;font-size:110px;color:${PALETTE.green};margin:20px 0">${scoreDisplay}</div>
+      ${gaugeHtml(row.vibe_score, { sus })}
+      <div style="display:flex;font-size:36px;color:${PALETTE.stamp};margin-top:24px">${rankLine}</div>
+      <div style="display:flex;font-size:24px;color:${PALETTE.amber};margin-top:16px">${escapeHtml(certifyLine(rank))}</div>
+      <div style="display:flex;font-size:20px;color:${PALETTE.muted};margin-top:24px">— The Bureau · calibrated to ±0.001 vibes</div>
+      <div style="display:flex;font-size:20px;color:${PALETTE.muted};margin-top:10px">npx viberuler</div>
+    </div>`;
+}
 
 export async function handleOg(_req: Request, env: Env, url: URL): Promise<Response> {
   const m = url.pathname.match(/^\/og\/(.+)\.png$/);
@@ -17,23 +41,7 @@ export async function handleOg(_req: Request, env: Env, url: URL): Promise<Respo
   const row = login ? await latestForLogin(env.DB, login) : null;
   if (!row) return json({ error: 'not found' }, 404);
 
-  const rankLine = row.sus ? 'UNDER REVIEW' : `GLOBAL RANK #${row.rank}`;
-  const scoreDisplay = row.sus ? '—' : fmtInt(row.vibe_score);
-  const html = `
-    <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;
-                width:1200px;height:630px;background:#0b0e14;color:#e6e6e6;
-                font-family:'JetBrains Mono';padding:60px">
-      <div style="display:flex;font-size:36px;color:#b388ff">@${escapeHtml(row.gh_login)} · VIBERULER</div>
-      <div style="display:flex;font-size:120px;color:#69f0ae;margin:20px 0">${scoreDisplay}</div>
-      <div style="display:flex;font-size:40px;color:#ff80ab">${rankLine}</div>
-      ${!row.sus && row.tok_per_usd !== null
-        ? `<div style="display:flex;font-size:30px;color:#ffd54f;margin-top:16px">${fmtInt(row.tok_per_usd)} tokens per dollar</div>`
-        : ''}
-      ${!row.sus && row.tok_per_loc !== null
-        ? `<div style="display:flex;font-size:26px;color:#8c9eff;margin-top:8px">${fmtInt(row.tok_per_loc)} tokens / line shipped</div>`
-        : ''}
-      <div style="display:flex;font-size:26px;color:#666;margin-top:30px">npx viberuler</div>
-    </div>`;
+  const html = certificateHtml(row);
 
   const img = new ImageResponse(html, {
     width: 1200,

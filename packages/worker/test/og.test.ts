@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env, exports } from 'cloudflare:workers';
 import { upsertUser, insertScore } from '../src/db.js';
+import { certificateHtml } from '../src/routes/og.js';
 
 beforeEach(async () => {
   await env.DB.prepare('DELETE FROM scores').run();
@@ -24,5 +25,39 @@ describe('GET /og/:login.png', () => {
 
   it('404 for unknown login', async () => {
     expect((await exports.default.fetch('https://viberuler.dev/og/ghost.png')).status).toBe(404);
+  });
+});
+
+describe('certificateHtml', () => {
+  it('composes a certificate for a clean row', () => {
+    const html = certificateHtml({
+      gh_login: 'master5d',
+      vibe_score: 3101,
+      rank: 4,
+      sus: 0,
+      tok_per_usd: 1000,
+      tok_per_loc: null,
+    } as any);
+    expect(html).toContain('CERTIFICATE OF VIBE MEASUREMENT');
+    expect(html).toContain('@master5d');
+    expect(html).toContain('The Bureau certifies:');
+    expect(html).toContain('GLOBAL RANK #4');
+    expect(html).toContain('3,101');
+    expect(html).toContain('npx viberuler');
+  });
+
+  it('hides the score and shows UNDER REVIEW for a sus row', () => {
+    const html = certificateHtml({
+      gh_login: 'sussy',
+      vibe_score: 9999,
+      rank: 0,
+      sus: 1,
+      tok_per_usd: 500,
+      tok_per_loc: 20,
+    } as any);
+    expect(html).toContain('UNDER REVIEW');
+    expect(html).not.toContain('9,999');
+    expect(html).not.toContain('tokens per dollar');
+    expect(html).not.toContain('tokens / line shipped');
   });
 });
