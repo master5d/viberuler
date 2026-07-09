@@ -62,6 +62,8 @@ npx viberuler --submit
 
 GitHub device-flow login → your score goes live at `viberuler.dev/u/<you>` as a **Certificate of Vibe Measurement** (LoC · tok/$ · streak · agents · rank · title), built for flexing. Global rank. Efficiency percentile. Prefilled share links — X · LinkedIn · Facebook · Bluesky.
 
+**Share to Stories** — the certificate page also renders a vertical 9:16 **story card** (Spotify-Wrapped-style stat reveal) and a *Share to Stories* button. On mobile it hands the card straight to your phone's native share sheet — Instagram, WhatsApp, Facebook, Messenger; on desktop it downloads the card to post. (Stories are app-only, so this is the only way in — same mechanism Wrapped uses.)
+
 ## Privacy (read this, HN)
 
 - The default run makes **zero network calls**. Zero.
