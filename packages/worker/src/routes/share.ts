@@ -41,9 +41,15 @@ function page(
   body: string,
   origin: string,
   description: string,
+  ogVersion?: string,
 ): string {
   const canonical = ogLogin ? `${origin}/u/${encodeURIComponent(ogLogin)}` : origin;
-  const img = ogLogin ? `${origin}/og/${encodeURIComponent(ogLogin)}.png` : '';
+  // Version the image URL by submission time so LinkedIn/X/Slack — which cache
+  // the og:image by URL, separately from the page — re-fetch the fresh
+  // certificate after a re-submit instead of serving a stale render.
+  const img = ogLogin
+    ? `${origin}/og/${encodeURIComponent(ogLogin)}.png${ogVersion ? `?v=${encodeURIComponent(ogVersion)}` : ''}`
+    : '';
   const og = ogLogin
     ? `<meta property="og:image" content="${img}">
        <meta property="og:image:width" content="1200">
@@ -148,7 +154,8 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
       ]
         .filter(Boolean)
         .join(' · ') + `. GitHub-verified benchmark for vibe coders — get yours: npx viberuler`;
-  return new Response(page(title, row.gh_login, body, url.origin, description), {
+  const ogVersion = String(row.submitted_at ?? '').replace(/[^0-9]/g, '') || String(row.vibe_score);
+  return new Response(page(title, row.gh_login, body, url.origin, description, ogVersion), {
     status: 200, headers,
   });
 }
