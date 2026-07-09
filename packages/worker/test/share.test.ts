@@ -27,6 +27,11 @@ describe('GET /u/:login', () => {
     expect(html).toContain('/og/master5d.png');
     expect(html).toContain('summary_large_image');
     expect(html).toContain('GLOBAL RANK #1');
+    // rich preview so LinkedIn/Slack/Discord render a card, not a bare link
+    expect(html).toContain('property="og:description"');
+    expect(html).toContain('property="og:type"');
+    expect(html).toContain('property="og:image:width"');
+    expect(html).toMatch(/og:description" content="VIBE 3,101[^"]*312,441 lines shipped/);
   });
 
   it('renders the certificate framing: subject, tier, paper texture', async () => {

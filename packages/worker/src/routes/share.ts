@@ -35,17 +35,35 @@ const PAGE_CSS = `
   .hint{color:${PALETTE.muted};font-size:12px;margin-top:8px}
 `;
 
-function page(title: string, ogLogin: string | null, body: string, origin: string): string {
+function page(
+  title: string,
+  ogLogin: string | null,
+  body: string,
+  origin: string,
+  description: string,
+): string {
+  const canonical = ogLogin ? `${origin}/u/${encodeURIComponent(ogLogin)}` : origin;
+  const img = ogLogin ? `${origin}/og/${encodeURIComponent(ogLogin)}.png` : '';
   const og = ogLogin
-    ? `<meta property="og:image" content="${origin}/og/${encodeURIComponent(ogLogin)}.png">
+    ? `<meta property="og:image" content="${img}">
+       <meta property="og:image:width" content="1200">
+       <meta property="og:image:height" content="630">
        <meta name="twitter:card" content="summary_large_image">
-       <meta name="twitter:image" content="${origin}/og/${encodeURIComponent(ogLogin)}.png">`
+       <meta name="twitter:image" content="${img}">`
     : '';
+  const desc = escapeHtml(description);
   return `<!doctype html><html><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
     <title>${escapeHtml(title)}</title>
-    <meta property="og:title" content="${escapeHtml(title)}">${og}
+    <meta name="description" content="${desc}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="VibeRuler">
+    <meta property="og:url" content="${escapeHtml(canonical)}">
+    <meta property="og:title" content="${escapeHtml(title)}">
+    <meta property="og:description" content="${desc}">
+    <meta name="twitter:title" content="${escapeHtml(title)}">
+    <meta name="twitter:description" content="${desc}">${og}
     <style>${PAGE_CSS}</style></head>
     <body class="paper">${body}
     <div class="cta"><code onclick="navigator.clipboard.writeText('npx viberuler')">npx viberuler</code>
@@ -63,7 +81,16 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
     const body = `<div class="card paper">${SEAL_SVG(78)}
       <h1 class="title">404 — subject not on file</h1>
       <p>This coder has not submitted for certification. No record for <b>${escapeHtml(login)}</b>.</p></div>`;
-    return new Response(page('viberuler — subject not on file', null, body, url.origin), { status: 404, headers });
+    return new Response(
+      page(
+        'viberuler — subject not on file',
+        null,
+        body,
+        url.origin,
+        'The official benchmark for vibe coders. Scan your rig, get your VIBE score: npx viberuler',
+      ),
+      { status: 404, headers },
+    );
   }
 
   const sus = !!row.sus;
@@ -111,7 +138,17 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
   const title = sus
     ? `@${row.gh_login} — under review`
     : `@${row.gh_login} — VIBE ${fmtInt(row.vibe_score)}`;
-  return new Response(page(title, row.gh_login, body, url.origin), {
+  const description = sus
+    ? `@${row.gh_login}'s submission is under review by the Bureau of Vibe Measurement. Get your own VIBE score: npx viberuler`
+    : [
+        `VIBE ${fmtInt(row.vibe_score)}`,
+        row.tok_per_usd !== null ? `${fmtInt(row.tok_per_usd)} tokens/$` : null,
+        `${fmtInt(row.loc)} lines shipped`,
+        `certified ${rank}`,
+      ]
+        .filter(Boolean)
+        .join(' · ') + `. GitHub-verified benchmark for vibe coders — get yours: npx viberuler`;
+  return new Response(page(title, row.gh_login, body, url.origin, description), {
     status: 200, headers,
   });
 }
