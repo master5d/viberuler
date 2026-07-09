@@ -14,7 +14,7 @@ beforeEach(async () => {
 });
 
 describe('GET /u/:login', () => {
-  it('renders the share page with score, rank, og meta and CTA', async () => {
+  it('renders the certificate page with score, rank, og meta and CTA', async () => {
     const res = await exports.default.fetch('https://viberuler.dev/u/master5d');
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/html');
@@ -27,10 +27,23 @@ describe('GET /u/:login', () => {
     expect(html).toContain('summary_large_image');
   });
 
-  it('404 page for unknown login still sells the CTA', async () => {
+  it('renders the certificate framing: subject, tier, paper texture', async () => {
+    const res = await exports.default.fetch('https://viberuler.dev/u/master5d');
+    const html = await res.text();
+    expect(html).toContain('subject');
+    expect(html).toContain('master5d');
+    expect(html).toContain('The Bureau certifies: TOKEN BURNER');
+    expect(html).toContain('.paper');
+    expect(html).toContain('tokens per dollar');
+    expect(html).toContain('6,500,000');
+  });
+
+  it('404 page for unknown login still sells the CTA, Bureau voice', async () => {
     const res = await exports.default.fetch('https://viberuler.dev/u/ghost');
     expect(res.status).toBe(404);
-    expect(await res.text()).toContain('npx viberuler');
+    const html = await res.text();
+    expect(html).toContain('npx viberuler');
+    expect(html).toContain('subject not on file');
   });
 
   it('sus rows do not expose the inflated score on the share page', async () => {
@@ -42,7 +55,11 @@ describe('GET /u/:login', () => {
     const res = await exports.default.fetch('https://viberuler.dev/u/cheater');
     const html = await res.text();
     expect(html).toContain('UNDER REVIEW');
+    expect(html).toContain('PENDING CERTIFICATION');
     expect(html).not.toContain('999,999');
+    expect(html).not.toContain('tokens per dollar');
+    expect(html).not.toContain('per line');
+    expect(html).not.toContain('TOKEN BURNER');
   });
 
   it('shows tok/line shipped for a clean row', async () => {

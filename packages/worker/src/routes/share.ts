@@ -1,5 +1,6 @@
 import type { Env } from '../index.js';
 import { latestForLogin } from '../db.js';
+import { SEAL_SVG, guillocheCss, gaugeHtml, rankForVibe, certifyLine, PALETTE } from '../brand.js';
 
 export function escapeHtml(s: string): string {
   return s
@@ -13,18 +14,23 @@ export function escapeHtml(s: string): string {
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 const PAGE_CSS = `
-  body{background:#0b0e14;color:#e6e6e6;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  ${guillocheCss()}
+  body{background:${PALETTE.base};color:${PALETTE.ivory};font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;
        display:flex;flex-direction:column;align-items:center;padding:48px 16px;margin:0}
-  .card{border:1px solid #2a2f3a;border-radius:12px;padding:32px;max-width:560px;width:100%;
-        background:#11151f;box-shadow:0 0 40px rgba(140,82,255,.25)}
-  h1{color:#b388ff;font-size:20px;margin:0 0 16px}
-  .vibe{font-size:42px;color:#69f0ae;margin:8px 0}
-  .rank{color:#ff80ab;letter-spacing:1px}
-  .badges{color:#ffd54f;margin-top:12px}
+  .card{border:1px solid ${PALETTE.violet};border-radius:12px;padding:32px;max-width:560px;width:100%;
+        text-align:center;box-shadow:0 0 40px rgba(140,82,255,.25)}
+  .title{color:${PALETTE.violet};font-size:16px;letter-spacing:4px;margin:12px 0 4px}
+  .subject{color:${PALETTE.ivory};font-size:18px;margin:8px 0 16px}
+  .vibe{font-size:56px;color:${PALETTE.green};margin:8px 0}
+  .gauge{display:flex;flex-direction:column;align-items:center;margin:16px 0}
+  .rank{color:${PALETTE.stamp};letter-spacing:1px;margin-top:16px}
+  .certify{color:${PALETTE.amber};font-size:16px;margin-top:12px}
+  .pending{color:${PALETTE.stamp};font-size:16px;margin-top:12px}
+  .signoff{color:${PALETTE.muted};font-size:12px;margin-top:24px}
   .cta{margin-top:28px;text-align:center}
-  code{background:#1a1f2b;border:1px solid #2a2f3a;border-radius:8px;padding:12px 20px;
-       font-size:18px;color:#69f0ae;display:inline-block;cursor:pointer}
-  .hint{color:#666;font-size:12px;margin-top:8px}
+  code{background:${PALETTE.surface};border:1px solid ${PALETTE.hairline};border-radius:8px;padding:12px 20px;
+       font-size:18px;color:${PALETTE.green};display:inline-block;cursor:pointer}
+  .hint{color:${PALETTE.muted};font-size:12px;margin-top:8px}
 `;
 
 function page(title: string, ogLogin: string | null, body: string, origin: string): string {
@@ -39,7 +45,7 @@ function page(title: string, ogLogin: string | null, body: string, origin: strin
     <title>${escapeHtml(title)}</title>
     <meta property="og:title" content="${escapeHtml(title)}">${og}
     <style>${PAGE_CSS}</style></head>
-    <body>${body}
+    <body class="paper">${body}
     <div class="cta"><code onclick="navigator.clipboard.writeText('npx viberuler')">npx viberuler</code>
     <div class="hint">click to copy — get YOUR vibe score</div></div>
     </body></html>`;
@@ -52,22 +58,35 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
   const headers = { 'content-type': 'text/html; charset=utf-8' };
 
   if (!row) {
-    const body = `<div class="card"><h1>404 — NPC detected</h1>
-      <p>No vibes found for <b>${escapeHtml(login)}</b>. This player hasn't entered the arena.</p></div>`;
-    return new Response(page('viberuler — NPC', null, body, url.origin), { status: 404, headers });
+    const body = `<div class="card paper">${SEAL_SVG(78)}
+      <h1 class="title">404 — subject not on file</h1>
+      <p>This coder has not submitted for certification. No record for <b>${escapeHtml(login)}</b>.</p></div>`;
+    return new Response(page('viberuler — subject not on file', null, body, url.origin), { status: 404, headers });
   }
 
+  const sus = !!row.sus;
   const safe = escapeHtml(row.gh_login);
-  const achievements = (JSON.parse(row.achievements) as string[]).join(' · ');
-  const scoreBlock = row.sus
-    ? `<div class="vibe">—</div><div class="rank">UNDER REVIEW</div>`
-    : `<div class="vibe">${fmtInt(row.vibe_score)}</div><div class="rank">GLOBAL RANK #${row.rank}</div>`;
-  const body = `<div class="card"><h1>@${safe} on VIBERULER</h1>
-    ${scoreBlock}
-    ${!row.sus && row.tok_per_usd !== null ? `<div>${fmtInt(row.tok_per_usd)} tokens per dollar</div>` : ''}
-    ${!row.sus && row.tok_per_loc !== null ? `<div>${fmtInt(row.tok_per_loc)} tokens per line shipped</div>` : ''}
-    <div class="badges">${escapeHtml(achievements)}</div></div>`;
-  const title = row.sus
+  const rank = rankForVibe(row.vibe_score);
+  const scoreDisplay = sus ? '—' : fmtInt(row.vibe_score);
+  const certOrPending = sus
+    ? `<div class="pending">— PENDING CERTIFICATION —</div>`
+    : `<div class="certify">${escapeHtml(certifyLine(rank))}</div>`;
+  const tokPerUsd =
+    !sus && row.tok_per_usd !== null ? `<div>${fmtInt(row.tok_per_usd)} tokens per dollar</div>` : '';
+  const tokPerLoc =
+    !sus && row.tok_per_loc !== null ? `<div>${fmtInt(row.tok_per_loc)} tokens per line shipped</div>` : '';
+
+  const body = `<div class="card paper">${SEAL_SVG(78)}
+    <div class="title">CERTIFICATE OF VIBE MEASUREMENT</div>
+    <div class="subject">subject: @${safe}</div>
+    <div class="vibe">${scoreDisplay}</div>
+    <div class="gauge">${gaugeHtml(row.vibe_score, { sus })}</div>
+    ${tokPerUsd}
+    ${tokPerLoc}
+    ${certOrPending}
+    <div class="signoff">— The Bureau · calibrated to ±0.001 vibes</div>
+    </div>`;
+  const title = sus
     ? `@${row.gh_login} — under review`
     : `@${row.gh_login} — VIBE ${fmtInt(row.vibe_score)}`;
   return new Response(page(title, row.gh_login, body, url.origin), {
