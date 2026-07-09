@@ -29,7 +29,7 @@ identity flag for the vibe-coder niche.
 | `stampRed` | `#ff5252` | `UNDER REVIEW` / rank stamp |
 | `ivory` | `#c9c2ad` | certificate paper text |
 | `hairline` | `#2a2f3a` | borders / rules |
-| `muted` | `#666` | secondary text |
+| `muted` | `#8a8f9c` (lifted from #666 for WCAG AA body contrast) | secondary text |
 
 Deliberate remap vs GLOBAL_DESIGN: primary cyan `#00D1FF` → violet `#b388ff`;
 accent `#FF2A6D` → green `#69f0ae` / amber `#ffd54f`. This is identity, not debt.

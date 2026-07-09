@@ -68,6 +68,7 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
   const safe = escapeHtml(row.gh_login);
   const rank = rankForVibe(row.vibe_score);
   const scoreDisplay = sus ? '—' : fmtInt(row.vibe_score);
+  const rankLine = sus ? '' : `<div class="rank">GLOBAL RANK #${row.rank}</div>`;
   const certOrPending = sus
     ? `<div class="pending">— PENDING CERTIFICATION —</div>`
     : `<div class="certify">${escapeHtml(certifyLine(rank))}</div>`;
@@ -83,6 +84,7 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
     <div class="gauge">${gaugeHtml(row.vibe_score, { sus })}</div>
     ${tokPerUsd}
     ${tokPerLoc}
+    ${rankLine}
     ${certOrPending}
     <div class="signoff">— The Bureau · calibrated to ±0.001 vibes</div>
     </div>`;

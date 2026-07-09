@@ -25,6 +25,7 @@ describe('GET /u/:login', () => {
     expect(html).toContain('og:image');
     expect(html).toContain('/og/master5d.png');
     expect(html).toContain('summary_large_image');
+    expect(html).toContain('GLOBAL RANK #1');
   });
 
   it('renders the certificate framing: subject, tier, paper texture', async () => {
@@ -60,6 +61,7 @@ describe('GET /u/:login', () => {
     expect(html).not.toContain('tokens per dollar');
     expect(html).not.toContain('per line');
     expect(html).not.toContain('TOKEN BURNER');
+    expect(html).not.toContain('GLOBAL RANK');
   });
 
   it('shows tok/line shipped for a clean row', async () => {

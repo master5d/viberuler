@@ -11,7 +11,7 @@ export const PALETTE = Object.freeze({
   stamp: '#ff5252',
   ivory: '#c9c2ad',
   hairline: '#2a2f3a',
-  muted: '#666',
+  muted: '#8a8f9c',
 });
 
 export const GAUGE_CELLS = 16;
