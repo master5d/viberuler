@@ -85,6 +85,10 @@ export function renderCard(report: ScoreReport, opts: { colors: boolean; version
     rows.push(report.achievements.map((a) => `${a.emoji} ${a.title}`).join(' · '));
   }
 
+  // Bureau sign-off boilerplate — same string the web certificate closes with.
+  rows.push('');
+  rows.push(c.dim('— The Bureau · calibrated to ±0.001 vibes'));
+
   // Left gradient rail — no right border, so emoji cell-width (which varies by
   // terminal) can never misalign the card. Rounded caps top and bottom.
   const total = rows.length + 2;

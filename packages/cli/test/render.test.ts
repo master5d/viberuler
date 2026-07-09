@@ -25,6 +25,7 @@ describe('renderCard', () => {
     expect(out).toContain('VIBE SCORE');
     expect(out).toContain('· bureau of vibe measurement');
     expect(out).toContain('THE BUREAU CERTIFIES: ');
+    expect(out).toContain('— The Bureau · calibrated to ±0.001 vibes'); // sign-off boilerplate, mirrors the web certificate
     expect(out).not.toContain('RANK:');
     expect(out).not.toMatch(/\[/); // zero ANSI escapes in plain mode
   });
