@@ -36,17 +36,20 @@ describe('certificateHtml', () => {
       rank: 4,
       sus: 0,
       tok_per_usd: 1000,
-      tok_per_loc: null,
+      tok_per_loc: 42,
     } as any);
     expect(html).toContain('CERTIFICATE OF VIBE MEASUREMENT');
     expect(html).toContain('@master5d');
     expect(html).toContain('The Bureau certifies:');
+    expect(html).toContain('TOKEN BURNER');
     expect(html).toContain('GLOBAL RANK #4');
     expect(html).toContain('3,101');
+    expect(html).toContain('1,000 tokens per dollar');
+    expect(html).toContain('42 tokens / line shipped');
     expect(html).toContain('npx viberuler');
   });
 
-  it('hides the score and shows UNDER REVIEW for a sus row', () => {
+  it('hides the score, tier, and stats and shows PENDING CERTIFICATION for a sus row', () => {
     const html = certificateHtml({
       gh_login: 'sussy',
       vibe_score: 9999,
@@ -56,8 +59,13 @@ describe('certificateHtml', () => {
       tok_per_loc: 20,
     } as any);
     expect(html).toContain('UNDER REVIEW');
+    expect(html).toContain('PENDING CERTIFICATION');
     expect(html).not.toContain('9,999');
+    expect(html).not.toContain('The Bureau certifies:');
+    expect(html).not.toContain('SINGULARITY ADJACENT');
     expect(html).not.toContain('tokens per dollar');
     expect(html).not.toContain('tokens / line shipped');
+    expect(html).not.toContain('500');
+    expect(html).not.toContain('20 tokens');
   });
 });

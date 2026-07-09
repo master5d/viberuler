@@ -16,6 +16,18 @@ export function certificateHtml(row: OgRow): string {
   const rankLine = sus ? 'UNDER REVIEW' : `GLOBAL RANK #${row.rank}`;
   const scoreDisplay = sus ? '—' : fmtInt(row.vibe_score);
   const rank = rankForVibe(row.vibe_score);
+  const certLine = sus
+    ? `<div style="display:flex;font-size:24px;color:${PALETTE.stamp};margin-top:16px">— PENDING CERTIFICATION —</div>`
+    : `<div style="display:flex;font-size:24px;color:${PALETTE.amber};margin-top:16px">${escapeHtml(certifyLine(rank))}</div>`;
+
+  const tokPerUsd =
+    !sus && row.tok_per_usd !== null
+      ? `<div style="display:flex;font-size:32px;color:${PALETTE.amber};margin-top:16px">${fmtInt(row.tok_per_usd)} tokens per dollar</div>`
+      : '';
+  const tokPerLoc =
+    !sus && row.tok_per_loc !== null
+      ? `<div style="display:flex;font-size:18px;color:${PALETTE.violet};margin-top:6px">${fmtInt(row.tok_per_loc)} tokens / line shipped</div>`
+      : '';
 
   return `
     <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;
@@ -25,8 +37,10 @@ export function certificateHtml(row: OgRow): string {
       <div style="display:flex;font-size:26px;color:${PALETTE.ivory};margin-top:12px">subject: @${escapeHtml(row.gh_login)}</div>
       <div style="display:flex;font-size:110px;color:${PALETTE.green};margin:20px 0">${scoreDisplay}</div>
       ${gaugeHtml(row.vibe_score, { sus })}
+      ${tokPerUsd}
+      ${tokPerLoc}
       <div style="display:flex;font-size:36px;color:${PALETTE.stamp};margin-top:24px">${rankLine}</div>
-      <div style="display:flex;font-size:24px;color:${PALETTE.amber};margin-top:16px">${escapeHtml(certifyLine(rank))}</div>
+      ${certLine}
       <div style="display:flex;font-size:20px;color:${PALETTE.muted};margin-top:24px">— The Bureau · calibrated to ±0.001 vibes</div>
       <div style="display:flex;font-size:20px;color:${PALETTE.muted};margin-top:10px">npx viberuler</div>
     </div>`;
