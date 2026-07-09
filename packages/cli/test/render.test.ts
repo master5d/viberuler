@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { renderCard, displayWidth } from '../src/render.js';
+import { renderCard } from '../src/render.js';
 import { computeScore } from '../src/score.js';
 import { emptyStats } from '../src/merge.js';
+
+// eslint-disable-next-line no-control-regex
+const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
 
 describe('renderCard', () => {
   it('renders a stable plain card (golden)', () => {
@@ -44,23 +47,23 @@ describe('renderCard', () => {
     expect(out).not.toContain('THE BUREAU CERTIFIES:');
   });
 
-  it('renders a closed, perfectly-aligned box (emoji counted as 2 cells)', () => {
+  it('frames with a left rail and rounded caps, no right border (emoji-safe)', () => {
     const stats = {
       ...emptyStats(),
       projects: 47, commits: 8921, streakDays: 212, locTotal: 312_441,
       tokens: { input: 2_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 4,
       sources: ['claude-code', 'git'], agents: ['Gemini CLI', 'Claude Code', 'Codex', 'Cursor'],
     };
-    const out = renderCard(computeScore(stats), { colors: false, version: '0.3.2' });
-    const lines = out.split('\n');
-    // top ╭…╮, bottom ╰…╯, every interior line a │…│, all identical display width
-    expect(lines[0]!.startsWith('╭')).toBe(true);
-    expect(lines[0]!.endsWith('╮')).toBe(true);
-    expect(lines[lines.length - 1]!.startsWith('╰')).toBe(true);
-    const w0 = displayWidth(lines[0]!);
-    for (const l of lines) {
-      expect(displayWidth(l)).toBe(w0); // right border aligns on every row
-      expect(l[0] === '╭' || l[0] === '╰' || l[0] === '├' || l[0] === '│').toBe(true);
+    const lines = renderCard(computeScore(stats), { colors: false, version: '0.3.2' })
+      .split('\n')
+      .map(stripAnsi);
+    expect(lines[0]).toBe('╭'); // top cap
+    expect(lines[lines.length - 1]).toBe('╰'); // bottom cap
+    // every interior line hangs off the rail; nothing carries a right border char
+    for (const l of lines.slice(1, -1)) {
+      expect(l.startsWith('│')).toBe(true);
+      expect(l).not.toContain('╮');
+      expect(l).not.toContain('╯');
     }
   });
 
