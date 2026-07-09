@@ -9,7 +9,23 @@ import font from '../assets/JetBrainsMono-Regular.ttf';
 
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
-type OgRow = BoardRow & { rank: number; sus: number; loc: number };
+type OgRow = BoardRow & {
+  rank: number;
+  sus: number;
+  loc: number;
+  streak_days: number | null;
+  agents: string | null;
+};
+
+function parseAgents(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 export function certificateHtml(row: OgRow): string {
   const sus = !!row.sus;
@@ -33,18 +49,31 @@ export function certificateHtml(row: OgRow): string {
       ? `<div style="display:flex;font-size:18px;color:${PALETTE.violet};margin-top:6px">${fmtInt(row.tok_per_loc)} tokens / line shipped</div>`
       : '';
 
+  const agentsList = parseAgents(row.agents);
+  const metaParts: string[] = [];
+  if (!sus && row.streak_days != null && row.streak_days > 0) metaParts.push(`${row.streak_days}-day streak`);
+  if (!sus && agentsList.length) {
+    const shown = agentsList.slice(0, 3).map(escapeHtml).join(' · ');
+    const extra = agentsList.length > 3 ? ` +${agentsList.length - 3}` : '';
+    metaParts.push(`${agentsList.length} agents in the stable: ${shown}${extra}`);
+  }
+  const metaLine = metaParts.length
+    ? `<div style="display:flex;font-size:20px;color:${PALETTE.ivory};margin-top:14px">${metaParts.join('   ·   ')}</div>`
+    : '';
+
   return `
     <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;
                 width:1200px;height:630px;background:${PALETTE.base};color:${PALETTE.ivory};
                 font-family:'JetBrains Mono';padding:60px">
       <div style="display:flex;font-size:28px;letter-spacing:4px;color:${PALETTE.violet}">CERTIFICATE OF VIBE MEASUREMENT</div>
       <div style="display:flex;font-size:26px;color:${PALETTE.ivory};margin-top:12px">subject: @${escapeHtml(row.gh_login)}</div>
-      <div style="display:flex;font-size:110px;color:${PALETTE.green};margin:20px 0">${scoreDisplay}</div>
+      <div style="display:flex;font-size:92px;color:${PALETTE.green};margin:14px 0">${scoreDisplay}</div>
       ${gaugeHtml(row.vibe_score, { sus, compact: true })}
       ${locLine}
       ${tokPerUsd}
       ${tokPerLoc}
-      <div style="display:flex;font-size:36px;color:${PALETTE.stamp};margin-top:24px">${rankLine}</div>
+      ${metaLine}
+      <div style="display:flex;font-size:34px;color:${PALETTE.stamp};margin-top:18px">${rankLine}</div>
       ${certLine}
       <div style="display:flex;font-size:20px;color:${PALETTE.muted};margin-top:24px">— The Bureau · calibrated to ±0.001 vibes</div>
       <div style="display:flex;font-size:20px;color:${PALETTE.muted};margin-top:10px">npx viberuler</div>

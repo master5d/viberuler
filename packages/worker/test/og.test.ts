@@ -38,6 +38,8 @@ describe('certificateHtml', () => {
       sus: 0,
       tok_per_usd: 1000,
       tok_per_loc: 42,
+      streak_days: 32,
+      agents: JSON.stringify(['Claude Code', 'Codex', 'Gemini CLI']),
     } as any);
     expect(html).toContain('CERTIFICATE OF VIBE MEASUREMENT');
     expect(html).toContain('@master5d');
@@ -48,6 +50,8 @@ describe('certificateHtml', () => {
     expect(html).toContain('277,690 lines of code shipped');
     expect(html).toContain('1,000 tokens per dollar');
     expect(html).toContain('42 tokens / line shipped');
+    expect(html).toContain('32-day streak');
+    expect(html).toContain('3 agents in the stable: Claude Code · Codex · Gemini CLI');
     expect(html).toContain('npx viberuler');
   });
 
@@ -60,6 +64,8 @@ describe('certificateHtml', () => {
       sus: 1,
       tok_per_usd: 500,
       tok_per_loc: 20,
+      streak_days: 77,
+      agents: JSON.stringify(['Claude Code', 'Cursor']),
     } as any);
     expect(html).toContain('UNDER REVIEW');
     expect(html).toContain('PENDING CERTIFICATION');
@@ -72,5 +78,8 @@ describe('certificateHtml', () => {
     expect(html).not.toContain('88,888');
     expect(html).not.toContain('500');
     expect(html).not.toContain('20 tokens');
+    expect(html).not.toContain('77-day streak');
+    expect(html).not.toContain('agents in the stable');
+    expect(html).not.toContain('Cursor');
   });
 });

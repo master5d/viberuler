@@ -23,6 +23,7 @@ const PAGE_CSS = `
   .subject{color:${PALETTE.ivory};font-size:18px;margin:8px 0 16px}
   .vibe{font-size:56px;color:${PALETTE.green};margin:8px 0}
   .loc{color:${PALETTE.green};font-size:20px;margin-top:6px}
+  .meta{color:${PALETTE.ivory};font-size:15px;margin-top:6px}
   .gauge{display:flex;flex-direction:column;align-items:center;margin:16px 0}
   .rank{color:${PALETTE.stamp};letter-spacing:1px;margin-top:16px}
   .certify{color:${PALETTE.amber};font-size:16px;margin-top:12px}
@@ -79,6 +80,20 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
   const tokPerLoc =
     !sus && row.tok_per_loc !== null ? `<div>${fmtInt(row.tok_per_loc)} tokens per line shipped</div>` : '';
 
+  let agentsList: string[] = [];
+  try {
+    const v = row.agents ? JSON.parse(row.agents) : [];
+    if (Array.isArray(v)) agentsList = v.filter((x) => typeof x === 'string');
+  } catch { agentsList = []; }
+  const streakLine =
+    !sus && row.streak_days != null && row.streak_days > 0
+      ? `<div class="meta">${row.streak_days}-day streak</div>`
+      : '';
+  const agentsLine =
+    !sus && agentsList.length
+      ? `<div class="meta">${agentsList.length} agents in the stable: ${agentsList.map(escapeHtml).join(' · ')}</div>`
+      : '';
+
   const body = `<div class="card paper">${SEAL_SVG(78)}
     <div class="title">CERTIFICATE OF VIBE MEASUREMENT</div>
     <div class="subject">subject: @${safe}</div>
@@ -87,6 +102,8 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
     ${locLine}
     ${tokPerUsd}
     ${tokPerLoc}
+    ${streakLine}
+    ${agentsLine}
     ${rankLine}
     ${certOrPending}
     <div class="signoff">— The Bureau · calibrated to ±0.001 vibes</div>

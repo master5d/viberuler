@@ -9,7 +9,8 @@ beforeEach(async () => {
   const a = await upsertUser(env.DB, { gh_id: 1, gh_login: 'master5d', avatar_url: null, gh_created_at: null });
   await insertScore(env.DB, a, {
     vibe_score: 3101, loc: 312441, projects: 47, tokens: 1_200_000_000, cost_usd: 184.2,
-    tok_per_usd: 6_500_000, tok_per_loc: 8400, achievements: ['token-billionaire'], breakdown: {}, client_version: '0.1.0',
+    tok_per_usd: 6_500_000, tok_per_loc: 8400, streak_days: 32, agents: ['Claude Code', 'Codex', 'Gemini CLI'],
+    achievements: ['token-billionaire'], breakdown: {}, client_version: '0.1.0',
   }, false);
 });
 
@@ -36,6 +37,8 @@ describe('GET /u/:login', () => {
     expect(html).toContain('The Bureau certifies: TOKEN BURNER');
     expect(html).toContain('.paper');
     expect(html).toContain('312,441 lines of code shipped');
+    expect(html).toContain('32-day streak');
+    expect(html).toContain('3 agents in the stable: Claude Code · Codex · Gemini CLI');
     expect(html).toContain('tokens per dollar');
     expect(html).toContain('6,500,000');
   });
@@ -62,6 +65,8 @@ describe('GET /u/:login', () => {
     expect(html).not.toContain('tokens per dollar');
     expect(html).not.toContain('per line');
     expect(html).not.toContain('lines of code shipped');
+    expect(html).not.toContain('day streak');
+    expect(html).not.toContain('agents in the stable');
     expect(html).not.toContain('TOKEN BURNER');
     expect(html).not.toContain('GLOBAL RANK');
   });

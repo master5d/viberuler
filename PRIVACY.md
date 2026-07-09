@@ -11,11 +11,11 @@ Short version: **the scanner reads your machine so that nothing else has to.**
 
 ## What `--submit` sends
 
-Exactly ten fields — aggregates only. This is the complete, real shape (built in [`packages/cli/src/payload.ts`](packages/cli/src/payload.ts), ~30 lines):
+Exactly twelve fields — aggregates only. This is the complete, real shape (built in [`packages/cli/src/payload.ts`](packages/cli/src/payload.ts), ~30 lines):
 
 ```json
 {
-  "client_version": "0.1.0",
+  "client_version": "0.3.2",
   "vibe_score": 3101,
   "loc": 312441,
   "projects": 47,
@@ -23,10 +23,18 @@ Exactly ten fields — aggregates only. This is the complete, real shape (built 
   "cost_usd": 184.2,
   "tok_per_usd": 6500000,
   "tok_per_loc": 8400,
+  "streak_days": 32,
+  "agents": ["Claude Code", "Codex", "Gemini CLI"],
   "achievements": ["token-billionaire", "cache-whisperer"],
   "breakdown": { "volume": 1000, "leverage": 1500, "efficiency": 300, "breadth": 101, "streak": 100, "achievements": 100 }
 }
 ```
+
+`streak_days` is your current daily-commit streak (an integer). `agents` is the
+list of coding-agent **names** detected on your machine (e.g. `Claude Code`,
+`Codex`, `Cline`, `Gemini CLI`, `Cursor`) — a display-only toolchain flex shown
+on your certificate. No file paths, repo names, code, or prompts are ever sent.
+Older clients (≤ 0.3.1) simply omit both; the server stores them as null.
 
 The server validates this shape **strictly** ([`packages/worker/src/validation.ts`](packages/worker/src/validation.ts)) — a payload with any extra key is rejected, so even a modified client can't smuggle more data into our database.
 

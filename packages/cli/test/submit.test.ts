@@ -3,7 +3,8 @@ import { githubDeviceFlow, fetchPercentile, submitScore, shareLinks } from '../s
 
 const PAYLOAD = {
   client_version: '0.1.0', vibe_score: 3101, loc: 100, projects: 1, tokens: 1_200_000_000,
-  cost_usd: 184.2, tok_per_usd: 6_500_000, tok_per_loc: 8400, achievements: [], breakdown: {},
+  cost_usd: 184.2, tok_per_usd: 6_500_000, tok_per_loc: 8400, streak_days: 32,
+  agents: ['Claude Code', 'Codex'], achievements: [], breakdown: {},
 };
 
 function seqFetch(responses: Array<() => Response>): typeof fetch {
