@@ -64,7 +64,7 @@ describe('main', () => {
     expect(code).toBe(0);
     const text = lines.join('\n');
     expect(text).toContain('VIBE SCORE');
-    expect(text).toContain('RANK:');
+    expect(text).toContain('THE BUREAU CERTIFIES:');
   });
 
   it('payload command prints the aggregates-only JSON', async () => {

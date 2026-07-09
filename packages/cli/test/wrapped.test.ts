@@ -4,6 +4,17 @@ import { computeScore } from '../src/score.js';
 import { emptyStats } from '../src/merge.js';
 
 describe('renderWrapped', () => {
+  it('includes the Bureau letterhead sub-line and sign-off', () => {
+    const stats = {
+      ...emptyStats(), commits: 132, streakDays: 16,
+      tokens: { input: 5_000_000, output: 1_000_000, cacheWrite: 0, cacheRead: 0 }, costUsd: 12,
+      sources: ['claude-code', 'git'],
+    };
+    const out = renderWrapped(computeScore(stats), '2026-06', { colors: false, version: '0.3.0' });
+    expect(out).toContain('· bureau of vibe measurement');
+    expect(out).toContain('— The Bureau · calibrated to ±0.001 vibes');
+  });
+
   it('renders the month, commits, busiest day, streak, and tokens', () => {
     const stats = {
       ...emptyStats(), commits: 132, streakDays: 16, lateNightCommits: 9,

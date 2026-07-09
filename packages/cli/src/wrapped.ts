@@ -28,6 +28,7 @@ export function renderWrapped(
   const lines: string[] = [];
 
   lines.push(c.bold(c.magenta(`🎁 VIBE WRAPPED · ${month}`)));
+  lines.push(c.dim('· bureau of vibe measurement'));
   lines.push('');
 
   const quiet = s.commits === 0 && tokens === 0;
@@ -53,6 +54,7 @@ export function renderWrapped(
 
   lines.push('');
   lines.push(c.dim('recap: Claude Code tokens + git activity for the month · npx viberuler wrapped'));
+  lines.push(c.dim('— The Bureau · calibrated to ±0.001 vibes'));
 
   const top = `┌${'─'.repeat(WIDTH)}┐`;
   const bottom = `└${'─'.repeat(WIDTH)}┘`;

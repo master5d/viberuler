@@ -18,6 +18,7 @@ export function renderCard(report: ScoreReport, opts: { colors: boolean; version
   const lines: string[] = [];
 
   lines.push(c.bold(c.magenta(`VIBERULER v${opts.version}`)));
+  lines.push(c.dim('· bureau of vibe measurement'));
   lines.push('');
 
   if (report.rank === 'NPC (no vibes detected)') {
@@ -46,7 +47,11 @@ export function renderCard(report: ScoreReport, opts: { colors: boolean; version
   lines.push('');
   lines.push(`VIBE SCORE ${c.magenta(bar(report.vibe))}  ${c.bold(fmtInt(report.vibe))}`);
   const rankDisplay = report.rank === 'NPC (no vibes detected)' ? report.rank : report.rank.toUpperCase();
-  lines.push(`RANK: ${c.bold(c.cyan(rankDisplay))}`);
+  if (report.rank === 'NPC (no vibes detected)') {
+    lines.push(`RANK: ${c.bold(c.cyan(rankDisplay))}`);
+  } else {
+    lines.push(`THE BUREAU CERTIFIES: ${c.bold(c.cyan(rankDisplay))}`);
+  }
 
   if (report.achievements.length > 0) {
     lines.push('');

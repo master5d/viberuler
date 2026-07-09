@@ -3,6 +3,10 @@ import { renderCard } from '../src/render.js';
 import { computeScore } from '../src/score.js';
 import { emptyStats } from '../src/merge.js';
 
+const WIDTH = 46;
+// eslint-disable-next-line no-control-regex
+const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
+
 describe('renderCard', () => {
   it('renders a stable plain card (golden)', () => {
     const stats = {
@@ -20,8 +24,46 @@ describe('renderCard', () => {
     expect(out).toContain('$184.20 burned');
     expect(out).toContain('tok/$');
     expect(out).toContain('VIBE SCORE');
-    expect(out).toContain('RANK:');
+    expect(out).toContain('· bureau of vibe measurement');
+    expect(out).toContain('THE BUREAU CERTIFIES: ');
+    expect(out).not.toContain('RANK:');
     expect(out).not.toMatch(/\[/); // zero ANSI escapes in plain mode
+  });
+
+  it('certifies the uppercased rank via the Bureau line for a data-bearing report', () => {
+    const stats = {
+      ...emptyStats(),
+      commits: 10, tokens: { input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 },
+      costUsd: 3, sources: ['claude-code'],
+    };
+    const report = computeScore(stats);
+    const out = renderCard(report, { colors: false, version: '0.1.0' });
+    const rankDisplay = report.rank.toUpperCase();
+    expect(out).toContain(`THE BUREAU CERTIFIES: ${rankDisplay}`);
+  });
+
+  it('keeps the NPC branch on the plain RANK line, no Bureau certification', () => {
+    const out = renderCard(computeScore(emptyStats()), { colors: false, version: '0.1.0' });
+    expect(out).toContain('RANK:');
+    expect(out).not.toContain('THE BUREAU CERTIFIES:');
+  });
+
+  it('keeps the letterhead sub-line and certify line within the card width', () => {
+    const stats = {
+      ...emptyStats(),
+      commits: 10, tokens: { input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 },
+      costUsd: 3, sources: ['claude-code'],
+    };
+    const report = computeScore(stats);
+    const out = renderCard(report, { colors: false, version: '0.1.0' });
+    const relevantLines = out
+      .split('\n')
+      .filter((l) => l.includes('bureau of vibe measurement') || l.includes('THE BUREAU CERTIFIES:'));
+    expect(relevantLines.length).toBeGreaterThan(0);
+    for (const l of relevantLines) {
+      const content = stripAnsi(l).replace(/^│ /, '');
+      expect(content.length).toBeLessThanOrEqual(WIDTH);
+    }
   });
 
   it('renders the agents stable line, truncated past three', () => {
