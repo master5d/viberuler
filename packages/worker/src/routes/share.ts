@@ -46,9 +46,11 @@ function page(
   const canonical = ogLogin ? `${origin}/u/${encodeURIComponent(ogLogin)}` : origin;
   // Version the image URL by submission time so LinkedIn/X/Slack — which cache
   // the og:image by URL, separately from the page — re-fetch the fresh
-  // certificate after a re-submit instead of serving a stale render.
+  // certificate after a re-submit instead of serving a stale render. The
+  // version is a PATH segment, not a ?query: some crawlers (LinkedIn) are
+  // finicky about query-string image URLs and fall back to the small card.
   const img = ogLogin
-    ? `${origin}/og/${encodeURIComponent(ogLogin)}.png${ogVersion ? `?v=${encodeURIComponent(ogVersion)}` : ''}`
+    ? `${origin}/og/${encodeURIComponent(ogLogin)}${ogVersion ? `/${encodeURIComponent(ogVersion)}` : ''}.png`
     : '';
   const og = ogLogin
     ? `<meta property="og:image" content="${img}">

@@ -82,7 +82,10 @@ export function certificateHtml(row: OgRow): string {
 }
 
 export async function handleOg(_req: Request, env: Env, url: URL): Promise<Response> {
-  const m = url.pathname.match(/^\/og\/(.+)\.png$/);
+  // Accept both /og/<login>.png and /og/<login>/<version>.png. The version
+  // segment is a cache-buster only (ignored here) — a path segment rather than
+  // a ?query so crawlers (LinkedIn) unambiguously treat the URL as an image.
+  const m = url.pathname.match(/^\/og\/([^/]+)(?:\/[^/]+)?\.png$/);
   let login: string | null = null;
   if (m?.[1]) {
     try { login = decodeURIComponent(m[1]); } catch { login = null; }

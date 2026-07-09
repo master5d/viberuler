@@ -24,8 +24,8 @@ describe('GET /u/:login', () => {
     expect(html).toContain('3,101');
     expect(html).toContain('npx viberuler');
     expect(html).toContain('og:image');
-    expect(html).toContain('/og/master5d.png');
-    expect(html).toMatch(/\/og\/master5d\.png\?v=\d+/); // versioned so social re-fetches after re-submit
+    expect(html).toContain('/og/master5d/');
+    expect(html).toMatch(/\/og\/master5d\/\d+\.png/); // version is a path segment (not ?query) so LinkedIn treats it as an image and re-fetches after re-submit
     expect(html).toContain('summary_large_image');
     expect(html).toContain('GLOBAL RANK #1');
     // rich preview so LinkedIn/Slack/Discord render a card, not a bare link
