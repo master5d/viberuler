@@ -196,6 +196,7 @@ export async function main(
       out('  Flex it:');
       out(`    X:        ${links.x}`);
       out(`    LinkedIn: ${links.linkedin}`);
+      out(`    Facebook: ${links.facebook}`);
       out(`    Bluesky:  ${links.bluesky}`);
       return 0;
     } catch (err) {

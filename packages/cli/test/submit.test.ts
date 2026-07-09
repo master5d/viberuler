@@ -70,12 +70,22 @@ describe('submitScore', () => {
 });
 
 describe('shareLinks', () => {
-  it('builds encoded intents for x/linkedin/bluesky', () => {
+  it('builds encoded intents for x/linkedin/facebook/bluesky', () => {
     const links = shareLinks('https://viberuler.dev/u/master5d', PAYLOAD);
     expect(links.x).toContain('https://twitter.com/intent/tweet?text=');
     expect(links.x).toContain(encodeURIComponent('npx viberuler'));
     expect(links.x).toContain(encodeURIComponent('https://viberuler.dev/u/master5d'));
     expect(links.linkedin).toContain('linkedin.com');
+    expect(links.facebook).toContain('facebook.com/sharer/sharer.php?u=');
     expect(links.bluesky).toContain('bsky.app');
+  });
+
+  it('escapes the apostrophe so terminals do not split the link ("What\'s yours?")', () => {
+    const links = shareLinks('https://viberuler.dev/u/master5d', PAYLOAD);
+    // encodeURIComponent leaves ' raw; we must emit %27 so the URL is one token
+    for (const link of [links.x, links.bluesky]) {
+      expect(link).not.toContain("'");
+      expect(link).toContain('%27'); // the apostrophe from "What's"
+    }
   });
 });

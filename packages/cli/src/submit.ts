@@ -96,12 +96,24 @@ export async function submitScore(
   }
 }
 
-export function shareLinks(shareUrl: string, payload: SubmitPayload): { x: string; linkedin: string; bluesky: string } {
+// encodeURIComponent leaves !'()* unescaped; terminals treat ' and () as link
+// boundaries and cut the URL in half on paste. Escape them so the whole link is
+// one clickable token.
+function encURL(s: string): string {
+  return encodeURIComponent(s).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+}
+
+export function shareLinks(
+  shareUrl: string,
+  payload: SubmitPayload,
+): { x: string; linkedin: string; bluesky: string; facebook: string } {
   const text = `I burned ${fmtCompact(payload.tokens)} tokens for ${fmtUsd(payload.cost_usd)}. VIBE score ${payload.vibe_score}. What's yours? npx viberuler ${shareUrl}`;
-  const enc = encodeURIComponent(text);
+  const enc = encURL(text);
+  const u = encURL(shareUrl);
   return {
     x: `https://twitter.com/intent/tweet?text=${enc}`,
-    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${u}`,
     bluesky: `https://bsky.app/intent/compose?text=${enc}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${u}`,
   };
 }

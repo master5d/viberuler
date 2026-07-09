@@ -1,11 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { renderCard } from '../src/render.js';
+import { renderCard, displayWidth } from '../src/render.js';
 import { computeScore } from '../src/score.js';
 import { emptyStats } from '../src/merge.js';
-
-const WIDTH = 46;
-// eslint-disable-next-line no-control-regex
-const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
 
 describe('renderCard', () => {
   it('renders a stable plain card (golden)', () => {
@@ -48,21 +44,23 @@ describe('renderCard', () => {
     expect(out).not.toContain('THE BUREAU CERTIFIES:');
   });
 
-  it('keeps the letterhead sub-line and certify line within the card width', () => {
+  it('renders a closed, perfectly-aligned box (emoji counted as 2 cells)', () => {
     const stats = {
       ...emptyStats(),
-      commits: 10, tokens: { input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 },
-      costUsd: 3, sources: ['claude-code'],
+      projects: 47, commits: 8921, streakDays: 212, locTotal: 312_441,
+      tokens: { input: 2_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 4,
+      sources: ['claude-code', 'git'], agents: ['Gemini CLI', 'Claude Code', 'Codex', 'Cursor'],
     };
-    const report = computeScore(stats);
-    const out = renderCard(report, { colors: false, version: '0.1.0' });
-    const relevantLines = out
-      .split('\n')
-      .filter((l) => l.includes('bureau of vibe measurement') || l.includes('THE BUREAU CERTIFIES:'));
-    expect(relevantLines.length).toBeGreaterThan(0);
-    for (const l of relevantLines) {
-      const content = stripAnsi(l).replace(/^│ /, '');
-      expect(content.length).toBeLessThanOrEqual(WIDTH);
+    const out = renderCard(computeScore(stats), { colors: false, version: '0.3.2' });
+    const lines = out.split('\n');
+    // top ╭…╮, bottom ╰…╯, every interior line a │…│, all identical display width
+    expect(lines[0]!.startsWith('╭')).toBe(true);
+    expect(lines[0]!.endsWith('╮')).toBe(true);
+    expect(lines[lines.length - 1]!.startsWith('╰')).toBe(true);
+    const w0 = displayWidth(lines[0]!);
+    for (const l of lines) {
+      expect(displayWidth(l)).toBe(w0); // right border aligns on every row
+      expect(l[0] === '╭' || l[0] === '╰' || l[0] === '├' || l[0] === '│').toBe(true);
     }
   });
 
