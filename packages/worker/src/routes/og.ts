@@ -36,9 +36,10 @@ export function certificateHtml(row: OgRow): string {
     ? `<div style="display:flex;font-size:24px;color:${PALETTE.stamp};margin-top:16px">— PENDING CERTIFICATION —</div>`
     : `<div style="display:flex;font-size:24px;color:${PALETTE.amber};margin-top:16px">${escapeHtml(certifyLine(rank))}</div>`;
 
-  const locLine = !sus
-    ? `<div style="display:flex;font-size:26px;color:${PALETTE.green};margin-top:14px">${fmtInt(row.loc)} lines of code shipped</div>`
-    : '';
+  const locLine =
+    !sus && row.loc > 0
+      ? `<div style="display:flex;font-size:26px;color:${PALETTE.green};margin-top:14px">${fmtInt(row.loc)} lines of code shipped</div>`
+      : '';
 
   const tokPerUsd =
     !sus && row.tok_per_usd !== null

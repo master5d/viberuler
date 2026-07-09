@@ -101,7 +101,7 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
   const certOrPending = sus
     ? `<div class="pending">— PENDING CERTIFICATION —</div>`
     : `<div class="certify">${escapeHtml(certifyLine(rank))}</div>`;
-  const locLine = !sus ? `<div class="loc">${fmtInt(row.loc)} lines of code shipped</div>` : '';
+  const locLine = !sus && row.loc > 0 ? `<div class="loc">${fmtInt(row.loc)} lines of code shipped</div>` : '';
   const tokPerUsd =
     !sus && row.tok_per_usd !== null ? `<div>${fmtInt(row.tok_per_usd)} tokens per dollar</div>` : '';
   const tokPerLoc =
@@ -143,7 +143,7 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
     : [
         `VIBE ${fmtInt(row.vibe_score)}`,
         row.tok_per_usd !== null ? `${fmtInt(row.tok_per_usd)} tokens/$` : null,
-        `${fmtInt(row.loc)} lines shipped`,
+        row.loc > 0 ? `${fmtInt(row.loc)} lines shipped` : null,
         `certified ${rank}`,
       ]
         .filter(Boolean)
