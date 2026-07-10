@@ -128,6 +128,15 @@ export function renderCard(report: ScoreReport, opts: { colors: boolean; version
     }
     if (report.tokPerLoc !== null) rows.push(`🎯 ${c.bold(fmtCompact(report.tokPerLoc))} tok / line shipped`);
     if (s.commits > 0) rows.push(`🔥 ${c.bold(String(s.streakDays))}-day streak · ${c.bold(fmtInt(s.commits))} commits`);
+    // Outcomes over volume (gstack's shift): features shipped + PRs merged, and
+    // the cost-to-ship efficiency (tokens per feature) when both are known.
+    if (s.featsShipped > 0 || s.prsMerged > 0) {
+      const parts: string[] = [];
+      if (s.featsShipped > 0) parts.push(`${c.bold(fmtInt(s.featsShipped))} feature${s.featsShipped === 1 ? '' : 's'} shipped`);
+      if (s.prsMerged > 0) parts.push(`${c.bold(fmtInt(s.prsMerged))} PR${s.prsMerged === 1 ? '' : 's'} merged`);
+      if (s.featsShipped > 0 && tokens > 0) parts.push(`${c.bold(fmtCompact(tokens / s.featsShipped))} tok/feature`);
+      rows.push(`🚀 ${parts.join(' · ')}`);
+    }
     if (s.ghStars > 0) rows.push(`⭐ ${c.bold(fmtInt(s.ghStars))} GitHub stars`);
     if (s.agents.length > 0) {
       const shown = s.agents.slice(0, 3).join(' · ');

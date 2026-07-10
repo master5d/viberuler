@@ -23,6 +23,24 @@ describe('parseGitLog', () => {
     const r = parseGitLog(out);
     expect(r.dates).toEqual(['2026-06-01', '2026-06-01', '2026-06-02']);
     expect(r.lateNight).toBe(1);
+    expect(r.feats).toBe(0);
+    expect(r.prs).toBe(0);
+  });
+
+  it('counts conventional feat: commits and PR merges from the subject', () => {
+    const out = [
+      '2026-06-01 14\tfeat: add the widget',
+      '2026-06-01 15\tfeat(cli)!: breaking flag',
+      '2026-06-01 16\tfix: not a feature',
+      '2026-06-02 10\tRefactor login (#412)', // squash-merged PR
+      '2026-06-02 11\tMerge pull request #77 from x/y', // merge commit
+      '2026-06-02 12\tchore: bump deps',
+      '',
+    ].join('\n');
+    const r = parseGitLog(out);
+    expect(r.dates.length).toBe(6);
+    expect(r.feats).toBe(2);
+    expect(r.prs).toBe(2);
   });
 });
 

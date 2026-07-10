@@ -42,6 +42,14 @@ describe('detectAgents', () => {
     expect(await detectAgents({ home, scanDirs: [] })).toEqual(['Claude Code']);
   });
 
+  it('detects harness-layer agents (gstack, Factory, opencode) by their markers', async () => {
+    const home = await fakeHome();
+    await mkdir(join(home, '.gstack'), { recursive: true });
+    await mkdir(join(home, '.factory'), { recursive: true });
+    await mkdir(join(home, '.opencode'), { recursive: true });
+    expect(await detectAgents({ home, scanDirs: [] })).toEqual(['gstack', 'Factory', 'opencode']);
+  });
+
   it('returns empty on a bare home', async () => {
     expect(await detectAgents({ home: await fakeHome(), scanDirs: [] })).toEqual([]);
   });

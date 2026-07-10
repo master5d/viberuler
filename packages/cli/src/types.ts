@@ -8,6 +8,8 @@ export interface TokenUsage {
 export interface RawStats {
   projects: number;
   commits: number;
+  featsShipped: number;       // commits with a conventional `feat:` subject (outcomes, not volume)
+  prsMerged: number;          // merge commits + squash-merged PRs (`… (#123)`)
   streakDays: number;
   lateNightCommits: number;   // commits at 00:00-04:59 local
   historyRewrites: number;    // reflog rebase/reset entries

@@ -48,6 +48,26 @@ describe('renderCard', () => {
     expect(out).not.toContain('THE BUREAU CERTIFIES:');
   });
 
+  it('renders the ship-outcomes row (features, PRs, tok/feature) when present', () => {
+    const stats = {
+      ...emptyStats(),
+      commits: 100, featsShipped: 12, prsMerged: 8,
+      tokens: { input: 12_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 20,
+      sources: ['git', 'claude-code'],
+    };
+    const out = stripAnsi(renderCard(computeScore(stats), { colors: false, version: '0.1.0' }));
+    expect(out).toContain('12 features shipped');
+    expect(out).toContain('8 PRs merged');
+    expect(out).toContain('tok/feature'); // 12M / 12 = 1M tok/feature
+  });
+
+  it('omits the ship-outcomes row when no features or PRs were found', () => {
+    const stats = { ...emptyStats(), commits: 50, tokens: { input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 3, sources: ['claude-code'] };
+    const out = renderCard(computeScore(stats), { colors: false, version: '0.1.0' });
+    expect(out).not.toContain('features shipped');
+    expect(out).not.toContain('PRs merged');
+  });
+
   it('renders the per-agent token distribution strip with a legend when 2+ agents burned tokens', () => {
     const stats = {
       ...emptyStats(),

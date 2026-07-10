@@ -15,6 +15,15 @@ export const AGENT_ROSTER: Array<{ name: string; markers: string[] }> = [
   { name: 'Aider', markers: ['.aider.conf.yml', '.aider'] },
   { name: 'Cline', markers: ['.cline'] },
   { name: 'Copilot CLI', markers: ['.copilot'] },
+  // Harness / agent-agnostic layer trend (gstack now rides on top of 9 envs).
+  // Markers are best-effort conventional home dotdirs; a miss just never fires.
+  { name: 'gstack', markers: ['.gstack', '.config/gstack'] },
+  { name: 'Factory', markers: ['.factory'] },
+  { name: 'opencode', markers: ['.opencode', '.config/opencode'] },
+  { name: 'openclaw', markers: ['.openclaw'] },
+  { name: 'Slate', markers: ['.slate'] },
+  { name: 'Hermes', markers: ['.hermes'] },
+  { name: 'gbrain', markers: ['.gbrain'] },
 ];
 
 async function exists(path: string): Promise<boolean> {

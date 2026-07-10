@@ -2,7 +2,7 @@ import type { RawStats, TokenUsage } from './types.js';
 
 export function emptyStats(): RawStats {
   return {
-    projects: 0, commits: 0, streakDays: 0, lateNightCommits: 0, historyRewrites: 0,
+    projects: 0, commits: 0, featsShipped: 0, prsMerged: 0, streakDays: 0, lateNightCommits: 0, historyRewrites: 0,
     locTotal: 0, locByLang: {}, maxRepoLoc: 0,
     tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
     tokensByAgent: {},
@@ -28,6 +28,8 @@ export function mergeStats(base: RawStats, add: Partial<RawStats>): RawStats {
   return {
     projects: base.projects + (add.projects ?? 0),
     commits: base.commits + (add.commits ?? 0),
+    featsShipped: base.featsShipped + (add.featsShipped ?? 0),
+    prsMerged: base.prsMerged + (add.prsMerged ?? 0),
     streakDays: Math.max(base.streakDays, add.streakDays ?? 0),
     lateNightCommits: base.lateNightCommits + (add.lateNightCommits ?? 0),
     historyRewrites: base.historyRewrites + (add.historyRewrites ?? 0),

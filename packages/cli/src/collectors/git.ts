@@ -27,16 +27,28 @@ export function classifyExt(filePath: string): string | null {
   return LANG_BY_EXT[extname(filePath).toLowerCase()] ?? null;
 }
 
-export function parseGitLog(out: string): { dates: string[]; lateNight: number } {
+// Each log line is "<YYYY-MM-DD> <HH>\t<subject>" (pretty=%ad\t%s). We derive
+// commit dates + late-night count, plus outcome signals from the subject:
+// conventional `feat:` commits (features shipped) and PR merges (merge commits
+// or GitHub squash-merges ending in `(#123)`).
+const FEAT_RE = /^feat(\([^)]*\))?!?:/i;
+const PR_RE = /^merge pull request #\d+|\(#\d+\)\s*$/i;
+
+export function parseGitLog(out: string): { dates: string[]; lateNight: number; feats: number; prs: number } {
   const dates: string[] = [];
-  let lateNight = 0;
+  let lateNight = 0, feats = 0, prs = 0;
   for (const line of out.split('\n')) {
-    const m = line.trim().match(/^(\d{4}-\d{2}-\d{2}) (\d{2})$/);
+    const tab = line.indexOf('\t');
+    const head = (tab === -1 ? line : line.slice(0, tab)).trim();
+    const subject = tab === -1 ? '' : line.slice(tab + 1);
+    const m = head.match(/^(\d{4}-\d{2}-\d{2}) (\d{2})$/);
     if (!m) continue;
     dates.push(m[1]!);
     if (Number(m[2]) < 5) lateNight++;
+    if (FEAT_RE.test(subject)) feats++;
+    if (PR_RE.test(subject)) prs++;
   }
-  return { dates, lateNight };
+  return { dates, lateNight, feats, prs };
 }
 
 async function findRepos(root: string, depth = 0, acc: string[] = []): Promise<string[]> {
@@ -109,6 +121,7 @@ export const gitCollector: Collector = {
     for (const root of ctx.scanDirs) await findRepos(root, 0, repos);
 
     let projects = 0, commits = 0, lateNightCommits = 0, historyRewrites = 0;
+    let featsShipped = 0, prsMerged = 0;
     let locTotal = 0, maxRepoLoc = 0;
     const locByLang: Record<string, number> = {};
     const allDates: string[] = [];
@@ -123,17 +136,19 @@ export const gitCollector: Collector = {
           '--regexp-ignore-case',
           `--author=${escapeGitAuthorPattern(email)}`,
           '--date=format:%Y-%m-%d %H',
-          '--pretty=format:%ad',
+          '--pretty=format:%ad%x09%s',
         ];
         if (ctx.since) logArgs.push(`--since=${ctx.since.toISOString()}`);
         if (ctx.until) logArgs.push(`--until=${ctx.until.toISOString()}`);
         const { stdout } = await exec('git', logArgs, { maxBuffer: 64 * 1024 * 1024 });
-        const { dates, lateNight } = parseGitLog(stdout);
+        const { dates, lateNight, feats, prs } = parseGitLog(stdout);
         if (dates.length === 0) continue; // not our repo
 
         projects++;
         commits += dates.length;
         lateNightCommits += lateNight;
+        featsShipped += feats;
+        prsMerged += prs;
         allDates.push(...dates);
 
         try {
@@ -164,7 +179,7 @@ export const gitCollector: Collector = {
     }
 
     return {
-      projects, commits, streakDays: longestStreak(allDates), lateNightCommits, historyRewrites,
+      projects, commits, featsShipped, prsMerged, streakDays: longestStreak(allDates), lateNightCommits, historyRewrites,
       locTotal, locByLang, maxRepoLoc, sources: ['git'], warnings,
       busiestDay, busiestDayCount,
     };
