@@ -1,13 +1,36 @@
+import { EmailMessage } from 'cloudflare:email';
+import { createMimeMessage, Mailbox } from 'mimetext';
 import type { Env } from '../index.js';
 import { json } from '../index.js';
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const DEFAULT_TO = 'mamaev.sasha@gmail.com';
-const DEFAULT_FROM = 'VibeRuler Bureau <contact@viberuler.dev>';
+const DEFAULT_FROM = 'contact@viberuler.dev';
 
-// Home-page contact form. Validates, drops honeypot hits, and forwards a
-// plain-text email via Resend with the sender as reply-to. Secrets are never
-// logged. No PII is persisted — the message only lives in the outbound email.
+// Build the raw RFC 5322 message. mimetext handles UTF-8 header/body encoding
+// (Cyrillic names/messages) and Message-ID/Date, so the mail is deliverable.
+export function buildContactMime(opts: {
+  name: string;
+  email: string;
+  message: string;
+  from: string;
+  to: string;
+}): string {
+  const msg = createMimeMessage();
+  msg.setSender({ name: 'VibeRuler Bureau', addr: opts.from });
+  msg.setRecipient(opts.to);
+  msg.setHeader('Reply-To', new Mailbox({ addr: opts.email })); // reply lands on the submitter
+  msg.setSubject(`VibeRuler contact from ${opts.name || opts.email}`);
+  msg.addMessage({
+    contentType: 'text/plain',
+    data: `New VibeRuler contact submission\n\nFrom: ${opts.name || '(no name)'} <${opts.email}>\n\n${opts.message}\n`,
+  });
+  return msg.asRaw();
+}
+
+// Home-page contact form → Cloudflare Email Routing (send_email binding).
+// Validates, drops honeypot hits, forwards a plain-text email to the Bureau
+// inbox. No PII persisted — the message only lives in the outbound mail.
 export async function handleContact(req: Request, env: Env): Promise<Response> {
   let body: Record<string, unknown>;
   try {
@@ -27,37 +50,20 @@ export async function handleContact(req: Request, env: Env): Promise<Response> {
   if (!EMAIL_RE.test(email)) return json({ error: 'a valid email is required' }, 400);
   if (message.length < 2) return json({ error: 'a message is required' }, 400);
 
-  if (!env.RESEND_API_KEY) {
-    console.log(JSON.stringify({ level: 'error', msg: 'contact: RESEND_API_KEY not configured' }));
+  if (!env.CONTACT_EMAIL) {
+    console.log(JSON.stringify({ level: 'error', msg: 'contact: CONTACT_EMAIL binding not configured' }));
     return json({ error: 'contact is temporarily unavailable' }, 503);
   }
 
-  const text = `New VibeRuler contact submission\n\nFrom: ${name || '(no name)'} <${email}>\n\n${message}\n`;
+  const from = env.CONTACT_FROM || DEFAULT_FROM;
+  const to = env.CONTACT_TO || DEFAULT_TO;
 
-  let res: Response;
   try {
-    res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${env.RESEND_API_KEY}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: env.CONTACT_FROM || DEFAULT_FROM,
-        to: [env.CONTACT_TO || DEFAULT_TO],
-        reply_to: email,
-        subject: `VibeRuler contact — ${name || email}`,
-        text,
-      }),
-    });
+    const raw = buildContactMime({ name, email, message, from, to });
+    await env.CONTACT_EMAIL.send(new EmailMessage(from, to, raw));
   } catch (err) {
-    console.log(JSON.stringify({ level: 'error', msg: 'contact: resend fetch threw', err: String(err) }));
-    return json({ error: 'could not send — try again later' }, 502);
-  }
-
-  if (!res.ok) {
-    // Log status only — never the response body or the key.
-    console.log(JSON.stringify({ level: 'error', msg: 'contact: resend rejected', status: res.status }));
+    // Email Routing not yet enabled / destination unverified / send failure.
+    console.log(JSON.stringify({ level: 'error', msg: 'contact: send failed', err: String(err) }));
     return json({ error: 'could not send — try again later' }, 502);
   }
 

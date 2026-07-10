@@ -16,8 +16,10 @@
   "vars": {
     "GITHUB_CLIENT_ID": "Ov23li4ZfCaG86O8UGR3",
     "CONTACT_TO": "mamaev.sasha@gmail.com",
-    "CONTACT_FROM": "VibeRuler Bureau <contact@viberuler.dev>"
-    // RESEND_API_KEY is a secret — set with: wrangler secret put RESEND_API_KEY
+    "CONTACT_FROM": "contact@viberuler.dev"
   },
+  // Contact form → Cloudflare Email Routing (free). Requires Email Routing
+  // enabled on viberuler.dev + CONTACT_TO verified as a destination address.
+  "send_email": [{ "name": "CONTACT_EMAIL", "destination_address": "mamaev.sasha@gmail.com" }],
   "rules": [{ "type": "Data", "globs": ["**/*.ttf"], "fallthrough": true }]
 }

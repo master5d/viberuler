@@ -11,8 +11,9 @@ import { handleContact } from './routes/contact.js';
 export interface Env {
   DB: D1Database;
   GITHUB_CLIENT_ID: string;
-  // Contact form (home footer → Resend email). Key is a secret; to/from are vars.
-  RESEND_API_KEY?: string;
+  // Contact form (home footer → Cloudflare Email Routing). CONTACT_EMAIL is a
+  // send_email binding; to/from are vars. Free — no external mail provider.
+  CONTACT_EMAIL?: SendEmail;
   CONTACT_TO?: string;
   CONTACT_FROM?: string;
 }

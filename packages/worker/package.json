@@ -10,6 +10,7 @@
     "check": "wrangler deploy --dry-run"
   },
   "dependencies": {
+    "mimetext": "^3.0.27",
     "workers-og": "^0.0.27",
     "zod": "^3.25.76"
   },
