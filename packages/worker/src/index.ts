@@ -6,10 +6,15 @@ import { handleShare } from './routes/share.js';
 import { handleBadge } from './routes/badge.js';
 import { handleOg } from './routes/og.js';
 import { handleStory } from './routes/story.js';
+import { handleContact } from './routes/contact.js';
 
 export interface Env {
   DB: D1Database;
   GITHUB_CLIENT_ID: string;
+  // Contact form (home footer → Resend email). Key is a secret; to/from are vars.
+  RESEND_API_KEY?: string;
+  CONTACT_TO?: string;
+  CONTACT_FROM?: string;
 }
 
 export type RouteHandler = (req: Request, env: Env, url: URL) => Promise<Response>;
@@ -40,6 +45,9 @@ export default {
       if (request.method === 'GET' && pathname === '/api/stats-badge') return handleBadge(request, env);
       if (request.method === 'POST' && pathname === '/api/submit') {
         return handleSubmit(request, env, url);
+      }
+      if (request.method === 'POST' && pathname === '/api/contact') {
+        return handleContact(request, env);
       }
       if (request.method === 'GET' && pathname.startsWith('/u/')) return handleShare(request, env, url);
       if (request.method === 'GET' && pathname.startsWith('/og/')) return handleOg(request, env, url);

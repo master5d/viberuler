@@ -36,6 +36,21 @@ const HOME_CSS = `
   .links{margin-top:12px;color:${PALETTE.muted};font-size:13px}
   .links a{margin:0 10px}
   img.av{width:20px;height:20px;border-radius:50%;vertical-align:-4px;margin-right:8px}
+  .contact{max-width:720px;width:100%;margin-top:32px;padding:24px;border:1px solid ${PALETTE.hairline};border-radius:4px;box-sizing:border-box}
+  .contact .csub{color:${PALETTE.muted};font-size:12px;text-align:center;margin:-8px 0 16px}
+  .contact form{display:flex;flex-direction:column;gap:12px}
+  .contact input,.contact textarea{background:${PALETTE.surface};border:1px solid ${PALETTE.hairline};border-radius:8px;
+       padding:12px 14px;color:${PALETTE.ivory};font-family:inherit;font-size:14px;box-sizing:border-box;width:100%}
+  .contact textarea{resize:vertical;min-height:96px}
+  .contact input:focus,.contact textarea:focus{outline:none;border-color:${PALETTE.violet}}
+  .contact button{background:${PALETTE.violet};color:${PALETTE.base};border:none;border-radius:8px;padding:12px 22px;
+       font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;align-self:flex-start}
+  .contact button:hover{filter:brightness(1.08)}
+  .contact button:disabled{opacity:.6;cursor:default}
+  .contact .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+  .cstatus{font-size:13px;min-height:18px}
+  .cstatus.ok{color:${PALETTE.green}}
+  .cstatus.err{color:${PALETTE.stamp}}
   ${guillocheCss()}
 `;
 
@@ -90,12 +105,25 @@ export async function handleHome(_req: Request, env: Env, url: URL): Promise<Res
       ${board}
     </div>
     <div class="disclaimer">This measurement is scientifically meaningless. Notarized anyway.</div>
+    <div class="contact paper">
+      <h2>CONTACT THE BUREAU</h2>
+      <div class="csub">Bug, idea, or a collector for your favorite agent? File it below.</div>
+      <form id="contact-form" novalidate>
+        <input name="name" type="text" placeholder="name (optional)" maxlength="100" autocomplete="name">
+        <input name="email" type="email" placeholder="you@example.com" maxlength="200" autocomplete="email" required>
+        <textarea name="message" placeholder="your message to the Bureau" maxlength="5000" required></textarea>
+        <input class="hp" name="fax" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <button type="submit" id="contact-send">Send to the Bureau</button>
+        <div class="cstatus" id="contact-status" role="status" aria-live="polite"></div>
+      </form>
+    </div>
     <div class="links">
       <a href="https://github.com/master5d/viberuler">GitHub</a> ·
       <a href="https://github.com/master5d/viberuler/blob/master/METHODOLOGY.md">Methodology</a> ·
       <a href="https://github.com/master5d/viberuler/blob/master/PRIVACY.md">Privacy</a> ·
       <a href="/api/leaderboard">API</a>
     </div>
+    <script>(function(){var f=document.getElementById('contact-form');if(!f)return;var s=document.getElementById('contact-status'),b=document.getElementById('contact-send');var g=function(n){var el=f.querySelector('[name="'+n+'"]');return el?el.value:'';};f.addEventListener('submit',async function(e){e.preventDefault();s.className='cstatus';s.textContent='filing…';b.disabled=true;try{var r=await fetch('/api/contact',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:g('name'),email:g('email'),message:g('message'),fax:g('fax')})});if(r.ok){f.reset();s.className='cstatus ok';s.textContent='Filed with the Bureau. We’ll be in touch.';}else{var j=await r.json().catch(function(){return{};});s.className='cstatus err';s.textContent=j.error||'Something went wrong — try again.';}}catch(_){s.className='cstatus err';s.textContent='Network error — try again.';}b.disabled=false;});})();</script>
     </body></html>`;
 
   return new Response(html, {

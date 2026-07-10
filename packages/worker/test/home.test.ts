@@ -36,6 +36,11 @@ describe('GET /', () => {
     expect(html).toContain(rankForVibe(6065));
     // #1 listed before #2
     expect(html.indexOf('master5d')).toBeLessThan(html.indexOf('runnerup'));
+    // contact form wired into the footer
+    expect(html).toContain('CONTACT THE BUREAU');
+    expect(html).toContain('id="contact-form"');
+    expect(html).toContain('/api/contact');
+    expect(html).toContain('name="fax"'); // honeypot present
     // share links wired
     expect(html).toContain('/u/master5d');
   });
