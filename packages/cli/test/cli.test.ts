@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { main } from '../src/cli.js';
+import { main, collectAll } from '../src/cli.js';
+import type { Collector } from '../src/types.js';
 
 const fixture = fileURLToPath(new URL('./fixtures/claude/session-a.jsonl', import.meta.url));
 
@@ -46,6 +47,27 @@ async function run(args: string[]): Promise<{ code: number; lines: string[] }> {
   const code = await main(args, (l) => lines.push(l));
   return { code, lines };
 }
+
+describe('collectAll per-agent token attribution', () => {
+  const mk = (id: string, part: object): Collector => ({
+    id,
+    detect: async () => true,
+    collect: async () => part as never,
+  });
+
+  it('attributes tokens to the agent name, falling back to a source label', async () => {
+    const collectors = [
+      // no agent name → mapped from source 'claude-code'
+      mk('a', { tokens: { input: 600, output: 0, cacheWrite: 0, cacheRead: 0 }, sources: ['claude-code'] }),
+      // explicit agent name wins over the source
+      mk('b', { tokens: { input: 300, output: 0, cacheWrite: 0, cacheRead: 0 }, sources: ['gemini'], agents: ['Antigravity'] }),
+      // no tokens → no strip entry
+      mk('c', { agents: ['Cursor'] }),
+    ];
+    const stats = await collectAll({ home: '/', scanDirs: [] }, () => {}, collectors);
+    expect(stats.tokensByAgent).toEqual({ 'Claude Code': 600, Antigravity: 300 });
+  });
+});
 
 describe('main', () => {
   it('--json emits a full report with merged sources', async () => {

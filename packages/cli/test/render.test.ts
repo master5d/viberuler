@@ -48,6 +48,42 @@ describe('renderCard', () => {
     expect(out).not.toContain('THE BUREAU CERTIFIES:');
   });
 
+  it('renders the per-agent token distribution strip with a legend when 2+ agents burned tokens', () => {
+    const stats = {
+      ...emptyStats(),
+      commits: 10, tokens: { input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 3,
+      tokensByAgent: { 'Claude Code': 600, Codex: 300, Antigravity: 100 }, sources: ['claude-code'],
+    };
+    const out = stripAnsi(renderCard(computeScore(stats), { colors: false, version: '0.1.0' }));
+    expect(out).toContain('TOKENS BY AGENT');
+    expect(out).toContain('Claude Code 60%');
+    expect(out).toContain('Codex 30%');
+    expect(out).toContain('Antigravity 10%');
+    // legend is ordered largest share first
+    expect(out.indexOf('Claude Code 60%')).toBeLessThan(out.indexOf('Codex 30%'));
+  });
+
+  it('shows <1% for a token-bearing agent below one percent, never 0%', () => {
+    const stats = {
+      ...emptyStats(),
+      commits: 10, tokens: { input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 3,
+      tokensByAgent: { 'Claude Code': 999_000, Codex: 1_000 }, sources: ['claude-code'],
+    };
+    const out = stripAnsi(renderCard(computeScore(stats), { colors: false, version: '0.1.0' }));
+    expect(out).toContain('Codex <1%');
+    expect(out).not.toContain('Codex 0%');
+  });
+
+  it('omits the strip when only one agent burned tokens', () => {
+    const stats = {
+      ...emptyStats(),
+      commits: 10, tokens: { input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 3,
+      tokensByAgent: { 'Claude Code': 1_000_000 }, sources: ['claude-code'],
+    };
+    const out = renderCard(computeScore(stats), { colors: false, version: '0.1.0' });
+    expect(out).not.toContain('TOKENS BY AGENT');
+  });
+
   it('frames with a left rail and rounded caps, no right border (emoji-safe)', () => {
     const stats = {
       ...emptyStats(),

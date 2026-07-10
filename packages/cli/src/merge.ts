@@ -5,6 +5,7 @@ export function emptyStats(): RawStats {
     projects: 0, commits: 0, streakDays: 0, lateNightCommits: 0, historyRewrites: 0,
     locTotal: 0, locByLang: {}, maxRepoLoc: 0,
     tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    tokensByAgent: {},
     costUsd: 0, ghStars: 0, agents: [], sources: [], warnings: [],
     busiestDay: null, busiestDayCount: 0,
   };
@@ -18,6 +19,10 @@ export function mergeStats(base: RawStats, add: Partial<RawStats>): RawStats {
   const locByLang = { ...base.locByLang };
   for (const [lang, n] of Object.entries(add.locByLang ?? {})) {
     locByLang[lang] = (locByLang[lang] ?? 0) + n;
+  }
+  const tokensByAgent = { ...base.tokensByAgent };
+  for (const [agent, n] of Object.entries(add.tokensByAgent ?? {})) {
+    tokensByAgent[agent] = (tokensByAgent[agent] ?? 0) + n;
   }
   const t = add.tokens;
   return {
@@ -35,6 +40,7 @@ export function mergeStats(base: RawStats, add: Partial<RawStats>): RawStats {
       cacheWrite: base.tokens.cacheWrite + (t?.cacheWrite ?? 0),
       cacheRead: base.tokens.cacheRead + (t?.cacheRead ?? 0),
     },
+    tokensByAgent,
     costUsd: base.costUsd + (add.costUsd ?? 0),
     ghStars: base.ghStars + (add.ghStars ?? 0),
     agents: [...new Set([...base.agents, ...(add.agents ?? [])])],

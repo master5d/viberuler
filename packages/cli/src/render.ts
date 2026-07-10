@@ -42,6 +42,67 @@ function bar(vibe: number, colors: boolean, c: ReturnType<typeof createColors>):
   return c.magenta('▓'.repeat(filled)) + c.dim('░'.repeat(empty));
 }
 
+// Distinct color per agent for the token-distribution strip: truecolor RGBs
+// with a picocolors named-color fallback (paired index-for-index).
+const AGENT_COLORS: Array<{ rgb: [number, number, number]; name: keyof ReturnType<typeof createColors> }> = [
+  { rgb: [179, 136, 255], name: 'magenta' }, // violet
+  { rgb: [105, 240, 174], name: 'green' },
+  { rgb: [255, 213, 79], name: 'yellow' }, // amber
+  { rgb: [77, 208, 225], name: 'cyan' },
+  { rgb: [255, 82, 82], name: 'red' }, // stamp
+  { rgb: [201, 194, 173], name: 'white' }, // ivory
+];
+
+function paint(
+  text: string,
+  idx: number,
+  colors: boolean,
+  c: ReturnType<typeof createColors>,
+): string {
+  if (!colors) return text;
+  const col = AGENT_COLORS[idx % AGENT_COLORS.length]!;
+  if (supportsTruecolor) return `${ESC}[38;2;${col.rgb[0]};${col.rgb[1]};${col.rgb[2]}m${text}${RESET}`;
+  return (c[col.name] as (s: string) => string)(text);
+}
+
+// Builds the "TOKENS BY AGENT" rows: a 16-cell strip segmented by each agent's
+// token share, plus a color-keyed legend. Returns [] when fewer than two
+// agents burned tokens (a single-agent strip carries no information).
+function tokenStrip(
+  tokensByAgent: Record<string, number>,
+  colors: boolean,
+  c: ReturnType<typeof createColors>,
+): string[] {
+  const entries = Object.entries(tokensByAgent)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1]);
+  if (entries.length < 2) return [];
+  const total = entries.reduce((s, [, n]) => s + n, 0);
+
+  // Assign each of the 16 cells to an agent by cumulative share (largest first).
+  const cells: string[] = [];
+  let cursor = 0; // agent index
+  let acc = entries[0]![1];
+  for (let i = 0; i < BAR_CELLS; i++) {
+    const boundary = ((i + 1) / BAR_CELLS) * total;
+    while (cursor < entries.length - 1 && boundary > acc) {
+      cursor++;
+      acc += entries[cursor]![1];
+    }
+    cells.push(paint('▓', cursor, colors, c));
+  }
+
+  const legend = entries
+    .map(([name, n], i) => {
+      const pct = (n / total) * 100;
+      const label = pct < 1 ? '<1%' : `${Math.round(pct)}%`;
+      return `${paint('▓', i, colors, c)} ${name} ${label}`;
+    })
+    .join('  ');
+
+  return [c.dim('TOKENS BY AGENT'), cells.join(''), legend];
+}
+
 export function renderCard(report: ScoreReport, opts: { colors: boolean; version: string }): string {
   const c = createColors(opts.colors);
   const s = report.stats;
@@ -83,6 +144,13 @@ export function renderCard(report: ScoreReport, opts: { colors: boolean; version
   if (report.achievements.length > 0) {
     rows.push('');
     rows.push(report.achievements.map((a) => `${a.emoji} ${a.title}`).join(' · '));
+  }
+
+  // Per-agent token distribution strip (skipped for <2 token-bearing agents).
+  const strip = tokenStrip(s.tokensByAgent, opts.colors, c);
+  if (strip.length > 0) {
+    rows.push('');
+    for (const r of strip) rows.push(r);
   }
 
   // Bureau sign-off boilerplate — same string the web certificate closes with.

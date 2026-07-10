@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
 import type { Collector, ScanContext, RawStats } from './types.js';
-import { emptyStats, mergeStats } from './merge.js';
+import { emptyStats, mergeStats, totalTokens } from './merge.js';
 import { claudeCodeCollector } from './collectors/claude-code.js';
 import { codexCollector } from './collectors/codex.js';
 import { clineCollector } from './collectors/cline.js';
@@ -61,13 +61,36 @@ export async function collectAll(
   for (const collector of collectors) {
     try {
       if (!(await collector.detect(ctx))) continue;
-      stats = mergeStats(stats, await collector.collect(ctx));
+      const res = await collector.collect(ctx);
+      stats = mergeStats(stats, res);
+      // Per-agent token attribution for the distribution strip. Token-bearing
+      // collectors report either a single agent name or just a source; map the
+      // source to a friendly label when no agent name is emitted.
+      const tt = res.tokens ? totalTokens(res.tokens) : 0;
+      if (tt > 0) {
+        const label =
+          res.agents && res.agents.length === 1
+            ? res.agents[0]!
+            : (res.sources && res.sources[0] && SOURCE_LABELS[res.sources[0]]) || res.sources?.[0] || 'other';
+        stats.tokensByAgent[label] = (stats.tokensByAgent[label] ?? 0) + tt;
+      }
     } catch (err) {
       warn(`[viberuler] ${collector.id} failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
   return stats;
 }
+
+// Friendly labels for the token collectors that report only a source (no agent
+// display name). cline/gemini emit their own agent name, so they skip this.
+const SOURCE_LABELS: Record<string, string> = {
+  'claude-code': 'Claude Code',
+  codex: 'Codex',
+  cursor: 'Cursor',
+  cline: 'Cline',
+  gemini: 'Gemini CLI',
+  litellm: 'LiteLLM gateway',
+};
 
 export async function main(
   argv: string[],

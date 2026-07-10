@@ -15,6 +15,7 @@ export interface RawStats {
   locByLang: Record<string, number>;
   maxRepoLoc: number;
   tokens: TokenUsage;
+  tokensByAgent: Record<string, number>; // total tokens attributed per agent (distribution strip)
   costUsd: number;
   ghStars: number;
   agents: string[];           // coding agents detected on this rig (display names)
