@@ -41,6 +41,7 @@ describe('GET /', () => {
     expect(html).toContain('id="contact-form"');
     expect(html).toContain('/api/contact');
     expect(html).toContain('name="fax"'); // honeypot present
+    expect(html).toContain('mailto:hello@viberuler.dev'); // direct email fallback
     // share links wired
     expect(html).toContain('/u/master5d');
   });

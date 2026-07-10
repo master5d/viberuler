@@ -51,6 +51,7 @@ const HOME_CSS = `
   .cstatus{font-size:13px;min-height:18px}
   .cstatus.ok{color:${PALETTE.green}}
   .cstatus.err{color:${PALETTE.stamp}}
+  .calt{color:${PALETTE.muted};font-size:12px;text-align:center;margin-top:16px;border-top:1px solid ${PALETTE.hairline};padding-top:16px}
   ${guillocheCss()}
 `;
 
@@ -116,6 +117,7 @@ export async function handleHome(_req: Request, env: Env, url: URL): Promise<Res
         <button type="submit" id="contact-send">Send to the Bureau</button>
         <div class="cstatus" id="contact-status" role="status" aria-live="polite"></div>
       </form>
+      <div class="calt">or email the Bureau directly: <a href="mailto:hello@viberuler.dev">hello@viberuler.dev</a></div>
     </div>
     <div class="links">
       <a href="https://github.com/master5d/viberuler">GitHub</a> ·
