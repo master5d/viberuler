@@ -9,7 +9,8 @@ beforeEach(async () => {
   const a = await upsertUser(env.DB, { gh_id: 1, gh_login: 'master5d', avatar_url: null, gh_created_at: null });
   await insertScore(env.DB, a, {
     vibe_score: 3101, loc: 312441, projects: 47, tokens: 1_200_000_000, cost_usd: 184.2,
-    tok_per_usd: 6_500_000, tok_per_loc: 8400, streak_days: 32, agents: ['Claude Code', 'Codex', 'Gemini CLI'],
+    tok_per_usd: 6_500_000, tok_per_loc: 8400, streak_days: 32, feats_shipped: 57, prs_merged: 12,
+    agents: ['Claude Code', 'Codex', 'Gemini CLI'],
     achievements: ['token-billionaire'], breakdown: {}, client_version: '0.1.0',
   }, false);
 });
@@ -38,6 +39,9 @@ describe('GET /u/:login', () => {
     expect(html).toMatch(/\/story\/master5d\/\d+\.png/);
     expect(html).toContain('navigator.share');
     expect(html).toContain('wa.me');
+    // ship outcomes on the certificate
+    expect(html).toContain('57 features shipped');
+    expect(html).toContain('12 PRs merged');
   });
 
   it('renders the certificate framing: subject, tier, paper texture', async () => {

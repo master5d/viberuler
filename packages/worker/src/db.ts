@@ -14,6 +14,8 @@ export interface ScoreInput {
   tok_per_usd: number | null;
   tok_per_loc?: number | null;
   streak_days?: number | null;
+  feats_shipped?: number | null;
+  prs_merged?: number | null;
   agents?: string[] | null;
   achievements: string[];
   breakdown: Record<string, number>;
@@ -59,12 +61,13 @@ export async function insertScore(
 ): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO scores (user_id, vibe_score, loc, projects, tokens, cost_usd, tok_per_usd, tok_per_loc, streak_days, agents, achievements, breakdown, sus, sus_reason, client_version)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO scores (user_id, vibe_score, loc, projects, tokens, cost_usd, tok_per_usd, tok_per_loc, streak_days, feats_shipped, prs_merged, agents, achievements, breakdown, sus, sus_reason, client_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       userId, s.vibe_score, s.loc, s.projects, s.tokens, s.cost_usd, s.tok_per_usd, s.tok_per_loc ?? null,
-      s.streak_days ?? null, s.agents && s.agents.length ? JSON.stringify(s.agents) : null,
+      s.streak_days ?? null, s.feats_shipped ?? null, s.prs_merged ?? null,
+      s.agents && s.agents.length ? JSON.stringify(s.agents) : null,
       JSON.stringify(s.achievements), JSON.stringify(s.breakdown), sus ? 1 : 0, reason, s.client_version,
     )
     .run();
@@ -115,19 +118,21 @@ export async function latestForLogin(
       tokens: number;
       projects: number;
       streak_days: number | null;
+      feats_shipped: number | null;
+      prs_merged: number | null;
       agents: string | null;
     })
   | null
 > {
   const row = await db
     .prepare(
-      `SELECT u.gh_login, u.avatar_url, s.vibe_score, s.loc, s.tokens, s.projects, s.tok_per_usd, s.tok_per_loc, s.streak_days, s.agents, s.achievements, s.submitted_at, s.sus
+      `SELECT u.gh_login, u.avatar_url, s.vibe_score, s.loc, s.tokens, s.projects, s.tok_per_usd, s.tok_per_loc, s.streak_days, s.feats_shipped, s.prs_merged, s.agents, s.achievements, s.submitted_at, s.sus
        FROM scores s JOIN users u ON u.id = s.user_id
        WHERE u.gh_login = ? AND s.id = (SELECT MAX(id) FROM scores WHERE user_id = u.id)`,
     )
     .bind(login)
     .first<
-      BoardRow & { sus: number; loc: number; tokens: number; projects: number; streak_days: number | null; agents: string | null }
+      BoardRow & { sus: number; loc: number; tokens: number; projects: number; streak_days: number | null; feats_shipped: number | null; prs_merged: number | null; agents: string | null }
     >();
   if (!row) return null;
   const rank = row.sus ? 0 : await rankFor(db, row.vibe_score);

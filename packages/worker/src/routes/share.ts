@@ -23,6 +23,7 @@ const PAGE_CSS = `
   .subject{color:${PALETTE.ivory};font-size:18px;margin:8px 0 16px}
   .vibe{font-size:56px;color:${PALETTE.green};margin:8px 0}
   .loc{color:${PALETTE.green};font-size:20px;margin-top:6px}
+  .ship{color:${PALETTE.violet};font-size:16px;margin-top:8px}
   .meta{color:${PALETTE.ivory};font-size:15px;margin-top:6px}
   .gauge{display:flex;flex-direction:column;align-items:center;margin:16px 0}
   .rank{color:${PALETTE.stamp};letter-spacing:1px;margin-top:16px}
@@ -120,6 +121,12 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
     !sus && row.tok_per_usd !== null ? `<div>${fmtInt(row.tok_per_usd)} tokens per dollar</div>` : '';
   const tokPerLoc =
     !sus && row.tok_per_loc !== null ? `<div>${fmtInt(row.tok_per_loc)} tokens per line shipped</div>` : '';
+  const feats = row.feats_shipped ?? 0;
+  const prs = row.prs_merged ?? 0;
+  const shipParts: string[] = [];
+  if (!sus && feats > 0) shipParts.push(`${fmtInt(feats)} features shipped`);
+  if (!sus && prs > 0) shipParts.push(`${fmtInt(prs)} PRs merged`);
+  const shipLine = shipParts.length ? `<div class="ship">${shipParts.join(' · ')}</div>` : '';
 
   let agentsList: string[] = [];
   try {
@@ -143,6 +150,7 @@ export async function handleShare(_req: Request, env: Env, url: URL): Promise<Re
     ${locLine}
     ${tokPerUsd}
     ${tokPerLoc}
+    ${shipLine}
     ${streakLine}
     ${agentsLine}
     ${rankLine}

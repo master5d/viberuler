@@ -35,6 +35,16 @@ describe('submitPayloadSchema', () => {
     const parsed = submitPayloadSchema.parse(VALID); // VALID has no tok_per_loc
     expect(parsed.tok_per_loc).toBeUndefined();
   });
+  it('accepts a 0.4 payload carrying ship outcomes, rejects negatives', () => {
+    const parsed = submitPayloadSchema.parse({ ...VALID, feats_shipped: 57, prs_merged: 12 });
+    expect(parsed.feats_shipped).toBe(57);
+    expect(parsed.prs_merged).toBe(12);
+    expect(() => submitPayloadSchema.parse({ ...VALID, feats_shipped: -1 })).toThrow();
+  });
+  it('accepts a pre-0.4 payload with ship outcomes absent (backwards compat)', () => {
+    expect(submitPayloadSchema.parse(VALID).feats_shipped).toBeUndefined();
+  });
+
   it('accepts null tok_per_loc and rejects a negative one', () => {
     expect(submitPayloadSchema.parse({ ...VALID, tok_per_loc: null }).tok_per_loc).toBeNull();
     expect(() => submitPayloadSchema.parse({ ...VALID, tok_per_loc: -1 })).toThrow();

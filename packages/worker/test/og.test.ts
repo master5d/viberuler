@@ -45,9 +45,13 @@ describe('certificateHtml', () => {
       tok_per_usd: 1000,
       tok_per_loc: 42,
       streak_days: 32,
+      feats_shipped: 57,
+      prs_merged: 12,
       agents: JSON.stringify(['Claude Code', 'Codex', 'Gemini CLI']),
     } as any);
     expect(html).toContain('CERTIFICATE OF VIBE MEASUREMENT');
+    expect(html).toContain('57 features shipped');
+    expect(html).toContain('12 PRs merged');
     expect(html).toContain('@master5d');
     expect(html).toContain('The Bureau certifies:');
     expect(html).toContain('TOKEN BURNER');
@@ -71,9 +75,13 @@ describe('certificateHtml', () => {
       tok_per_usd: 500,
       tok_per_loc: 20,
       streak_days: 77,
+      feats_shipped: 99,
+      prs_merged: 44,
       agents: JSON.stringify(['Claude Code', 'Cursor']),
     } as any);
     expect(html).toContain('UNDER REVIEW');
+    expect(html).not.toContain('features shipped');
+    expect(html).not.toContain('PRs merged');
     expect(html).toContain('PENDING CERTIFICATION');
     expect(html).not.toContain('9,999');
     expect(html).not.toContain('The Bureau certifies:');

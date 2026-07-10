@@ -67,7 +67,7 @@ GitHub device-flow login → your score goes live at `viberuler.dev/u/<you>` as 
 ## Privacy (read this, HN)
 
 - The default run makes **zero network calls**. Zero.
-- `--submit` sends **aggregates only** — twelve fields: aggregate stats, achievement ids, your coding-agent names, and commit streak. No paths, no repo names, no prompts, no code. Ever.
+- `--submit` sends **aggregates only** — fourteen fields: aggregate stats, achievement ids, your coding-agent names, commit streak, and ship outcomes (features shipped / PRs merged). No paths, no repo names, no prompts, no code. Ever.
 - Before anything is sent, the CLI prints the **exact JSON payload** and asks.
 - Don't trust us — read the ~140 lines: [`packages/cli/src/payload.ts`](packages/cli/src/payload.ts) and [`packages/cli/src/submit.ts`](packages/cli/src/submit.ts). Details: [PRIVACY.md](PRIVACY.md).
 
@@ -101,8 +101,11 @@ npx viberuler --submit       # push to the global leaderboard
 npx viberuler payload        # show exactly what --submit WOULD send
 npx viberuler --json         # machine-readable
 npx viberuler --scan-dir ~/code --since 2026-01-01
+npx viberuler --scan-dir ~/work --scan-dir ~/oss   # repeatable — scans ALL repos under each root
 npx viberuler --github <handle>   # add your stars (the only other network call)
 ```
+
+A bare run scans every git repo under your **home dir**. If your code lives elsewhere (or in several places), point `--scan-dir` at each root — it's repeatable, and every metric (LoC, commits, features, PRs) is summed across all repos found, so your certificate reflects your whole body of work, not one project.
 
 ## Statusline
 

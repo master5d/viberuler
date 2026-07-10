@@ -11,6 +11,8 @@ export interface SubmitPayload {
   tok_per_usd: number | null;
   tok_per_loc: number | null;
   streak_days: number;
+  feats_shipped: number;
+  prs_merged: number;
   agents: string[];
   achievements: string[];
   breakdown: Record<string, number>;
@@ -28,6 +30,8 @@ export function buildPayload(report: ScoreReport, clientVersion: string): Submit
     tok_per_usd: report.tokPerUsd === null ? null : Math.round(report.tokPerUsd),
     tok_per_loc: report.tokPerLoc === null ? null : Math.round(report.tokPerLoc),
     streak_days: s.streakDays,
+    feats_shipped: s.featsShipped,
+    prs_merged: s.prsMerged,
     agents: s.agents,
     achievements: report.achievements.map((a) => a.id),
     breakdown: Object.fromEntries(

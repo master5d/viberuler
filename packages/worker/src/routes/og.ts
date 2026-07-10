@@ -14,6 +14,8 @@ type OgRow = BoardRow & {
   sus: number;
   loc: number;
   streak_days: number | null;
+  feats_shipped: number | null;
+  prs_merged: number | null;
   agents: string | null;
 };
 
@@ -50,6 +52,15 @@ export function certificateHtml(row: OgRow): string {
       ? `<div style="display:flex;font-size:18px;color:${PALETTE.violet};margin-top:6px">${fmtInt(row.tok_per_loc)} tokens / line shipped</div>`
       : '';
 
+  const feats = row.feats_shipped ?? 0;
+  const prs = row.prs_merged ?? 0;
+  const shipParts: string[] = [];
+  if (!sus && feats > 0) shipParts.push(`${fmtInt(feats)} features shipped`);
+  if (!sus && prs > 0) shipParts.push(`${fmtInt(prs)} PRs merged`);
+  const shipLine = shipParts.length
+    ? `<div style="display:flex;font-size:24px;color:${PALETTE.violet};margin-top:14px">${shipParts.join('   ·   ')}</div>`
+    : '';
+
   const agentsList = parseAgents(row.agents);
   const metaParts: string[] = [];
   if (!sus && row.streak_days != null && row.streak_days > 0) metaParts.push(`${row.streak_days}-day streak`);
@@ -73,6 +84,7 @@ export function certificateHtml(row: OgRow): string {
       ${locLine}
       ${tokPerUsd}
       ${tokPerLoc}
+      ${shipLine}
       ${metaLine}
       <div style="display:flex;font-size:34px;color:${PALETTE.stamp};margin-top:18px">${rankLine}</div>
       ${certLine}
