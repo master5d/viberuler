@@ -72,6 +72,19 @@ Your card also shows **`tok / line shipped`** = total tokens ÷ your LoC (the gi
 
 `viberuler wrapped --month YYYY-MM` renders a monthly recap from the two sources that can be **accurately time-windowed locally**: git activity (`git log --since/--until`) and Claude Code tokens (per-message timestamps). Cumulative or timeless sources (Codex, Cline, Cursor, Gemini, LiteLLM) are **excluded** from the monthly view — their month splits aren't reliably reconstructable on your machine. It reports flow metrics (commits, streak, busiest day, late-night, tokens, cost, tok/$) — not LoC, which is a state metric. Achievements shown are only the ones the month's flow can honestly earn (token badges, `3am-committer`); the state/history-based badges (`polyglot`, `monorepo-menace`, `yolo-force-pusher`) are excluded from the monthly card because they're computed from your all-time repo composition and reflog, not the month. The one intentionally-labeled exception is **top language overall**, shown as a bit of flavor and marked *overall* precisely because it reflects your current repo mix rather than the month.
 
+### Rig audit (`audit`)
+
+`viberuler audit` scores your **setup**, not your output. It reads your Claude Code transcripts and MCP config locally and sends nothing (see [PRIVACY.md](PRIVACY.md)). Four numbers, and how each is derived:
+
+**Deduplication comes first, or every figure is wrong.** Claude Code replays entries in its JSONL — on a real 10k-session corpus **more than half of all usage records are duplicates**. The audit dedups exactly like the claude-code collector (`message.id` + `requestId`), and tool blocks by their own ids. Skip this and you double every number; we did, and caught it by cross-checking against the collector.
+
+- **Cache economy.** Actual cost is priced per message model from the bundled table (§2). The counterfactual re-prices every cached token as fresh input through the *same* table — so "caching saved $X" is a price-table subtraction, not a guess.
+- **Context amplification** = a chain's input-side traffic (`input + cache_write + cache_read`) ÷ the tool-result tokens admitted into it. It answers: *how many times does a token I let into context get re-fed to the model?* It is reported for the **main thread alone**. Subagent turns (`isSidechain`) live in short contexts that die quickly; pooling them drags the average down and understates the thread you actually work in — on the author's rig, 382× pooled vs **1088× main-thread**.
+- **Subagent compression** = tokens admitted *inside* subagent contexts ÷ tokens their results handed back to the parent. Subagents are **not free** — the report states their share of total spend outright (≈18% on the author's rig). The claim is not "subagents are cheaper"; it is "you pay ~18% overhead to avoid a ~1000× multiplier."
+- **Dead weight** = MCP surfaces configured *and enabled* that were **never called**. Detection is deliberately narrow: a plugin only counts if it actually ships an MCP server (`.mcp.json` in its cache dir), so skill-only plugins are never falsely flagged. And the output says plainly that a plugin's **hooks and skills may still be working** while its MCP tools sit idle — a semgrep plugin whose hook lints every edit is not dead just because its MCP tools are.
+
+Tool-result sizes are converted at 4 chars/token — a standard rough conversion, good enough for ratios, not exact. Source: [`packages/cli/src/audit.ts`](packages/cli/src/audit.ts).
+
 ## 4. Ranks
 
 | VIBE | Rank |

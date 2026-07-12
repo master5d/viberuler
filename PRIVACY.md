@@ -9,6 +9,18 @@ Short version: **the scanner reads your machine so that nothing else has to.**
 - Your language mix, per-repo stats, commit messages, email address
 - Anything at all, on a default run: `npx viberuler` makes **zero network calls**. You can verify with any traffic monitor, or by reading the code — every network call in the CLI lives behind the `--github` and `--submit` flags.
 
+## `viberuler audit` reads your transcripts — and keeps them
+
+`audit` is the most invasive thing this tool does: it reads your Claude Code
+transcripts (`~/.claude/projects/**/*.jsonl`) and your MCP config. Those files
+contain your actual conversations.
+
+It reads them **entirely locally**, prints aggregates, and sends **nothing** —
+`audit` makes zero network calls and has no `--submit` path. Your tool names,
+session contents, and MCP setup are a fingerprint of how you work; none of it is
+part of the submit payload and none of it ever will be. The audit exists to show
+*you* what your rig costs *you*.
+
 ## What `--submit` sends
 
 Exactly fourteen fields — aggregates only. This is the complete, real shape (built in [`packages/cli/src/payload.ts`](packages/cli/src/payload.ts), ~30 lines):
