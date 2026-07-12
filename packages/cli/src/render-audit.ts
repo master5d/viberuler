@@ -22,18 +22,37 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
   // 1. Token economy — what caching is actually buying you.
   const saved = r.costNoCacheUsd - r.costUsd;
   rows.push(c.bold('TOKEN ECONOMY'));
-  rows.push(`  ${c.bold(fmtInt(r.sessions))} sessions · ${c.bold(fmtCompact(r.inputSideTokens + r.tokens.output))} tokens`);
+  const totalTokens = r.main.inputSideTokens + r.sub.inputSideTokens + r.tokens.output;
+  rows.push(`  ${c.bold(fmtInt(r.sessions))} sessions · ${c.bold(fmtCompact(totalTokens))} tokens`);
   rows.push(`  🗄️  cache hit ${c.bold(`${r.cacheHitPct.toFixed(1)}%`)}`);
   rows.push(`  💸 ${c.bold(fmtUsd(r.costUsd))} spent · ${c.bold(fmtUsd(r.costNoCacheUsd))} without caching`);
   if (saved > 0) rows.push(`  ✅ caching saved ${c.bold(c.green(fmtUsd(saved)))}`);
   rows.push('');
 
-  // 2. Context amplification — why every admitted token costs ~Nx.
-  if (r.amplification > 0) {
-    rows.push(c.bold('CONTEXT AMPLIFICATION'));
-    rows.push(`  ${c.bold(fmtCompact(r.admittedTokens))} tokens admitted by tools`);
-    rows.push(`  ↳ re-read ${c.bold(c.yellow(`${r.amplification.toFixed(0)}×`))} on average (${fmtCompact(r.inputSideTokens)} input-side)`);
+  // 2. Context amplification — MAIN THREAD only. Pooling subagent contexts in
+  // here would halve the number: they are short-lived and drag the average
+  // down, understating what a token actually costs in the thread you live in.
+  if (r.main.amplification > 0) {
+    rows.push(c.bold('CONTEXT AMPLIFICATION') + c.dim(' (main thread)'));
+    rows.push(`  ${c.bold(fmtCompact(r.main.admittedTokens))} tokens admitted by tools`);
+    rows.push(`  ↳ re-read ${c.bold(c.yellow(`${r.main.amplification.toFixed(0)}×`))} on average (${fmtCompact(r.main.inputSideTokens)} input-side)`);
     rows.push(c.dim('  every token you let in is paid for again on every later turn'));
+    rows.push('');
+  }
+
+  // 3. Subagents — the one big lever you actually control.
+  const s = r.subagents;
+  if (s.calls > 0) {
+    rows.push(c.bold('SUBAGENTS'));
+    rows.push(`  ${c.bold(fmtInt(s.agents))} agents · ${c.bold(fmtInt(s.calls))} dispatches`);
+    rows.push(
+      `  🗜️  ${c.bold(c.green(`${s.compression.toFixed(1)}×`))} compression — ${c.bold(fmtCompact(s.keptOutTokens))} tokens kept out of the main thread`,
+    );
+    if (r.main.amplification > 0) {
+      const avoided = s.keptOutTokens * r.main.amplification;
+      rows.push(c.dim(`  ↳ at ${r.main.amplification.toFixed(0)}× that is ~${fmtCompact(avoided)} tokens of traffic avoided`));
+    }
+    rows.push(c.dim(`  they are not free: ${s.shareOfSpendPct.toFixed(1)}% of total spend is subagent overhead`));
     rows.push('');
   }
 

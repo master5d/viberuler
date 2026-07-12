@@ -19,6 +19,33 @@ export interface McpSurface {
   kind: 'server' | 'plugin';
 }
 
+/** One conversation chain: the main thread, or the pooled subagent threads. */
+export interface ChainStats {
+  msgs: number;
+  tokens: TokenUsage;
+  /** input + cacheWrite + cacheRead — what the model was actually re-fed. */
+  inputSideTokens: number;
+  /** Tokens of tool output admitted into this chain's contexts. */
+  admittedTokens: number;
+  /** How many times the average admitted token gets re-read here. */
+  amplification: number;
+}
+
+export interface SubagentStats {
+  /** Distinct subagents that ran. */
+  agents: number;
+  /** Agent tool calls made from the main thread. */
+  calls: number;
+  /** Tokens the Agent results handed back into the parent context. */
+  returnedTokens: number;
+  /** Tokens the subagents pulled in that never touched the parent context. */
+  keptOutTokens: number;
+  /** admitted-inside ÷ returned — how hard a subagent compresses its work. */
+  compression: number;
+  /** Subagents are not free: their share of total input-side spend. */
+  shareOfSpendPct: number;
+}
+
 export interface AuditReport {
   sessions: number;
   tokens: TokenUsage;
@@ -27,12 +54,14 @@ export interface AuditReport {
   /** Counterfactual: every cached token billed as fresh input (i.e. no caching). */
   costNoCacheUsd: number;
   cacheHitPct: number;
-  /** Tokens of tool output admitted into context (the controllable inflow). */
-  admittedTokens: number;
-  /** input + cacheWrite + cacheRead — what the model was actually re-fed. */
-  inputSideTokens: number;
-  /** How many times the average admitted token gets re-read. */
-  amplification: number;
+  /**
+   * Main thread vs subagents, kept apart on purpose. Pooling them dilutes the
+   * amplification that actually matters: short-lived subagent contexts drag the
+   * average down and understate what a token costs in the main thread.
+   */
+  main: ChainStats;
+  sub: ChainStats;
+  subagents: SubagentStats;
   tools: ToolStat[];
   surfaces: McpSurface[];
   /** Configured + enabled MCP surfaces with zero tool calls — pure overhead. */
@@ -40,17 +69,33 @@ export interface AuditReport {
   warnings: string[];
 }
 
+interface ChainAcc {
+  msgs: number;
+  tokens: TokenUsage;
+  admitted: number;
+}
+
 interface Acc {
   seenMsg: Set<string>;
   seenToolUse: Set<string>;
   seenToolResult: Set<string>;
   idToTool: Map<string, string>;
-  tokens: TokenUsage;
+  main: ChainAcc;
+  side: ChainAcc;
+  agentIds: Set<string>;
+  agentCalls: number;
+  agentReturned: number;
   costUsd: number;
   costNoCacheUsd: number;
   tools: Map<string, ToolStat>;
   skipped: number;
 }
+
+const emptyChain = (): ChainAcc => ({
+  msgs: 0,
+  tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+  admitted: 0,
+});
 
 export function emptyAcc(): Acc {
   return {
@@ -58,7 +103,11 @@ export function emptyAcc(): Acc {
     seenToolUse: new Set(),
     seenToolResult: new Set(),
     idToTool: new Map(),
-    tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    main: emptyChain(),
+    side: emptyChain(),
+    agentIds: new Set(),
+    agentCalls: 0,
+    agentReturned: 0,
     costUsd: 0,
     costNoCacheUsd: 0,
     tools: new Map(),
@@ -80,6 +129,9 @@ function bump(acc: Acc, name: string): ToolStat {
  * replays entries, and on a real corpus >50% of usage records are duplicates —
  * counting them naively doubles every number. Keys mirror the claude-code
  * collector (message.id + requestId); tool blocks dedup by their own ids.
+ *
+ * Subagent turns carry `isSidechain: true` and an `agentId`, which is what lets
+ * us keep the main thread and the isolated subagent threads apart.
  */
 export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?: Date): void {
   for (const line of content.split('\n')) {
@@ -95,6 +147,10 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
     if (since && obj.timestamp && Date.parse(obj.timestamp) < since.getTime()) continue;
     if (until && obj.timestamp && Date.parse(obj.timestamp) >= until.getTime()) continue;
 
+    const isSide = obj.isSidechain === true;
+    const chain = isSide ? acc.side : acc.main;
+    if (typeof obj.agentId === 'string' && obj.agentId) acc.agentIds.add(obj.agentId);
+
     const msg = obj?.message;
     const usage = msg?.usage;
     if (usage && obj?.type === 'assistant') {
@@ -107,10 +163,11 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
           cacheWrite: usage.cache_creation_input_tokens ?? 0,
           cacheRead: usage.cache_read_input_tokens ?? 0,
         };
-        acc.tokens.input += u.input;
-        acc.tokens.output += u.output;
-        acc.tokens.cacheWrite += u.cacheWrite;
-        acc.tokens.cacheRead += u.cacheRead;
+        chain.msgs++;
+        chain.tokens.input += u.input;
+        chain.tokens.output += u.output;
+        chain.tokens.cacheWrite += u.cacheWrite;
+        chain.tokens.cacheRead += u.cacheRead;
         const model = msg.model ?? '';
         const cacheWrite1h = usage.cache_creation?.ephemeral_1h_input_tokens ?? 0;
         acc.costUsd += costForUsage(model, u, { cacheWrite1h });
@@ -129,10 +186,12 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
       if (!b || typeof b !== 'object') continue;
       if (b.type === 'tool_use') {
         const id = String(b.id ?? '');
-        if (id) acc.idToTool.set(id, String(b.name ?? '?'));
+        const name = String(b.name ?? '?');
+        if (id) acc.idToTool.set(id, name);
         if (id && acc.seenToolUse.has(id)) continue;
         if (id) acc.seenToolUse.add(id);
-        bump(acc, String(b.name ?? '?')).calls++;
+        bump(acc, name).calls++;
+        if (name === 'Agent' && !isSide) acc.agentCalls++;
       } else if (b.type === 'tool_result') {
         const tid = String(b.tool_use_id ?? '');
         if (!tid || acc.seenToolResult.has(tid)) continue;
@@ -145,7 +204,12 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
         else if (Array.isArray(c)) {
           for (const cb of c) if (cb && typeof cb.text === 'string') chars += cb.text.length;
         }
-        bump(acc, name).resultTokens += Math.round(chars / CHARS_PER_TOKEN);
+        const tok = Math.round(chars / CHARS_PER_TOKEN);
+        bump(acc, name).resultTokens += tok;
+        chain.admitted += tok;
+        // An Agent result is the ONLY part of a subagent's work that lands in
+        // the parent context — the compression denominator.
+        if (name === 'Agent' && !isSide) acc.agentReturned += tok;
       }
     }
   }
@@ -216,6 +280,17 @@ export async function discoverSurfaces(home: string): Promise<McpSurface[]> {
   return out;
 }
 
+function finishChain(a: ChainAcc): ChainStats {
+  const inputSideTokens = a.tokens.input + a.tokens.cacheWrite + a.tokens.cacheRead;
+  return {
+    msgs: a.msgs,
+    tokens: a.tokens,
+    inputSideTokens,
+    admittedTokens: a.admitted,
+    amplification: a.admitted > 0 ? inputSideTokens / a.admitted : 0,
+  };
+}
+
 export async function runAudit(ctx: ScanContext): Promise<AuditReport> {
   const acc = emptyAcc();
   let sessions = 0;
@@ -234,20 +309,35 @@ export async function runAudit(ctx: ScanContext): Promise<AuditReport> {
   const called = new Set(tools.filter((t) => t.calls > 0).map((t) => t.name));
   const dead = surfaces.filter((s) => ![...called].some((n) => n.startsWith(s.prefix)));
 
-  const t = acc.tokens;
-  const inputSideTokens = t.input + t.cacheWrite + t.cacheRead;
-  const admittedTokens = tools.reduce((s, x) => s + x.resultTokens, 0);
+  const main = finishChain(acc.main);
+  const sub = finishChain(acc.side);
+  const totalInputSide = main.inputSideTokens + sub.inputSideTokens;
+  const keptOut = Math.max(0, sub.admittedTokens - acc.agentReturned);
+
+  const tokens: TokenUsage = {
+    input: acc.main.tokens.input + acc.side.tokens.input,
+    output: acc.main.tokens.output + acc.side.tokens.output,
+    cacheWrite: acc.main.tokens.cacheWrite + acc.side.tokens.cacheWrite,
+    cacheRead: acc.main.tokens.cacheRead + acc.side.tokens.cacheRead,
+  };
   const warnings = acc.skipped > 0 ? [`audit: skipped ${acc.skipped} malformed line(s)`] : [];
 
   return {
     sessions,
-    tokens: t,
+    tokens,
     costUsd: acc.costUsd,
     costNoCacheUsd: acc.costNoCacheUsd,
-    cacheHitPct: inputSideTokens > 0 ? (100 * t.cacheRead) / inputSideTokens : 0,
-    admittedTokens,
-    inputSideTokens,
-    amplification: admittedTokens > 0 ? inputSideTokens / admittedTokens : 0,
+    cacheHitPct: totalInputSide > 0 ? (100 * tokens.cacheRead) / totalInputSide : 0,
+    main,
+    sub,
+    subagents: {
+      agents: acc.agentIds.size,
+      calls: acc.agentCalls,
+      returnedTokens: acc.agentReturned,
+      keptOutTokens: keptOut,
+      compression: acc.agentReturned > 0 ? sub.admittedTokens / acc.agentReturned : 0,
+      shareOfSpendPct: totalInputSide > 0 ? (100 * sub.inputSideTokens) / totalInputSide : 0,
+    },
     tools,
     surfaces,
     dead,
