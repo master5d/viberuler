@@ -31,6 +31,50 @@ export interface ChainStats {
   amplification: number;
 }
 
+/**
+ * What a session costs before you type a word: system prompt, tool names,
+ * agent/skill descriptions, CLAUDE.md, memory. Measured as the first assistant
+ * turn's total input (input + cacheWrite + cacheRead) — there is nothing else in
+ * the context at that point.
+ *
+ * It is re-paid on every session AND on every subagent spawn, so it is the one
+ * cost that scales with how you work rather than what you work on.
+ */
+export interface ColdContext {
+  /** Transcripts with a usable first turn. */
+  sessions: number;
+  medianTokens: number;
+  p75Tokens: number;
+}
+
+/**
+ * Tokens that entered the main context and arguably did not need to.
+ *
+ * These are the three things a PostToolUse-rewriting plugin claims to fix. We
+ * measure them so the claim can be checked against a real corpus instead of a
+ * README: on a disciplined rig the famous "dedupe repeat reads" trick is worth
+ * almost nothing, while oversized results are worth a great deal.
+ */
+export interface GhostStats {
+  /** Same path Read again with an identical result size — almost certainly unchanged. */
+  repeatReadCalls: number;
+  repeatReadTokens: number;
+  /** Any single tool result over 4 KB — the archive-to-disk / skeleton candidates. */
+  oversizedCalls: number;
+  oversizedTokens: number;
+  readCalls: number;
+  readTokens: number;
+  /** Reads that passed offset/limit — the disciplined ones. */
+  slicedCalls: number;
+  /**
+   * Whole-file Reads of a path that was never subsequently edited. Not proof of
+   * waste — you often read to decide NOT to change something — but this is the
+   * pool an outline-first policy could actually shrink.
+   */
+  exploratoryCalls: number;
+  exploratoryTokens: number;
+}
+
 export interface SubagentStats {
   /** Distinct subagents that ran. */
   agents: number;
@@ -62,6 +106,10 @@ export interface AuditReport {
   main: ChainStats;
   sub: ChainStats;
   subagents: SubagentStats;
+  /** Fixed per-session overhead, main threads and subagent spawns kept apart. */
+  coldMain: ColdContext;
+  coldSub: ColdContext;
+  ghosts: GhostStats;
   tools: ToolStat[];
   surfaces: McpSurface[];
   /** Configured + enabled MCP surfaces with zero tool calls — pure overhead. */
@@ -80,6 +128,8 @@ interface Acc {
   seenToolUse: Set<string>;
   seenToolResult: Set<string>;
   idToTool: Map<string, string>;
+  /** Read tool_use id -> what it asked for, so the result can be classified. */
+  idToRead: Map<string, { path: string; sliced: boolean }>;
   main: ChainAcc;
   side: ChainAcc;
   agentIds: Set<string>;
@@ -88,8 +138,27 @@ interface Acc {
   costUsd: number;
   costNoCacheUsd: number;
   tools: Map<string, ToolStat>;
+  /** First-turn input tokens, one entry per transcript. */
+  coldMain: number[];
+  coldSub: number[];
+  ghosts: GhostStats;
   skipped: number;
 }
+
+/** Results bigger than this are what an output-rewriting hook would target. */
+const OVERSIZED_CHARS = 4096;
+
+const emptyGhosts = (): GhostStats => ({
+  repeatReadCalls: 0,
+  repeatReadTokens: 0,
+  oversizedCalls: 0,
+  oversizedTokens: 0,
+  readCalls: 0,
+  readTokens: 0,
+  slicedCalls: 0,
+  exploratoryCalls: 0,
+  exploratoryTokens: 0,
+});
 
 const emptyChain = (): ChainAcc => ({
   msgs: 0,
@@ -103,6 +172,7 @@ export function emptyAcc(): Acc {
     seenToolUse: new Set(),
     seenToolResult: new Set(),
     idToTool: new Map(),
+    idToRead: new Map(),
     main: emptyChain(),
     side: emptyChain(),
     agentIds: new Set(),
@@ -111,9 +181,25 @@ export function emptyAcc(): Acc {
     costUsd: 0,
     costNoCacheUsd: 0,
     tools: new Map(),
+    coldMain: [],
+    coldSub: [],
+    ghosts: emptyGhosts(),
     skipped: 0,
   };
 }
+
+function percentile(xs: number[], q: number): number {
+  if (xs.length === 0) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  const i = Math.min(s.length - 1, Math.floor(q * s.length));
+  return s[i]!;
+}
+
+const coldOf = (xs: number[]): ColdContext => ({
+  sessions: xs.length,
+  medianTokens: Math.round(percentile(xs, 0.5)),
+  p75Tokens: Math.round(percentile(xs, 0.75)),
+});
 
 function bump(acc: Acc, name: string): ToolStat {
   let s = acc.tools.get(name);
@@ -134,6 +220,15 @@ function bump(acc: Acc, name: string): ToolStat {
  * us keep the main thread and the isolated subagent threads apart.
  */
 export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?: Date): void {
+  // Per-transcript state. Cold context and read discipline are session-scoped:
+  // a file re-read in a *different* session is a fresh, legitimate read.
+  let firstTs = '';
+  let firstTokens = 0;
+  let firstIsSide = false;
+  const reads: { path: string; tokens: number; sliced: boolean }[] = [];
+  const readSizes = new Map<string, number[]>();
+  const edited = new Set<string>();
+
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed) continue;
@@ -168,6 +263,18 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
         chain.tokens.output += u.output;
         chain.tokens.cacheWrite += u.cacheWrite;
         chain.tokens.cacheRead += u.cacheRead;
+        // The earliest assistant turn carries the whole cold context and nothing
+        // else: no work has happened yet, so its input IS the fixed overhead.
+        const inputSide = u.input + u.cacheWrite + u.cacheRead;
+        const ts = typeof obj.timestamp === 'string' ? obj.timestamp : '';
+        // Prefer the earliest timestamp; fall back to file order when a
+        // transcript carries none, rather than reporting no cold context at all.
+        const earlier = firstTokens === 0 || (ts !== '' && firstTs !== '' && ts < firstTs);
+        if (inputSide > 0 && earlier) {
+          firstTs = ts;
+          firstTokens = inputSide;
+          firstIsSide = isSide;
+        }
         const model = msg.model ?? '';
         const cacheWrite1h = usage.cache_creation?.ephemeral_1h_input_tokens ?? 0;
         acc.costUsd += costForUsage(model, u, { cacheWrite1h });
@@ -192,6 +299,17 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
         if (id) acc.seenToolUse.add(id);
         bump(acc, name).calls++;
         if (name === 'Agent' && !isSide) acc.agentCalls++;
+        if (!isSide) {
+          const path = typeof b.input?.file_path === 'string' ? b.input.file_path : '';
+          if (name === 'Read' && path && id) {
+            acc.idToRead.set(id, {
+              path,
+              sliced: b.input.offset !== undefined || b.input.limit !== undefined,
+            });
+          } else if (path && (name === 'Edit' || name === 'Write' || name === 'NotebookEdit')) {
+            edited.add(path);
+          }
+        }
       } else if (b.type === 'tool_result') {
         const tid = String(b.tool_use_id ?? '');
         if (!tid || acc.seenToolResult.has(tid)) continue;
@@ -207,11 +325,52 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
         const tok = Math.round(chars / CHARS_PER_TOKEN);
         bump(acc, name).resultTokens += tok;
         chain.admitted += tok;
+
+        if (!isSide) {
+          const g = acc.ghosts;
+          if (chars > OVERSIZED_CHARS) {
+            g.oversizedCalls++;
+            g.oversizedTokens += tok;
+          }
+          const read = acc.idToRead.get(tid);
+          if (read) {
+            g.readCalls++;
+            g.readTokens += tok;
+            if (read.sliced) {
+              g.slicedCalls++;
+            } else {
+              reads.push({ path: read.path, tokens: tok, sliced: false });
+            }
+            // Identical size at the same path within one session: the file did
+            // not change, so the second read bought nothing.
+            let prior = readSizes.get(read.path);
+            if (!prior) {
+              prior = [];
+              readSizes.set(read.path, prior);
+            }
+            if (prior.includes(tok)) {
+              g.repeatReadCalls++;
+              g.repeatReadTokens += tok;
+            }
+            prior.push(tok);
+          }
+        }
         // An Agent result is the ONLY part of a subagent's work that lands in
         // the parent context — the compression denominator.
         if (name === 'Agent' && !isSide) acc.agentReturned += tok;
       }
     }
+  }
+
+  // Classify only once the whole transcript is known: a read is load-bearing if
+  // that path is edited ANYWHERE in the session, including long after the read.
+  for (const r of reads) {
+    if (edited.has(r.path)) continue;
+    acc.ghosts.exploratoryCalls++;
+    acc.ghosts.exploratoryTokens += r.tokens;
+  }
+  if (firstTokens > 0) {
+    (firstIsSide ? acc.coldSub : acc.coldMain).push(firstTokens);
   }
 }
 
@@ -338,6 +497,9 @@ export async function runAudit(ctx: ScanContext): Promise<AuditReport> {
       compression: acc.agentReturned > 0 ? sub.admittedTokens / acc.agentReturned : 0,
       shareOfSpendPct: totalInputSide > 0 ? (100 * sub.inputSideTokens) / totalInputSide : 0,
     },
+    coldMain: coldOf(acc.coldMain),
+    coldSub: coldOf(acc.coldSub),
+    ghosts: acc.ghosts,
     tools,
     surfaces,
     dead,

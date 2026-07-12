@@ -80,6 +80,146 @@ describe('parseAuditJsonl', () => {
   });
 });
 
+// A Read tool_use carrying its real input, so the result can be classified.
+const readUse = (id: string, path: string, sliced = false) => ({
+  type: 'tool_use', id, name: 'Read',
+  input: sliced ? { file_path: path, offset: 10, limit: 20 } : { file_path: path },
+});
+
+const editUse = (id: string, path: string) => ({
+  type: 'tool_use', id, name: 'Edit', input: { file_path: path },
+});
+
+// asst() with an explicit timestamp — cold context is defined by the EARLIEST turn.
+const asstAt = (id: string, req: string, ts: string, usage: object, side = false) =>
+  JSON.stringify({
+    type: 'assistant', requestId: req, isSidechain: side, timestamp: ts,
+    agentId: side ? `a-${id}` : undefined,
+    message: { id, model: 'claude-sonnet-4-5', usage, content: [] },
+  });
+
+const usageOf = (input: number) => ({
+  input_tokens: input, output_tokens: 10,
+  cache_creation_input_tokens: 0, cache_read_input_tokens: 0,
+});
+
+describe('ghost tokens', () => {
+  it('flags a re-read of the same path at the same size, but not a changed file', () => {
+    const acc = emptyAcc();
+    parseAuditJsonl(
+      [
+        asst('m1', 'r1', USAGE, [readUse('t1', '/a.ts'), readUse('t2', '/a.ts'), readUse('t3', '/b.ts')]),
+        res('t1', 400),   // 100 tok
+        res('t2', 400),   // identical size at the same path -> ghost
+        res('t3', 800),   // different path -> not a ghost
+      ].join('\n'),
+      acc,
+    );
+    expect(acc.ghosts.repeatReadCalls).toBe(1);
+    expect(acc.ghosts.repeatReadTokens).toBe(100);
+  });
+
+  it('does not flag a re-read whose size changed — the file was edited between reads', () => {
+    const acc = emptyAcc();
+    parseAuditJsonl(
+      [
+        asst('m1', 'r1', USAGE, [readUse('t1', '/a.ts'), readUse('t2', '/a.ts')]),
+        res('t1', 400),
+        res('t2', 900), // grew -> a real, necessary re-read
+      ].join('\n'),
+      acc,
+    );
+    expect(acc.ghosts.repeatReadCalls).toBe(0);
+  });
+
+  it('separates exploratory reads from load-bearing ones, even when the edit comes later', () => {
+    const acc = emptyAcc();
+    parseAuditJsonl(
+      [
+        asst('m1', 'r1', USAGE, [readUse('t1', '/edited.ts'), readUse('t2', '/browsed.ts')]),
+        res('t1', 4000),  // 1000 tok — read in order to change it
+        res('t2', 2000),  //  500 tok — read and never touched again
+        // the edit lands much later in the session: classification must wait
+        asst('m2', 'r2', USAGE, [editUse('e1', '/edited.ts')]),
+      ].join('\n'),
+      acc,
+    );
+    expect(acc.ghosts.exploratoryCalls).toBe(1);
+    expect(acc.ghosts.exploratoryTokens).toBe(500); // only /browsed.ts
+  });
+
+  it('counts a sliced read as disciplined and never as exploratory', () => {
+    const acc = emptyAcc();
+    parseAuditJsonl(
+      [
+        asst('m1', 'r1', USAGE, [readUse('t1', '/big.ts', true)]),
+        res('t1', 4000),
+      ].join('\n'),
+      acc,
+    );
+    expect(acc.ghosts.readCalls).toBe(1);
+    expect(acc.ghosts.slicedCalls).toBe(1);
+    expect(acc.ghosts.exploratoryCalls).toBe(0); // asking for a slice IS the fix
+  });
+
+  it('counts results over 4KB as oversized, whatever tool produced them', () => {
+    const acc = emptyAcc();
+    parseAuditJsonl(
+      [
+        asst('m1', 'r1', USAGE, [
+          { type: 'tool_use', id: 't1', name: 'Bash' },
+          { type: 'tool_use', id: 't2', name: 'Bash' },
+        ]),
+        res('t1', 4097), // over
+        res('t2', 4096), // exactly at the line — not over
+      ].join('\n'),
+      acc,
+    );
+    expect(acc.ghosts.oversizedCalls).toBe(1);
+  });
+
+  it('ignores subagent-side reads — their context is not the one we are protecting', () => {
+    const acc = emptyAcc();
+    parseAuditJsonl(
+      [
+        asst('s1', 'rs1', USAGE, [readUse('t1', '/a.ts')], true),
+        res('t1', 40_000, true),
+      ].join('\n'),
+      acc,
+    );
+    expect(acc.ghosts.readCalls).toBe(0);
+    expect(acc.ghosts.oversizedCalls).toBe(0);
+    expect(acc.side.admitted).toBe(10_000); // still counted as subagent work
+  });
+});
+
+describe('cold context', () => {
+  it('takes the earliest turn, not the first line, and keeps spawns apart', () => {
+    const acc = emptyAcc();
+    parseAuditJsonl(
+      [
+        asstAt('m2', 'r2', '2026-07-11T10:05:00Z', usageOf(90_000)), // later, bigger
+        asstAt('m1', 'r1', '2026-07-11T10:00:00Z', usageOf(50_000)), // the real cold start
+      ].join('\n'),
+      acc,
+    );
+    expect(acc.coldMain).toEqual([50_000]);
+  });
+
+  it('files a sidechain transcript as a subagent spawn', () => {
+    const acc = emptyAcc();
+    parseAuditJsonl(asstAt('s1', 'rs1', '2026-07-11T10:00:00Z', usageOf(32_000), true), acc);
+    expect(acc.coldMain).toEqual([]);
+    expect(acc.coldSub).toEqual([32_000]);
+  });
+
+  it('falls back to file order when a transcript carries no timestamps', () => {
+    const acc = emptyAcc();
+    parseAuditJsonl([asst('m1', 'r1', USAGE), asst('m2', 'r2', USAGE)].join('\n'), acc);
+    expect(acc.coldMain).toEqual([1300]); // 100 input + 200 write + 1000 read
+  });
+});
+
 async function fakeHome(): Promise<string> {
   return mkdtemp(join(tmpdir(), 'vibe-audit-'));
 }
@@ -169,10 +309,29 @@ describe('runAudit', () => {
     expect(r.subagents.shareOfSpendPct).toBeCloseTo(50, 0); // one msg each side
   });
 
+  it('reports the median cold context across sessions, not the mean', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+    // one pathological session must not drag the reported figure with it
+    const sizes = [40_000, 50_000, 60_000, 900_000];
+    await Promise.all(
+      sizes.map((n, i) =>
+        writeFile(join(proj, `s${i}.jsonl`), asstAt(`m${i}`, `r${i}`, '2026-07-11T10:00:00Z', usageOf(n))),
+      ),
+    );
+
+    const r = await runAudit({ home, scanDirs: [] });
+    expect(r.coldMain.sessions).toBe(4);
+    expect(r.coldMain.medianTokens).toBe(60_000); // not the 262k mean
+  });
+
   it('reports zero sessions on a rig with no transcripts', async () => {
     const r = await runAudit({ home: await fakeHome(), scanDirs: [] });
     expect(r.sessions).toBe(0);
     expect(r.dead).toEqual([]);
     expect(r.subagents.calls).toBe(0);
+    expect(r.coldMain.medianTokens).toBe(0);
+    expect(r.ghosts.readCalls).toBe(0);
   });
 });

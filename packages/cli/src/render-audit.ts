@@ -56,7 +56,51 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
     rows.push('');
   }
 
-  // 3. Where the context actually comes from.
+  // 4. Cold context — what you pay before you type a word. It is re-paid on
+  // every session and every subagent spawn, so it scales with how you work
+  // rather than what you work on, and it is the cost that uninstalling fixes.
+  if (r.coldMain.sessions > 0) {
+    rows.push(c.bold('COLD CONTEXT') + c.dim(' (before you type)'));
+    rows.push(`  🧊 ${c.bold(fmtCompact(r.coldMain.medianTokens))} tokens median at session start`);
+    if (r.coldSub.sessions > 0) {
+      rows.push(
+        `  ↳ every subagent spawn re-pays ${c.bold(fmtCompact(r.coldSub.medianTokens))} of it (${fmtInt(r.coldSub.sessions)} spawns)`,
+      );
+    }
+    rows.push(c.dim('  system prompt + tool names + agent/skill descriptions + memory'));
+    rows.push('');
+  }
+
+  // 5. Ghost tokens — the stuff an output-rewriting hook claims to fix. Printed
+  // as measurements, not advice: on a disciplined rig the famous repeat-read
+  // trick is worth ~nothing, and the real weight sits in oversized results.
+  const g = r.ghosts;
+  if (g.readCalls > 0 || g.oversizedCalls > 0) {
+    rows.push(c.bold('👻 GHOST TOKENS') + c.dim(' (main thread)'));
+    if (r.main.admittedTokens > 0) {
+      const pct = (100 * g.oversizedTokens) / r.main.admittedTokens;
+      rows.push(
+        `  ${c.bold(fmtCompact(g.oversizedTokens))} tok in ${fmtInt(g.oversizedCalls)} oversized results ${c.dim(`(>4KB) — ${pct.toFixed(0)}% of all admitted`)}`,
+      );
+    }
+    if (g.readCalls > 0) {
+      const slicedPct = (100 * g.slicedCalls) / g.readCalls;
+      rows.push(
+        `  📖 ${fmtInt(g.readCalls)} reads · ${c.bold(`${slicedPct.toFixed(0)}%`)} sliced with offset/limit`,
+      );
+      rows.push(
+        `  🔍 ${c.bold(fmtCompact(g.exploratoryTokens))} tok read whole and never edited ${c.dim('— outline-first territory')}`,
+      );
+    }
+    if (g.repeatReadCalls > 0) {
+      rows.push(
+        c.dim(`  ♻️  ${fmtInt(g.repeatReadCalls)} redundant re-reads (${fmtCompact(g.repeatReadTokens)} tok) — dedupe would buy this back`),
+      );
+    }
+    rows.push('');
+  }
+
+  // 6. Where the context actually comes from.
   const top = r.tools.slice(0, TOP_TOOLS);
   if (top.length > 0) {
     rows.push(c.bold('TOP TOOLS'));
@@ -69,7 +113,7 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
     rows.push('');
   }
 
-  // 4. The point of the audit: loaded every session, never called.
+  // 7. The point of the audit: loaded every session, never called.
   if (r.dead.length > 0) {
     rows.push(c.bold(c.red('☠️  DEAD WEIGHT')));
     for (const d of r.dead) {
