@@ -1,22 +1,30 @@
 Output assets/demo.gif
 
 # VibeRuler demo — the "Bureau of Vibe Measurement" left-rail scorecard.
-# Render with: vhs assets/demo.tape   (charmbracelet/vhs)
+# Render with: vhs assets/demo.tape   (charmbracelet/vhs)  — macOS / Linux only.
+#
+# ON WINDOWS THIS TAPE DOES NOT RENDER. vhs drives ttyd plus a headless browser
+# and hangs there regardless of `Set Shell`. Use assets/gen-cast.mjs + agg
+# instead — it needs neither, and produces the same two gifs. (Rendering from
+# WSL is not a workaround: the scan takes 615s over the 9p mount vs 12s native.)
 #
 # Recording notes (see LAUNCH.md field notes):
-# - PUBLISH 0.3.3 FIRST — the tape runs the published `npx viberuler`, so the
-#   new card (left rail, streak+agents, Bureau sign-off, Stories pointer) only
-#   shows once 0.3.3 is on npm. To dry-run against local build, swap the two
-#   command lines for `node packages/cli/dist/bin.js ...`.
+# - PUBLISH FIRST — the tape runs the published `npx viberuler`, so a new card
+#   only shows once that version is on npm. To dry-run against a local build,
+#   swap the command lines for `node packages/cli/dist/bin.js ...`.
 # - warm the npx cache first (`npx -y viberuler --version`) or the hidden
 #   "Ok to proceed?" prompt eats the Sleep.
 # - run as a non-root user (chromium refuses --no-sandbox as root).
 # - the Hide/Sleep/Show sandwich skips the scan wait in the rendered gif;
-#   size each hidden Sleep to your measured scan time + margin.
+#   size each hidden Sleep to your MEASURED scan time + margin. On the author's
+#   rig (10.8k transcripts): scorecard 26s, audit 12s.
+# - scene 2 is deliberately NOT `--submit`: that runs GitHub device-flow OAuth,
+#   which has no browser to open inside vhs and would record a hang. `audit` is
+#   also the more defensible thing to show — it needs no network at all.
 
 Set FontSize 16
 Set Width 1080
-Set Height 900
+Set Height 1150
 Set Padding 22
 Set TypingSpeed 55ms
 Set Shell bash
@@ -28,19 +36,20 @@ Sleep 500ms
 Enter
 Sleep 1500ms
 Hide
-Sleep 28s
+Sleep 40s
 Show
-Sleep 5s
+Sleep 6s
 
-# 2) The flex: submit to the leaderboard, get the certificate + share links.
-Type "npx viberuler --submit"
+Type "clear"
+Enter
+Sleep 300ms
+
+# 2) The point: audit the rig itself. No network, no submit — just the receipts.
+Type "npx viberuler audit"
 Sleep 500ms
 Enter
 Sleep 1500ms
 Hide
-Sleep 30s
+Sleep 25s
 Show
-Sleep 3s
-Type "y"
-Enter
-Sleep 9s
+Sleep 8s

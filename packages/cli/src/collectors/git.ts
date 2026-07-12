@@ -8,7 +8,16 @@ import { longestStreak } from '../streak.js';
 const exec = promisify(execFile);
 const MAX_DEPTH = 5;
 const MAX_FILE_BYTES = 1_000_000;
-const SKIP_DIRS = new Set(['node_modules', '.venv', 'venv', 'dist', 'build', 'target', 'out', 'vendor']);
+// Dotted dirs are skipped by the walker already (.cache, .cargo, .rustup...).
+// These are the ones that are NOT dotted and still hold nothing a human wrote:
+// on Windows every home has AppData\Local\Temp stuffed with half-finished clones,
+// which produced a screenful of "failed to scan" and drowned the real repos.
+const SKIP_DIRS = new Set([
+  'node_modules', '.venv', 'venv', 'dist', 'build', 'target', 'out', 'vendor',
+  'AppData', 'Application Data', // Windows
+  'Library',                     // macOS
+  'Temp', 'tmp',
+]);
 
 const LANG_BY_EXT: Record<string, string> = {
   '.ts': 'TypeScript', '.tsx': 'TypeScript', '.mts': 'TypeScript',
@@ -59,10 +68,14 @@ async function findRepos(root: string, depth = 0, acc: string[] = []): Promise<s
   } catch {
     return acc;
   }
-  if (entries.some((e) => e.name === '.git' && e.isDirectory())) {
-    acc.push(root);
-    return acc; // repo found — do not descend further
-  }
+  // A repo here does NOT end the walk: people keep project repos inside an outer
+  // repo (a workspace root that is itself versioned), and stopping at the first
+  // .git silently collapsed all of them into one project. Descending is safe
+  // because LoC comes from `git ls-files`, which lists only the files THAT repo
+  // tracks — a nested repo's files are invisible to its parent, so nothing is
+  // counted twice.
+  if (entries.some((e) => e.name === '.git' && e.isDirectory())) acc.push(root);
+
   for (const e of entries) {
     if (!e.isDirectory()) continue;
     if (e.name.startsWith('.') || SKIP_DIRS.has(e.name)) continue;
@@ -164,8 +177,12 @@ export const gitCollector: Collector = {
         }
         locTotal += repoLoc;
         if (repoLoc > maxRepoLoc) maxRepoLoc = repoLoc;
-      } catch {
-        warnings.push(`git: failed to scan ${basename(repo)}`);
+      } catch (err) {
+        // The basename alone is useless: several repos share one, and it hides
+        // WHY. Say which path and what git actually said — this is local stderr,
+        // it is never part of the submit payload.
+        const why = err instanceof Error ? err.message.split('\n')[0] : String(err);
+        warnings.push(`git: failed to scan ${repo} — ${why}`);
       }
     }
 

@@ -3,3 +3,7 @@ dist/
 *.tsbuildinfo
 .DS_Store
 packages/worker/.wrangler/
+
+# demo intermediates — regenerate with assets/gen-cast.mjs
+assets/*.ansi
+assets/*.cast

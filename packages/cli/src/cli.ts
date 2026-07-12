@@ -24,6 +24,18 @@ import { DEFAULT_API, DEFAULT_CLIENT_ID, githubDeviceFlow, fetchPercentile, subm
 
 const COLLECTORS: Collector[] = [claudeCodeCollector, codexCollector, clineCollector, geminiCollector, cursorCollector, litellmCollector, agentsCollector, gitCollector, githubCollector];
 
+/**
+ * Colour by TTY, but honour the two env conventions everyone else honours:
+ * NO_COLOR to force it off, FORCE_COLOR to force it on. Without FORCE_COLOR a
+ * piped run is always grey — which silently ruins captured output (demo
+ * recordings, CI logs, anything reading us through a pipe).
+ */
+export function shouldColor(noColorFlag: boolean, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (noColorFlag || env.NO_COLOR) return false;
+  if (env.FORCE_COLOR !== undefined) return env.FORCE_COLOR !== '0';
+  return Boolean(process.stdout.isTTY);
+}
+
 const USAGE = `viberuler — the benchmark for vibe coders
 
 Usage: viberuler [payload] [options]
@@ -146,7 +158,7 @@ export async function main(
     const report = await runAudit(actx);
     for (const w of report.warnings) process.stderr.write(`[viberuler] ${w}\n`);
     if (values.json) { out(JSON.stringify(report, null, 2)); return 0; }
-    const colors = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && !values['no-color'];
+    const colors = shouldColor(Boolean(values['no-color']));
     out(renderAudit(report, { colors, version: version() }));
     return 0;
   }
@@ -173,7 +185,7 @@ export async function main(
     };
     const wstats = await collectAll(wctx, (s) => process.stderr.write(s + '\n'), [claudeCodeCollector, gitCollector]);
     for (const w of wstats.warnings) process.stderr.write(`[viberuler] ${w}\n`);
-    const colors = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && !values['no-color'];
+    const colors = shouldColor(Boolean(values['no-color']));
     out(renderWrapped(computeScore(wstats), month, { colors, version: version() }));
     return 0;
   }
@@ -200,7 +212,7 @@ export async function main(
       if (live !== null) report = computeScore(stats, live);
     }
 
-    const colors = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && !values['no-color'];
+    const colors = shouldColor(Boolean(values['no-color']));
     out(renderCard(report, { colors, version: version() }));
 
     const payload = buildPayload(report, version());
@@ -252,7 +264,7 @@ export async function main(
     out(JSON.stringify(report, null, 2));
     return 0;
   }
-  const colors = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && !values['no-color'];
+  const colors = shouldColor(Boolean(values['no-color']));
   out(renderCard(report, { colors, version: version() }));
   return 0;
 }

@@ -27,7 +27,7 @@ Exactly fourteen fields — aggregates only. This is the complete, real shape (b
 
 ```json
 {
-  "client_version": "0.4.0",
+  "client_version": "0.4.1",
   "vibe_score": 3101,
   "loc": 312441,
   "projects": 47,

@@ -81,6 +81,56 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
     expect(r.sources).toEqual(['git']);
   });
 
+  it('finds a repo nested inside another repo, and counts each once', async () => {
+    // The workspace-root case: people version the folder that HOLDS their repos.
+    // Stopping at the first .git collapsed every project into one.
+    const outer = await mkdtemp(join(tmpdir(), 'vibe-nest-'));
+    const inner = join(outer, 'projects', 'inner');
+    await mkdir(inner, { recursive: true });
+
+    const g = (repo: string, ...args: string[]) => execFileSync('git', ['-C', repo, ...args]);
+    for (const r of [outer, inner]) {
+      g(r, 'init');
+      g(r, 'config', 'user.name', 'Vibe Tester');
+      g(r, 'config', 'user.email', 'vibe@test.local');
+    }
+    await writeFile(join(outer, 'root.ts'), 'export const outer = 1;\n');
+    // the outer repo must not track the inner one's files
+    await writeFile(join(outer, '.gitignore'), 'projects/\n');
+    g(outer, 'add', '-A');
+    g(outer, 'commit', '-m', 'outer');
+
+    await writeFile(join(inner, 'app.ts'), 'export const a = 1;\nexport const b = 2;\n');
+    g(inner, 'add', '-A');
+    g(inner, 'commit', '-m', 'inner');
+
+    const r = await gitCollector.collect({
+      home: outer,
+      scanDirs: [outer],
+      authorEmail: 'vibe@test.local',
+    });
+    expect(r.projects).toBe(2);                    // both, not just the outer one
+    expect(r.locByLang).toEqual({ TypeScript: 3 }); // 1 outer + 2 inner, none double-counted
+    expect(r.commits).toBe(2);
+  });
+
+  it('does not walk into AppData — every Windows home hides broken clones in there', async () => {
+    // Reproduces the real thing: AppData\Local\Temp is full of half-finished
+    // clones from other tools. Walking them produced a screenful of
+    // "failed to scan" warnings and drowned the repos the user actually wrote.
+    const junk = join(scanRoot, 'AppData', 'Local', 'Temp', 'someones-clone');
+    await mkdir(junk, { recursive: true });
+    await mkdir(join(junk, '.git'), { recursive: true }); // looks like a repo, is not one
+
+    const r = await gitCollector.collect({
+      home: scanRoot,
+      scanDirs: [scanRoot],
+      authorEmail: 'vibe@test.local',
+    });
+    expect(r.projects).toBe(1);              // only myproject, not the AppData clone
+    expect(r.warnings ?? []).toEqual([]);    // and no noise about it
+  });
+
   it('matches author email case-insensitively', async () => {
     await writeFile(join(repo, 'case.ts'), 'export const value = 1;\n');
     git('config', 'user.email', 'VIBE@TEST.LOCAL');

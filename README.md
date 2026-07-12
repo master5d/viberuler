@@ -37,7 +37,7 @@ Then it prints a scorecard you'll screenshot before you can stop yourself.
 **`tokens per dollar` is the headline stat.** Anyone can burn tokens. Burning them *efficiently* is the game.
 
 <p align="center">
-  <img src="assets/demo.gif" width="760" alt="viberuler in action: scorecard, transparent payload, GitHub device-flow submit">
+  <img src="assets/demo.gif" width="700" alt="viberuler scanning locally and printing the scorecard: projects, LoC, tokens, tokens-per-dollar, streak, rank">
 </p>
 
 ## The ranks
@@ -115,6 +115,11 @@ npx viberuler audit
 ```
 
 Your **tokens per dollar** score says how efficiently you burn tokens. `audit` says how efficiently your *rig* is set up. 100% local, reads your Claude Code transcripts:
+
+<p align="center">
+  <img src="assets/demo-audit.gif" width="700" alt="viberuler audit: cache economy, context amplification, subagent compression, cold context, ghost tokens, and dead MCP weight">
+</p>
+
 
 - **Token economy** — cache-hit rate, and what prompt caching actually saved you in API-equivalent dollars.
 - **Context amplification** — how many times the average token you admit gets re-read on later turns. Measured on the **main thread alone**: pooling in short-lived subagent contexts halves the number and understates what a token really costs in the thread you live in. (On a real rig: **1088×**.)
