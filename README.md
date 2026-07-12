@@ -119,10 +119,14 @@ Your **tokens per dollar** score says how efficiently you burn tokens. `audit` s
 - **Token economy** — cache-hit rate, and what prompt caching actually saved you in API-equivalent dollars.
 - **Context amplification** — how many times the average token you admit gets re-read on later turns. Measured on the **main thread alone**: pooling in short-lived subagent contexts halves the number and understates what a token really costs in the thread you live in. (On a real rig: **1088×**.)
 - **Subagents** — how hard they compress: work pulled in *inside* a subagent vs the summary handed back. They aren't free (they cost real overhead), but at 1000× amplification, keeping tokens out of the main thread is the whole game.
+- **🧊 Cold context** — what a session costs *before you type a word*: system prompt, tool names, agent and skill descriptions, memory. Every subagent spawn re-pays it. (On a real rig: **50.2K tokens** at session start, **33.1K** re-paid on each of 3,234 spawns.)
+- **👻 Ghost tokens** — the tokens an output-rewriting plugin promises to save you, measured instead of promised. Oversized results (>4KB) were **54%** of everything admitted; the famous "dedupe repeat reads" trick was worth **2%**.
 - **Top tools** — which tools are actually filling your context, ranked by calls and by tokens.
 - **☠️ Dead weight** — MCP servers and plugins that load on every session, spawn a process, inject their tool schemas… and get **called zero times**.
 
-That last one is the point. On the author's rig it found two MCP servers burning **1.5 GB of RAM across 76 processes** for **0 calls in 10,700+ sessions**. Measuring beats guessing.
+That last one is the point. On the author's rig it found two MCP servers burning **1.5 GB of RAM across 76 processes** for **0 calls in 10,700+ sessions**. Removing them dropped the median cold context from 49.9K to 41.1K tokens — a **17.5%** discount on every session since, and proof that deferred tool schemas do *not* make an unused server free.
+
+Measuring beats guessing, which is an awkward conclusion for a tool that scores you on vibes.
 
 ## Statusline
 
