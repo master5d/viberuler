@@ -166,11 +166,19 @@ export function renderCard(report: ScoreReport, opts: { colors: boolean; version
   rows.push('');
   rows.push(c.dim('— The Bureau · calibrated to ±0.001 vibes'));
 
-  // Left gradient rail — no right border, so emoji cell-width (which varies by
-  // terminal) can never misalign the card. Rounded caps top and bottom.
+  return railCard(rows, opts.colors);
+}
+
+/**
+ * Wraps rows in the Bureau's left gradient rail with rounded caps. There is no
+ * right border on purpose: emoji cell-width varies by terminal/font, so any
+ * closed frame eventually misaligns. Shared by every card the CLI prints.
+ */
+export function railCard(rows: string[], colors: boolean): string {
+  const c = createColors(colors);
   const total = rows.length + 2;
   const rail = (i: number, ch: string): string => {
-    if (!opts.colors) return ch;
+    if (!colors) return ch;
     if (supportsTruecolor) return code(VIOLET, GREEN, total <= 1 ? 0 : i / (total - 1)) + ch + RESET;
     return c.magenta(ch);
   };

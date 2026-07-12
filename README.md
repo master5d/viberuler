@@ -97,6 +97,7 @@ Your **Vibe Wrapped** for the month — commits, busiest day, streak, top langua
 
 ```
 npx viberuler                # scan + scorecard (100% local)
+npx viberuler audit          # audit your rig — see below
 npx viberuler --submit       # push to the global leaderboard
 npx viberuler payload        # show exactly what --submit WOULD send
 npx viberuler --json         # machine-readable
@@ -106,6 +107,21 @@ npx viberuler --github <handle>   # add your stars (the only other network call)
 ```
 
 A bare run scans every git repo under your **home dir**. If your code lives elsewhere (or in several places), point `--scan-dir` at each root — it's repeatable, and every metric (LoC, commits, features, PRs) is summed across all repos found, so your certificate reflects your whole body of work, not one project.
+
+## Rig audit
+
+```bash
+npx viberuler audit
+```
+
+Your **tokens per dollar** score says how efficiently you burn tokens. `audit` says how efficiently your *rig* is set up. 100% local, reads your Claude Code transcripts:
+
+- **Token economy** — cache-hit rate, and what prompt caching actually saved you in API-equivalent dollars.
+- **Context amplification** — how many times the average token you admit into context gets re-read on later turns. (On a real rig: **382×**. Every token a tool dumps in, you pay for again and again.)
+- **Top tools** — which tools are actually filling your context, ranked by calls and by tokens.
+- **☠️ Dead weight** — MCP servers and plugins that load on every session, spawn a process, inject their tool schemas… and get **called zero times**.
+
+That last one is the point. On the author's rig it found two MCP servers burning **1.5 GB of RAM across 76 processes** for **0 calls in 10,708 sessions**. Measuring beats guessing.
 
 ## Statusline
 

@@ -17,6 +17,8 @@ import { githubCollector } from './collectors/github.js';
 import { computeScore } from './score.js';
 import { renderCard } from './render.js';
 import { renderWrapped } from './wrapped.js';
+import { runAudit } from './audit.js';
+import { renderAudit } from './render-audit.js';
 import { buildPayload } from './payload.js';
 import { DEFAULT_API, DEFAULT_CLIENT_ID, githubDeviceFlow, fetchPercentile, submitScore, shareLinks } from './submit.js';
 
@@ -30,6 +32,8 @@ Commands:
   (default)            scan + render your scorecard (100% local)
   payload              print the exact JSON that --submit WOULD send (nothing is sent)
   wrapped              monthly recap card — needs --month YYYY-MM (Claude Code + git)
+  audit                audit your rig: cache economy, context amplification,
+                       and MCP tools that are loaded but never called (dead weight)
 
 Options:
   --scan-dir <path>    git scan root, repeatable        (default: your home dir)
@@ -125,7 +129,7 @@ export async function main(
   if (values.help) { out(USAGE); return 0; }
 
   const command = positionals[0] ?? 'card';
-  if (command !== 'card' && command !== 'payload' && command !== 'wrapped') {
+  if (command !== 'card' && command !== 'payload' && command !== 'wrapped' && command !== 'audit') {
     process.stderr.write(`Unknown command: ${command}\n${USAGE}`);
     return 1;
   }
@@ -135,6 +139,16 @@ export async function main(
   if (since && Number.isNaN(since.getTime())) {
     process.stderr.write('Invalid --since date, expected YYYY-MM-DD\n');
     return 1;
+  }
+
+  if (command === 'audit') {
+    const actx: ScanContext = { home, scanDirs: [], since, authorEmail: undefined, env: process.env };
+    const report = await runAudit(actx);
+    for (const w of report.warnings) process.stderr.write(`[viberuler] ${w}\n`);
+    if (values.json) { out(JSON.stringify(report, null, 2)); return 0; }
+    const colors = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && !values['no-color'];
+    out(renderAudit(report, { colors, version: version() }));
+    return 0;
   }
 
   if (command === 'wrapped') {
