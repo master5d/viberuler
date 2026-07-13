@@ -120,13 +120,16 @@ Step 2 'Reconciling Email Routing DNS (MX + SPF + DKIM)'
 $state = Invoke-CF GET "/zones/$zoneId/email/routing"
 Write-Host "    routing status: $($state.result.status) (enabled: $($state.result.enabled))" -ForegroundColor DarkGray
 
-$en = Invoke-CF POST "/zones/$zoneId/email/routing/dns" @{ name = $Zone }
+# Do NOT pass { name = $Zone } here: that field wants a SUBDOMAIN, and handing it
+# the apex returns "2007: Invalid Input: must be a subdomains of <zone>" — which
+# is why the records never got written and the zone sat there with no mail DNS.
+$en = Invoke-CF POST "/zones/$zoneId/email/routing/dns" @{}
 if ($en.success) {
-  Write-Host '    enabled — Cloudflare wrote and locked the records' -ForegroundColor Green
+  Write-Host '    Cloudflare wrote and locked the records' -ForegroundColor Green
 } else {
-  # NOT DarkGray. If this call fails, no mail records get written, and that is
-  # the whole ballgame — it must not scroll past looking like a footnote.
-  Write-Host "    enable failed: $($en.errorText)" -ForegroundColor Yellow
+  # NOT a grey footnote. If this fails we fall through to writing the records
+  # ourselves from the required list below, which is the path that actually works.
+  Write-Host "    auto-write failed: $($en.errorText) — reconciling by hand" -ForegroundColor Yellow
 }
 
 $need = Invoke-CF GET "/zones/$zoneId/email/routing/dns"
@@ -167,6 +170,15 @@ foreach ($r in $usable) {
   else            { Write-Host "    !    $($r.type) $($r.name): $($c.errorText)" -ForegroundColor Yellow }
 }
 if ($added -eq 0) { Write-Host '    all required records already present' -ForegroundColor DarkGray }
+
+# Writing the records does NOT switch routing on: the zone can hold a full set of
+# MX/SPF/DKIM and still report status=unconfigured, in which case Cloudflare
+# accepts no incoming mail at all. This is the call that flips it.
+$flip = Invoke-CF POST "/zones/$zoneId/email/routing/enable" @{}
+$now  = Invoke-CF GET "/zones/$zoneId/email/routing"
+Write-Host "    routing: enabled=$($now.result.enabled) status=$($now.result.status)" -ForegroundColor $(
+  if ($now.result.enabled) { 'Green' } else { 'Yellow' })
+if (-not $now.result.enabled) { Write-Host "    enable said: $($flip.errorText)" -ForegroundColor Yellow }
 
 # --- 2b. DMARC — Cloudflare does NOT add this one ---------------------------
 # Without it Gmail sees a domain with no stated policy, which is a spam signal
@@ -237,7 +249,9 @@ if ($already) {
 Step 5 'Mail authentication now published'
 $final = Invoke-CF GET "/zones/$zoneId/dns_records?per_page=100"
 $mx    = @($final.result | Where-Object { $_.type -eq 'MX' })
-$spf   = @($final.result | Where-Object { $_.type -eq 'TXT' -and $_.content -like 'v=spf1*' })
+# Cloudflare stores TXT content WITH the surrounding quotes, so a bare
+# 'v=spf1*' match reports MISSING on a record that is plainly there.
+$spf   = @($final.result | Where-Object { $_.type -eq 'TXT' -and $_.content -like '*v=spf1*' })
 $dkim  = @($final.result | Where-Object { $_.type -eq 'TXT' -and $_.name -like '*_domainkey*' })
 $dm    = @($final.result | Where-Object { $_.type -eq 'TXT' -and $_.name -eq "_dmarc.$Zone" })
 
