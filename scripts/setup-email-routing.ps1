@@ -117,21 +117,42 @@ Write-Host "    zone $zoneId / account $accountId" -ForegroundColor Green
 # So never trust `enabled`. Ask Cloudflare which records it REQUIRES, compare
 # against what the zone actually has, and add what's missing.
 Step 2 'Reconciling Email Routing DNS (MX + SPF + DKIM)'
+$state = Invoke-CF GET "/zones/$zoneId/email/routing"
+Write-Host "    routing status: $($state.result.status) (enabled: $($state.result.enabled))" -ForegroundColor DarkGray
+
 $en = Invoke-CF POST "/zones/$zoneId/email/routing/dns" @{ name = $Zone }
 if ($en.success) {
   Write-Host '    enabled — Cloudflare wrote and locked the records' -ForegroundColor Green
 } else {
-  Write-Host "    enable said: $($en.errorText)" -ForegroundColor DarkGray
+  # NOT DarkGray. If this call fails, no mail records get written, and that is
+  # the whole ballgame — it must not scroll past looking like a footnote.
+  Write-Host "    enable failed: $($en.errorText)" -ForegroundColor Yellow
 }
 
 $need = Invoke-CF GET "/zones/$zoneId/email/routing/dns"
 $required = @($need.result.record)
-if (-not $required) { $required = @($need.result) }   # shape differs by account
+if (-not $required -or -not $required[0].type) { $required = @($need.result) }
 
 $have = Invoke-CF GET "/zones/$zoneId/dns_records?per_page=100"
+$usable = @($required | Where-Object { $_.type })
+
+# An empty required-list is NOT "nothing to do" — it means we could not learn
+# what Cloudflare wants, and silently reporting success there is how the zone
+# ended up with no MX, no SPF and no DKIM while everyone believed it was fine.
+if ($usable.Count -eq 0) {
+  Write-Host "`n  Cloudflare did not return the records it requires." -ForegroundColor Red
+  Write-Host '  Raw response, so this can be diagnosed instead of guessed:' -ForegroundColor Red
+  Write-Host "  GET /zones/$zoneId/email/routing" -ForegroundColor DarkGray
+  ($state | ConvertTo-Json -Depth 6) -split "`n" | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+  Write-Host "  POST /zones/$zoneId/email/routing/dns" -ForegroundColor DarkGray
+  ($en | ConvertTo-Json -Depth 6) -split "`n" | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+  Write-Host "  GET /zones/$zoneId/email/routing/dns" -ForegroundColor DarkGray
+  ($need | ConvertTo-Json -Depth 6) -split "`n" | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+  throw 'Cannot write mail DNS without knowing which records Cloudflare requires.'
+}
+
 $added = 0
-foreach ($r in $required) {
-  if (-not $r.type) { continue }
+foreach ($r in $usable) {
   $exists = $have.result | Where-Object {
     $_.type -eq $r.type -and $_.name -eq $r.name -and $_.content -eq $r.content
   }
