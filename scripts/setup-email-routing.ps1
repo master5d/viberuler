@@ -36,7 +36,19 @@ $API = 'https://api.cloudflare.com/client/v4'
 $secure = Read-Host -Prompt 'Cloudflare API token' -AsSecureString
 $token  = [Runtime.InteropServices.Marshal]::PtrToStringBSTR(
             [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
+# A pasted token routinely arrives wrapped in quotes or with a stray newline —
+# which fails as "Invalid API Token" and looks like a permissions problem.
+$token = $token.Trim().Trim('"').Trim("'")
 if (-not $token) { throw 'No token entered.' }
+
+# The length is not a secret, and it is the fastest way to catch a bad paste:
+# a Cloudflare API token is 40 characters. A Global API Key (37, hex) will NOT
+# work here — this script speaks Bearer tokens only.
+Write-Host ("    token received: {0} chars" -f $token.Length) -ForegroundColor DarkGray
+if ($token.Length -ne 40) {
+  Write-Host '    ! expected 40 chars — if you pasted a Global API Key, create an API *token* instead' -ForegroundColor Yellow
+}
+
 $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
 
 function Invoke-CF {
@@ -59,18 +71,38 @@ function Invoke-CF {
 
 function Step($n, $text) { Write-Host "`n[$n] $text" -ForegroundColor Cyan }
 
-# --- 0. who am I ------------------------------------------------------------
-Step 0 'Verifying token'
+# --- 0. who am I (advisory only) --------------------------------------------
+# /user/tokens/verify only answers for USER-owned tokens. An account-owned token
+# — the kind you get from Account > API tokens — returns "1000: Invalid API
+# Token" here while being perfectly valid for the calls we actually make. So this
+# is a hint, never a gate: the zone lookup below is the real test.
+Step 0 'Checking token (advisory)'
 $v = Invoke-CF GET '/user/tokens/verify'
-if (-not $v.success) { throw "Token rejected: $($v.errorText)" }
-Write-Host '    token OK' -ForegroundColor Green
+if ($v.success) {
+  Write-Host '    user-owned token, verified' -ForegroundColor Green
+} else {
+  Write-Host "    verify says: $($v.errorText)" -ForegroundColor DarkGray
+  Write-Host '    (normal for an account-owned token — continuing)' -ForegroundColor DarkGray
+}
 
-# --- 1. zone ----------------------------------------------------------------
+# --- 1. zone — this is the real gate ----------------------------------------
 Step 1 "Looking up zone $Zone"
 $z = Invoke-CF GET "/zones?name=$Zone"
-if (-not $z.success -or -not $z.result) {
-  throw "Zone not found (needs Zone:Read on this token): $($z.errorText)"
+if (-not $z.success) {
+  throw @"
+Cloudflare rejected the zone lookup: $($z.errorText)
+
+If this says Invalid API Token, the token itself is wrong (bad paste, expired,
+or revoked). If it says something about permissions, the token is real but is
+missing one of:
+  Zone   -> Zone                 -> Read
+  Zone   -> DNS                  -> Edit
+  Zone   -> Email Routing Rules  -> Edit
+  Account-> Email Routing Addresses -> Edit
+and Zone Resources must include $Zone.
+"@
 }
+if (-not $z.result) { throw "Token works, but zone '$Zone' is not in its Zone Resources." }
 $zoneId    = $z.result[0].id
 $accountId = $z.result[0].account.id
 Write-Host "    zone $zoneId / account $accountId" -ForegroundColor Green
