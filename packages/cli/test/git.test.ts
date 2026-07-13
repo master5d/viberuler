@@ -3,7 +3,34 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { classifyExt, parseGitLog, gitCollector } from '../src/collectors/git.js';
+import { classifyExt, parseGitLog, gitCollector, isGenerated } from '../src/collectors/git.js';
+
+describe('isGenerated', () => {
+  it('recognises machine-written files', () => {
+    for (const p of [
+      'dist/index.js',
+      'packages/worker/worker-configuration.d.ts',
+      'node_modules/left-pad/index.js',
+      'assets/app.min.js',
+      'package-lock.json',
+      'src/api/schema.pb.go',
+      'vendor/lib.rs',
+      'src/__generated__/types.ts',
+    ]) {
+      expect(isGenerated(p), p).toBe(true);
+    }
+  });
+
+  it('does not mistake hand-written code for output', () => {
+    for (const p of ['src/index.ts', 'lib/distance.ts', 'src/build-tools.ts', 'app/outbox.py']) {
+      expect(isGenerated(p), p).toBe(false);
+    }
+  });
+
+  it('normalises Windows separators', () => {
+    expect(isGenerated('packages\\worker\\dist\\index.js')).toBe(true);
+  });
+});
 
 describe('classifyExt', () => {
   it('maps known code extensions', () => {
@@ -79,6 +106,75 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
     expect(r.locTotal).toBe(3);
     expect(r.maxRepoLoc).toBe(3);
     expect(r.sources).toEqual(['git']);
+  });
+
+  it('counts only lines YOU committed — not the tree, not other people, not machines', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'vibe-authored-'));
+    const r2 = join(root, 'proj');
+    await mkdir(join(r2, 'dist'), { recursive: true });
+    const g = (...args: string[]) => execFileSync('git', ['-C', r2, ...args]);
+    g('init');
+    g('config', 'user.name', 'Vibe Tester');
+    g('config', 'user.email', 'vibe@test.local');
+
+    // Somebody else's code, sitting in the tree. The old measure credited it to you.
+    g('config', 'user.email', 'someone.else@example.com');
+    await writeFile(join(r2, 'theirs.ts'), Array.from({ length: 50 }, (_, i) => `const t${i} = ${i};`).join('\n') + '\n');
+    g('add', '-A');
+    g('commit', '-m', 'not mine');
+
+    // Machine output, committed by you. Also counted, before.
+    g('config', 'user.email', 'vibe@test.local');
+    await writeFile(join(r2, 'dist', 'bundle.js'), Array.from({ length: 900 }, () => 'x=1;').join('\n') + '\n');
+    await writeFile(join(r2, 'types.d.ts'), Array.from({ length: 400 }, (_, i) => `declare const d${i}: number;`).join('\n') + '\n');
+    await writeFile(join(r2, 'package-lock.json'), '{\n"a":1\n}\n');
+    g('add', '-A');
+    g('commit', '-m', 'chore: regenerate');
+
+    // Four lines actually written by a human.
+    await writeFile(join(r2, 'mine.ts'), 'export function mine() {\n  return 1;\n}\n');
+    g('add', '-A');
+    g('commit', '-m', 'feat: mine');
+
+    const res = await gitCollector.collect({
+      home: root,
+      scanDirs: [root],
+      authorEmail: 'vibe@test.local',
+    });
+
+    // 3 lines of mine.ts. Not the 50 that are someone else's, and not the 1,300
+    // lines of generated output that would have dwarfed everything real.
+    expect(res.locTotal).toBe(3);
+    expect(res.locByLang).toEqual({ TypeScript: 3 });
+  });
+
+  it('does not let a merge commit re-count the branch it absorbs', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'vibe-merge-'));
+    const r3 = join(root, 'proj');
+    await mkdir(r3, { recursive: true });
+    const g = (...args: string[]) => execFileSync('git', ['-C', r3, ...args]);
+    g('init');
+    g('config', 'user.name', 'Vibe Tester');
+    g('config', 'user.email', 'vibe@test.local');
+    await writeFile(join(r3, 'a.ts'), 'const a = 1;\n');
+    g('add', '-A');
+    g('commit', '-m', 'base');
+
+    g('checkout', '-b', 'feature');
+    await writeFile(join(r3, 'b.ts'), 'const b = 1;\nconst c = 2;\n');
+    g('add', '-A');
+    g('commit', '-m', 'feat: b');
+
+    g('checkout', '-');
+    g('merge', '--no-ff', 'feature', '-m', 'Merge pull request #1 from feature');
+
+    const res = await gitCollector.collect({
+      home: root,
+      scanDirs: [root],
+      authorEmail: 'vibe@test.local',
+    });
+    // 1 (a.ts) + 2 (b.ts) — the merge must not add b.ts a second time
+    expect(res.locTotal).toBe(3);
   });
 
   it('finds a repo nested inside another repo, and counts each once', async () => {

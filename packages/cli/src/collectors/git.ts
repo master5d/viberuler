@@ -1,13 +1,12 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { basename, extname, join } from 'node:path';
+import { extname, join } from 'node:path';
 import type { Collector, ScanContext } from '../types.js';
 import { longestStreak } from '../streak.js';
 
 const exec = promisify(execFile);
 const MAX_DEPTH = 5;
-const MAX_FILE_BYTES = 1_000_000;
 // Dotted dirs are skipped by the walker already (.cache, .cargo, .rustup...).
 // These are the ones that are NOT dotted and still hold nothing a human wrote:
 // on Windows every home has AppData\Local\Temp stuffed with half-finished clones,
@@ -71,9 +70,8 @@ async function findRepos(root: string, depth = 0, acc: string[] = []): Promise<s
   // A repo here does NOT end the walk: people keep project repos inside an outer
   // repo (a workspace root that is itself versioned), and stopping at the first
   // .git silently collapsed all of them into one project. Descending is safe
-  // because LoC comes from `git ls-files`, which lists only the files THAT repo
-  // tracks — a nested repo's files are invisible to its parent, so nothing is
-  // counted twice.
+  // because every figure comes from that repo's own `git log` — a nested repo has
+  // its own history, invisible to its parent, so nothing is counted twice.
   if (entries.some((e) => e.name === '.git' && e.isDirectory())) acc.push(root);
 
   for (const e of entries) {
@@ -94,24 +92,71 @@ async function authorEmail(ctx: ScanContext): Promise<string | null> {
   }
 }
 
-async function countRepoLoc(repo: string): Promise<Record<string, number>> {
+/**
+ * Files a machine wrote. Counting these as "code you shipped" is how a benchmark
+ * lies to the person holding it: regenerating one types file can be worth more
+ * than a month of real work.
+ */
+const GENERATED = [
+  /(^|\/)(dist|build|out|target|vendor|third_party|generated|__generated__)\//i,
+  /(^|\/)node_modules\//,
+  /\.min\.(js|css)$/i,
+  /\.d\.ts$/i, // overwhelmingly emitted by a compiler or `wrangler types`
+  /\.(pb|generated)\.(ts|js|go|py|cs)$/i,
+  /_pb2(_grpc)?\.py$/i,
+  /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|poetry\.lock|composer\.lock|go\.sum|Gemfile\.lock)$/i,
+  /\.(snap|lock)$/i,
+];
+
+export function isGenerated(path: string): boolean {
+  const p = path.replace(/\\/g, '/');
+  return GENERATED.some((re) => re.test(p));
+}
+
+/**
+ * Lines the author actually committed, per language.
+ *
+ * The old measure was the size of the repo's tree: every tracked file with a code
+ * extension, whoever wrote it. Clone a big project, commit a typo, and it credited
+ * you with the whole thing — and it counted generated output as authorship. So it
+ * measured "how large are the repos you have on disk", while calling itself "lines
+ * of code shipped".
+ *
+ * This counts additions in commits BY YOU (`git log --numstat`), skipping merges so
+ * a merge commit cannot re-count the branch it absorbs. Rewriting the same file
+ * repeatedly does add up — that is churn, and it is real work you committed; what
+ * it is not is other people's code.
+ */
+async function authoredLoc(
+  repo: string,
+  email: string,
+  since?: Date,
+  until?: Date,
+): Promise<Record<string, number>> {
   const byLang: Record<string, number> = {};
-  const { stdout } = await exec('git', ['-C', repo, 'ls-files', '-z'], { maxBuffer: 64 * 1024 * 1024 });
-  for (const rel of stdout.split('\0')) {
-    if (!rel) continue;
-    const lang = classifyExt(rel);
+  const args = [
+    '-C', repo, 'log',
+    '--regexp-ignore-case',
+    `--author=${escapeGitAuthorPattern(email)}`,
+    '--no-merges',
+    '--numstat',
+    '--diff-filter=ACMR',
+    '--pretty=format:',
+  ];
+  if (since) args.push(`--since=${since.toISOString()}`);
+  if (until) args.push(`--until=${until.toISOString()}`);
+
+  const { stdout } = await exec('git', args, { maxBuffer: 128 * 1024 * 1024 });
+  for (const line of stdout.split('\n')) {
+    // "<added>\t<deleted>\t<path>"; binaries report "-\t-\t<path>"
+    const m = /^(\d+)\t(\d+)\t(.+)$/.exec(line.trim());
+    if (!m) continue;
+    const added = Number(m[1]);
+    const path = m[3]!;
+    if (isGenerated(path)) continue;
+    const lang = classifyExt(path);
     if (!lang) continue;
-    const abs = join(repo, rel);
-    try {
-      if ((await stat(abs)).size > MAX_FILE_BYTES) continue;
-      const text = await readFile(abs, 'utf8');
-      let lines = 0;
-      for (let i = 0; i < text.length; i++) if (text.charCodeAt(i) === 10) lines++;
-      if (text.length > 0 && !text.endsWith('\n')) lines++;
-      byLang[lang] = (byLang[lang] ?? 0) + lines;
-    } catch {
-      /* unreadable file — skip */
-    }
+    byLang[lang] = (byLang[lang] ?? 0) + added;
   }
   return byLang;
 }
@@ -169,7 +214,7 @@ export const gitCollector: Collector = {
           historyRewrites += reflog.split('\n').filter((l) => /^(rebase|reset: moving)/.test(l)).length;
         } catch { /* fresh clone without reflog — fine */ }
 
-        const byLang = await countRepoLoc(repo);
+        const byLang = await authoredLoc(repo, email, ctx.since, ctx.until);
         let repoLoc = 0;
         for (const [lang, n] of Object.entries(byLang)) {
           locByLang[lang] = (locByLang[lang] ?? 0) + n;

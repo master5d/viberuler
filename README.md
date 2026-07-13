@@ -26,7 +26,7 @@ npx viberuler
 |---|---|---|
 | 🧠 tokens burned | Claude Code + Codex session logs (+ your LiteLLM gateway, opt-in) | `1.2B tokens` |
 | 💸 **tokens per dollar** | tokens ÷ spend (bundled price table) | `6.5M tok/$ — TOP 3%` |
-| ⚡ LoC shipped | `git ls-files` across your repos | `312K LoC` |
+| ⚡ LoC shipped | lines **you** added, in **your** commits, minus generated output | `312K LoC` |
 | 📦 projects | repos where *you* authored commits | `47 projects` |
 | 🔥 streak | consecutive commit days | `212-day streak` |
 | 🏆 achievements | see below | `Token Billionaire` |
@@ -35,6 +35,8 @@ npx viberuler
 Then it prints a scorecard you'll screenshot before you can stop yourself.
 
 **`tokens per dollar` is the headline stat.** Anyone can burn tokens. Burning them *efficiently* is the game.
+
+**LoC counts what you wrote, not what you have.** It used to be the size of your repo trees — which credited you with vendored code you never touched and with every line a compiler emitted. Now it's the lines you added in your own commits, generated output excluded. That cut the author's own headline number by 17%, and we shipped the smaller true one. [Why, in detail →](METHODOLOGY.md#loc-is-what-you-wrote)
 
 <p align="center">
   <img src="assets/demo.gif" width="700" alt="viberuler scanning locally and printing the scorecard: projects, LoC, tokens, tokens-per-dollar, streak, rank">
@@ -51,7 +53,7 @@ Then it prints a scorecard you'll screenshot before you can stop yourself.
 | | | |
 |---|---|---|
 | 💰 **Token Billionaire** — ≥1B tokens | 🪦 **Free Tier Martyr** — ≥1M tokens under $1 | 🗄️ **Cache Whisperer** — >90% cache reads |
-| 🌐 **Polyglot** — 5+ languages | 🐘 **Monorepo Menace** — a 100K+ LoC repo | 🔥 **Streak Freak** — 100-day streak |
+| 🌐 **Polyglot** — 5+ languages | 🐘 **Monorepo Menace** — 100K+ lines authored in one repo | 🔥 **Streak Freak** — 100-day streak |
 | 🌙 **3AM Committer** — 10+ night commits | 💥 **YOLO Force Pusher** — 20+ history rewrites | |
 
 ## The leaderboard
