@@ -107,17 +107,63 @@ $zoneId    = $z.result[0].id
 $accountId = $z.result[0].account.id
 Write-Host "    zone $zoneId / account $accountId" -ForegroundColor Green
 
-# --- 2. enable routing + create the MX/SPF records --------------------------
-# POST /email/routing/dns is the one that also ADDS AND LOCKS the DNS records.
-# POST /email/routing/enable only flips the flag and assumes DNS is already there.
-Step 2 'Enabling Email Routing (adds + locks MX and SPF)'
-$settings = Invoke-CF GET "/zones/$zoneId/email/routing"
-if ($settings.success -and $settings.result.enabled) {
-  Write-Host '    already enabled — skipping' -ForegroundColor DarkGray
+# --- 2. the DNS records — the thing that actually decides spam vs inbox ------
+# A zone can report enabled:true while carrying ZERO mail records: someone
+# flipped it on in the dashboard and never onboarded DNS. That is exactly what
+# happened here — no MX, no SPF, no DKIM — so hello@ silently received nothing
+# and everything the Worker sent went to spam, because Gmail could not verify
+# that the domain authorises mail claiming to come from it.
+#
+# So never trust `enabled`. Ask Cloudflare which records it REQUIRES, compare
+# against what the zone actually has, and add what's missing.
+Step 2 'Reconciling Email Routing DNS (MX + SPF + DKIM)'
+$en = Invoke-CF POST "/zones/$zoneId/email/routing/dns" @{ name = $Zone }
+if ($en.success) {
+  Write-Host '    enabled — Cloudflare wrote and locked the records' -ForegroundColor Green
 } else {
-  $en = Invoke-CF POST "/zones/$zoneId/email/routing/dns" @{ name = $Zone }
-  if ($en.success) { Write-Host '    enabled, DNS written' -ForegroundColor Green }
-  else             { Write-Host "    ! $($en.errorText)" -ForegroundColor Yellow }
+  Write-Host "    enable said: $($en.errorText)" -ForegroundColor DarkGray
+}
+
+$need = Invoke-CF GET "/zones/$zoneId/email/routing/dns"
+$required = @($need.result.record)
+if (-not $required) { $required = @($need.result) }   # shape differs by account
+
+$have = Invoke-CF GET "/zones/$zoneId/dns_records?per_page=100"
+$added = 0
+foreach ($r in $required) {
+  if (-not $r.type) { continue }
+  $exists = $have.result | Where-Object {
+    $_.type -eq $r.type -and $_.name -eq $r.name -and $_.content -eq $r.content
+  }
+  if ($exists) {
+    Write-Host "    ok   $($r.type) $($r.name)" -ForegroundColor DarkGray
+    continue
+  }
+  $body = @{ type = $r.type; name = $r.name; content = $r.content; ttl = 1 }
+  if ($r.type -eq 'MX') { $body.priority = [int]$r.priority }
+  $c = Invoke-CF POST "/zones/$zoneId/dns_records" $body
+  if ($c.success) { Write-Host "    ADD  $($r.type) $($r.name)" -ForegroundColor Green; $added++ }
+  else            { Write-Host "    !    $($r.type) $($r.name): $($c.errorText)" -ForegroundColor Yellow }
+}
+if ($added -eq 0) { Write-Host '    all required records already present' -ForegroundColor DarkGray }
+
+# --- 2b. DMARC — Cloudflare does NOT add this one ---------------------------
+# Without it Gmail sees a domain with no stated policy, which is a spam signal
+# on its own. p=none only monitors; it changes nothing except deliverability.
+Step '2b' 'Ensuring DMARC policy'
+$dmarcName = "_dmarc.$Zone"
+$dmarc = $have.result | Where-Object { $_.type -eq 'TXT' -and $_.name -eq $dmarcName }
+if ($dmarc) {
+  Write-Host "    already set: $($dmarc.content)" -ForegroundColor DarkGray
+} else {
+  $d = Invoke-CF POST "/zones/$zoneId/dns_records" @{
+    type    = 'TXT'
+    name    = '_dmarc'
+    content = "v=DMARC1; p=none; rua=mailto:$Destination"
+    ttl     = 1
+  }
+  if ($d.success) { Write-Host '    ADD  TXT _dmarc (p=none)' -ForegroundColor Green }
+  else            { Write-Host "    !    $($d.errorText)" -ForegroundColor Yellow }
 }
 
 # --- 3. destination address (this is what sends the verification email) ------
@@ -163,7 +209,32 @@ if ($already) {
   else               { throw "Could not create rule: $($rule.errorText)" }
 }
 
+# --- 5. show the mail authentication the world will actually see ------------
+# The point of the whole exercise: a receiving server asks DNS whether this
+# domain authorises the mail. If these are absent, it goes to spam no matter how
+# well-formed the message is.
+Step 5 'Mail authentication now published'
+$final = Invoke-CF GET "/zones/$zoneId/dns_records?per_page=100"
+$mx    = @($final.result | Where-Object { $_.type -eq 'MX' })
+$spf   = @($final.result | Where-Object { $_.type -eq 'TXT' -and $_.content -like 'v=spf1*' })
+$dkim  = @($final.result | Where-Object { $_.type -eq 'TXT' -and $_.name -like '*_domainkey*' })
+$dm    = @($final.result | Where-Object { $_.type -eq 'TXT' -and $_.name -eq "_dmarc.$Zone" })
+
+function Show($label, $rows) {
+  if ($rows.Count -gt 0) { Write-Host ("    {0,-6} {1}" -f $label, 'present') -ForegroundColor Green }
+  else                   { Write-Host ("    {0,-6} {1}" -f $label, 'MISSING') -ForegroundColor Red }
+}
+Show 'MX'    $mx
+Show 'SPF'   $spf
+Show 'DKIM'  $dkim
+Show 'DMARC' $dm
+
 Write-Host "`nDone." -ForegroundColor Green
-Write-Host "  $address now forwards to $Destination"
-Write-Host "  The contact form can send too: its destination is verified."
-Write-Host "  Test: send a mail to $address, then submit the form on the site."
+Write-Host "  $address forwards to $Destination"
+Write-Host "  The contact form can send: its destination is verified."
+Write-Host ""
+Write-Host "  DNS takes 5-15 minutes to propagate. Then verify from outside:" -ForegroundColor DarkGray
+Write-Host "    nslookup -type=MX $Zone 8.8.8.8" -ForegroundColor DarkGray
+Write-Host "    nslookup -type=TXT $Zone 8.8.8.8        # expect v=spf1" -ForegroundColor DarkGray
+Write-Host "    nslookup -type=TXT _dmarc.$Zone 8.8.8.8 # expect v=DMARC1" -ForegroundColor DarkGray
+Write-Host "  Then send the form again — Gmail should stop flagging it." -ForegroundColor DarkGray
