@@ -128,8 +128,11 @@ export function gaugeHtml(vibe: number, opts?: { sus?: boolean; compact?: boolea
     const bg = isFill
       ? `linear-gradient(90deg, ${PALETTE.violet}, ${PALETTE.green})`
       : PALETTE.surface;
+    // The class is inert in the OG image — satori ignores classes and honours only
+    // the inline style, which must stay in explicit px. It exists so the HTML page
+    // can shrink the gauge on a phone without touching the raster render.
     cells.push(
-      `<div${isFill ? ' data-cell="fill"' : ''} style="display:flex;width:20px;height:20px;margin-right:4px;background:${bg};border:1px solid ${PALETTE.hairline};"></div>`,
+      `<div class="gcell"${isFill ? ' data-cell="fill"' : ''} style="display:flex;width:20px;height:20px;margin-right:4px;background:${bg};border:1px solid ${PALETTE.hairline};"></div>`,
     );
   }
 
@@ -139,15 +142,15 @@ export function gaugeHtml(vibe: number, opts?: { sus?: boolean; compact?: boolea
     ? `<div style="display:flex;align-items:center;justify-content:center;padding:8px 16px;color:${PALETTE.stamp};font-family:ui-monospace,monospace;font-weight:700;">— UNDER REVIEW —</div>`
     : `<div style="display:flex;align-items:center;justify-content:flex-end;padding-left:16px;color:${PALETTE.ivory};font-family:ui-monospace,monospace;font-weight:700;font-size:32px;">${Math.round(vibe).toLocaleString('en-US')}</div>`;
 
-  const scaleRow = `<div style="display:flex;flex-direction:row;justify-content:space-between;width:400px;">${labels
+  const scaleRow = `<div class="gscale" style="display:flex;flex-direction:row;justify-content:space-between;width:400px;">${labels
     .map(
       (label) =>
-        `<div style="display:flex;color:${PALETTE.muted};font-family:ui-monospace,monospace;font-size:10px;">${label}</div>`,
+        `<div class="glabel" style="display:flex;color:${PALETTE.muted};font-family:ui-monospace,monospace;font-size:10px;">${label}</div>`,
     )
     .join('')}</div>`;
 
-  return `<div style="display:flex;flex-direction:column;">
-  <div style="display:flex;flex-direction:row;align-items:center;">
+  return `<div class="ggrid" style="display:flex;flex-direction:column;">
+  <div class="gtrack" style="display:flex;flex-direction:row;align-items:center;">
     ${track}
     ${scoreOrBand}
   </div>

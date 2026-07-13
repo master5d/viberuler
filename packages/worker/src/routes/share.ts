@@ -17,8 +17,10 @@ const PAGE_CSS = `
   ${guillocheCss()}
   body{background:${PALETTE.base};color:${PALETTE.ivory};font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;
        display:flex;flex-direction:column;align-items:center;padding:48px 16px;margin:0}
+  /* width:100% + padding:32px without border-box added 66px of overflow — which
+     is exactly what a phone was scrolling sideways by. */
   .card{border:1px solid ${PALETTE.violet};border-radius:12px;padding:32px;max-width:560px;width:100%;
-        text-align:center;box-shadow:0 0 40px rgba(140,82,255,.25)}
+        box-sizing:border-box;text-align:center;box-shadow:0 0 40px rgba(140,82,255,.25)}
   .title{color:${PALETTE.violet};font-size:16px;letter-spacing:4px;margin:12px 0 4px}
   .subject{color:${PALETTE.ivory};font-size:18px;margin:8px 0 16px}
   .vibe{font-size:56px;color:${PALETTE.green};margin:8px 0}
@@ -40,6 +42,37 @@ const PAGE_CSS = `
   .share button:hover{filter:brightness(1.08)}
   .share .wa{color:${PALETTE.green};font-size:14px;text-decoration:none;border-bottom:1px dotted ${PALETTE.green}}
   .share .stint{color:${PALETTE.muted};font-size:12px;max-width:340px;text-align:center}
+
+  /* Phones. The gauge is shared with the OG image, where satori demands explicit
+     px and ignores classes — so the raster stays untouched and only the HTML
+     shrinks. Overriding inline styles is the price of that sharing, hence the
+     !important. */
+  @media (max-width: 480px) {
+    body{padding:24px 12px}
+    .card{padding:20px 14px}
+    .title{font-size:13px;letter-spacing:2px}
+    .subject{font-size:16px}
+    .vibe{font-size:44px}
+    .loc{font-size:17px}
+    .ship,.certify,.meta{font-size:14px}
+    .gcell{width:12px !important;height:12px !important;margin-right:2px !important}
+    .gscale{width:100% !important;max-width:250px !important}
+    .glabel{font-size:8px !important}
+    .gtrack > div:last-child{font-size:24px !important;padding-left:10px !important}
+    .share button{padding:12px 18px;font-size:16px}
+  }
+
+  /* Small phones (iPhone SE, 320px). Twenty gauge cells plus the score still ran
+     12px past the card there — the gauge is the one thing on this page that
+     cannot reflow, so it has to keep shrinking. */
+  @media (max-width: 380px) {
+    .gcell{width:9px !important;height:9px !important;margin-right:1px !important}
+    .gscale{max-width:200px !important}
+    .glabel{font-size:7px !important}
+    .gtrack > div:last-child{font-size:20px !important;padding-left:6px !important}
+    .vibe{font-size:38px}
+    .loc{font-size:15px}
+  }
 `;
 
 function page(

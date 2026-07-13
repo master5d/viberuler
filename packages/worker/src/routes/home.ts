@@ -9,7 +9,8 @@ const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 const HOME_CSS = `
   body{background:${PALETTE.base};color:#e6e6e6;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;
        display:flex;flex-direction:column;align-items:center;padding:48px 16px;margin:0}
-  .hero{text-align:center;max-width:720px;padding:32px 24px;border:1px solid ${PALETTE.hairline};border-radius:4px}
+  .hero{text-align:center;max-width:720px;width:100%;box-sizing:border-box;padding:32px 24px;
+        border:1px solid ${PALETTE.hairline};border-radius:4px}
   .seal{margin-bottom:12px}
   h1{color:${PALETTE.ivory};font-size:22px;margin:0;letter-spacing:3px}
   .tag{color:${PALETTE.violet};margin:12px 0 4px;font-size:14px}
@@ -21,6 +22,11 @@ const HOME_CSS = `
   .totals{color:${PALETTE.amber};margin-top:24px;font-size:14px}
   .standings{max-width:720px;width:100%;margin-top:32px;padding:24px;border:1px solid ${PALETTE.hairline};border-radius:4px;box-sizing:border-box}
   h2{color:${PALETTE.ivory};font-size:16px;letter-spacing:2px;margin:0 0 16px;text-align:center}
+  /* Six columns cannot fit a phone: the table's min-content is 412px against
+     ~310px of room, and it refuses to shrink — so it was pushing the whole page
+     sideways. Let the board scroll inside its own frame instead of dropping
+     columns: nothing is hidden, and the page itself stays put. */
+  .boardwrap{width:100%;overflow-x:auto}
   table{border-collapse:collapse;width:100%}
   th{color:${PALETTE.muted};font-size:12px;text-align:left;padding:6px 12px;border-bottom:1px solid ${PALETTE.hairline}}
   td{padding:8px 12px;border-bottom:1px solid ${PALETTE.hairline};font-size:14px}
@@ -64,6 +70,23 @@ const HOME_CSS = `
   .cstatus.ok{color:${PALETTE.green}}
   .cstatus.err{color:${PALETTE.stamp}}
   .calt{color:${PALETTE.muted};font-size:12px;text-align:center;margin-top:16px;border-top:1px solid ${PALETTE.hairline};padding-top:16px}
+
+  @media (max-width: 480px) {
+    body{padding:28px 12px}
+    .hero{padding:22px 14px}
+    /* 22px + 3px of letter-spacing is a lot of unbreakable width for one word */
+    h1{font-size:17px;letter-spacing:1px}
+    .tag{font-size:13px}
+    code{font-size:16px;padding:10px 14px}
+    .standings{padding:16px 12px}
+    th,td{padding:6px 8px;font-size:13px}
+    /* Six columns clipped at the frame edge read as a broken table, not a
+       scrollable one. The rank name is the longest and the least load-bearing —
+       it is on the coder's certificate a tap away — so it steps aside on a phone
+       and the rest fits with nothing cut. */
+    .rank{display:none}
+    .links a{margin:0 6px;display:inline-block}
+  }
   ${guillocheCss()}
 `;
 
@@ -74,7 +97,7 @@ export async function handleHome(_req: Request, env: Env, url: URL): Promise<Res
     rows.length === 0
       ? `<p class="empty">No submissions are on file. Be the first — history remembers #1.</p>`
       : `<table>
-      <tr><th>#</th><th>coder</th><th class="num">VIBE</th><th class="num">tok/$</th><th class="num">badges</th><th class="num">certified as</th></tr>
+      <tr><th>#</th><th>coder</th><th class="num">VIBE</th><th class="num">tok/$</th><th class="num">badges</th><th class="num rank">certified as</th></tr>
       ${rows
         .map((r, i) => {
           const login = escapeHtml(r.gh_login);
@@ -115,7 +138,7 @@ export async function handleHome(_req: Request, env: Env, url: URL): Promise<Res
     </div>
     <div class="standings paper">
       <h2>OFFICIAL STANDINGS</h2>
-      ${board}
+      <div class="boardwrap">${board}</div>
     </div>
     <div class="disclaimer">This measurement is scientifically meaningless. Notarized anyway.</div>
     <div class="links">
