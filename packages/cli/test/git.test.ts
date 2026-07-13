@@ -148,6 +148,66 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
     expect(res.locByLang).toEqual({ TypeScript: 3 });
   });
 
+  it('reports machine noise separately instead of silently dropping it', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'vibe-noise-'));
+    const r = join(root, 'proj');
+    await mkdir(join(r, 'dist'), { recursive: true });
+    const g = (...args: string[]) => execFileSync('git', ['-C', r, ...args]);
+    g('init');
+    g('config', 'user.name', 'Vibe Tester');
+    g('config', 'user.email', 'vibe@test.local');
+
+    await writeFile(join(r, 'mine.ts'), 'export const a = 1;\nexport const b = 2;\n');           // 2 authored
+    await writeFile(join(r, 'dist', 'bundle.js'), Array.from({ length: 8 }, () => 'x=1;').join('\n') + '\n'); // 8 generated
+    g('add', '-A');
+    g('commit', '-m', 'feat: mine + build output');
+
+    const res = await gitCollector.collect({ home: root, scanDirs: [root], authorEmail: 'vibe@test.local' });
+    expect(res.locTotal).toBe(2);        // yours
+    expect(res.locGenerated).toBe(8);    // the machine's — visible, not counted as yours
+  });
+
+  it('counts a day you touched three repos as ONE active day', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'vibe-cadence-'));
+    for (const name of ['a', 'b', 'c']) {
+      const r = join(root, name);
+      await mkdir(r, { recursive: true });
+      const g = (...args: string[]) => execFileSync('git', ['-C', r, ...args]);
+      g('init');
+      g('config', 'user.name', 'Vibe Tester');
+      g('config', 'user.email', 'vibe@test.local');
+      await writeFile(join(r, 'x.ts'), 'const x = 1;\n');
+      g('add', '-A');
+      // same calendar day in all three repos
+      g('commit', '-m', 'init', '--date', '2026-06-01T12:00:00');
+    }
+
+    const res = await gitCollector.collect({ home: root, scanDirs: [root], authorEmail: 'vibe@test.local' });
+    expect(res.commits).toBe(3);     // three commits…
+    expect(res.activeDays).toBe(1);  // …on one day. Summing per-repo would say 3.
+    expect(res.spanDays).toBe(1);
+  });
+
+  it('measures the span from first commit to last, inclusive', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'vibe-span-'));
+    const r = join(root, 'proj');
+    await mkdir(r, { recursive: true });
+    const g = (...args: string[]) => execFileSync('git', ['-C', r, ...args]);
+    g('init');
+    g('config', 'user.name', 'Vibe Tester');
+    g('config', 'user.email', 'vibe@test.local');
+    await writeFile(join(r, 'a.ts'), 'const a = 1;\n');
+    g('add', '-A');
+    g('commit', '-m', 'one', '--date', '2026-06-01T12:00:00');
+    await writeFile(join(r, 'b.ts'), 'const b = 1;\n');
+    g('add', '-A');
+    g('commit', '-m', 'two', '--date', '2026-06-10T12:00:00');
+
+    const res = await gitCollector.collect({ home: root, scanDirs: [root], authorEmail: 'vibe@test.local' });
+    expect(res.activeDays).toBe(2);   // two days worked
+    expect(res.spanDays).toBe(10);    // across ten calendar days (Jun 1..10)
+  });
+
   it('does not let a merge commit re-count the branch it absorbs', async () => {
     const root = await mkdtemp(join(tmpdir(), 'vibe-merge-'));
     const r3 = join(root, 'proj');

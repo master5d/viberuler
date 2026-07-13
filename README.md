@@ -27,8 +27,9 @@ npx viberuler
 | 🧠 tokens burned | Claude Code + Codex session logs (+ your LiteLLM gateway, opt-in) | `1.2B tokens` |
 | 💸 **tokens per dollar** | tokens ÷ spend (bundled price table) | `6.5M tok/$ — TOP 3%` |
 | ⚡ LoC shipped | lines **you** added, in **your** commits, minus generated output | `312K LoC` |
+| ⚙️ machine noise | generated lines you committed, and their share of your diff | `163K · 33% of diff` |
 | 📦 projects | repos where *you* authored commits | `47 projects` |
-| 🔥 streak | consecutive commit days | `212-day streak` |
+| 🔥 streak · cadence | consecutive commit days, and commits per **active** day | `212-day streak · 8.4/day` |
 | 🏆 achievements | see below | `Token Billionaire` |
 | 🤖 agents in the stable | marker dirs of known coding agents in your home | `4 agents · Claude Code · Codex · Antigravity` |
 
@@ -37,6 +38,8 @@ Then it prints a scorecard you'll screenshot before you can stop yourself.
 **`tokens per dollar` is the headline stat.** Anyone can burn tokens. Burning them *efficiently* is the game.
 
 **LoC counts what you wrote, not what you have.** It used to be the size of your repo trees — which credited you with vendored code you never touched and with every line a compiler emitted. Now it's the lines you added in your own commits, generated output excluded. That cut the author's own headline number by 17%, and we shipped the smaller true one. [Why, in detail →](METHODOLOGY.md#loc-is-what-you-wrote)
+
+**The excluded lines are still shown.** A third of the author's diff turned out to be machine output — regenerated types, bundles, lockfiles. It isn't scored and never leaves your machine; it's a baseline to shrink. A number you can't see is a number you can't reduce.
 
 <p align="center">
   <img src="assets/demo.gif" width="700" alt="viberuler scanning locally and printing the scorecard: projects, LoC, tokens, tokens-per-dollar, streak, rank">

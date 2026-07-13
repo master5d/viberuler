@@ -79,6 +79,31 @@ So we now read `git log --author=<you> --no-merges --numstat` and sum the **addi
 
 **What it still is not, stated plainly:** it counts churn. Rewrite the same file five times and all five rewrites count, because you did commit them. It is not "surviving lines" — that would need `git blame` over every file in every repo, which is minutes of work per scan. And a `feat:` that deletes 500 lines of cruft scores zero here, which is why **ship outcomes** (`features shipped`, `PRs merged`) exist alongside it: deletion is work that LoC structurally cannot see.
 
+### Machine noise (the baseline you optimise against)
+
+The generated lines LoC refuses to count are **not thrown away** — they are reported:
+
+```
+⚙️  163K generated lines committed · 33% of your diff was machine noise
+```
+
+A number you cannot see is a number you cannot reduce. A third of the author's diff was output no human read line by line — regenerated types, bundles, lockfiles. That is not automatically bad (a lockfile belongs in git), but it *is* the cheapest thing to examine: it tells you how much of your review surface, your diffs, and your agent's context is spent on text nobody wrote.
+
+It is **local only**. It is not scored, not ranked, and not in the submit payload — a leaderboard would immediately turn it into a target to game, and it is far more useful as a private baseline than as a public rank.
+
+### Commit cadence (how you work, not how long you've worked)
+
+```
+🔥 36-day streak · 3,786 commits · 57.4/day over 66 active days
+   you shipped on 59% of the days since your first commit (111 days)
+```
+
+- **Active days** = distinct calendar days you committed on, taken as the **union across repos**. Committing to three repos on one Tuesday is one day, not three — summing per-repo day counts is the obvious bug here, and it would inflate cadence by however many repos you juggle.
+- **Commits per active day** = commits ÷ active days. Deliberately *not* commits ÷ calendar span: that would just measure how long ago you started, and quietly punish anyone who took a holiday.
+- **Span** = first commit to last, inclusive. The ratio `active / span` is the honest "how often do I actually ship" figure.
+
+Cadence is descriptive, not a score. Fifty commits a day is not virtue and one is not sloth — but you cannot tune what you never measured.
+
 ### Shipped efficiency (tokens per line)
 
 Your card also shows **`tok / line shipped`** = total tokens ÷ your LoC (§1). It's the "did the tokens actually produce code?" axis: lower is leaner. It is **display-only** — it does **not** feed the VIBE score in this version (we're collecting a release of real data before deciding its weight). It's `—`/omitted when you have no scanned LoC. Both numerator and denominator now honour `--since`, so a bounded window no longer distorts the ratio. Source: [`packages/cli/src/score.ts`](packages/cli/src/score.ts).

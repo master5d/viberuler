@@ -127,7 +127,27 @@ export function renderCard(report: ScoreReport, opts: { colors: boolean; version
       rows.push(`💸 ${c.bold(fmtCompact(report.tokPerUsd))} tok/$ · TOP ${c.bold(String(Math.max(1, pct)))}% (est.)`);
     }
     if (report.tokPerLoc !== null) rows.push(`🎯 ${c.bold(fmtCompact(report.tokPerLoc))} tok / line shipped`);
-    if (s.commits > 0) rows.push(`🔥 ${c.bold(String(s.streakDays))}-day streak · ${c.bold(fmtInt(s.commits))} commits`);
+    if (s.commits > 0) {
+      // Cadence, not just volume: commits per ACTIVE day says how you work, while
+      // commits ÷ calendar span would just say how long ago you started.
+      const perActive = s.activeDays > 0 ? s.commits / s.activeDays : 0;
+      const cadence = s.activeDays > 0 ? ` · ${c.bold(perActive.toFixed(1))}/day over ${c.bold(fmtInt(s.activeDays))} active days` : '';
+      rows.push(`🔥 ${c.bold(String(s.streakDays))}-day streak · ${c.bold(fmtInt(s.commits))} commits${cadence}`);
+      if (s.spanDays > 0 && s.activeDays > 0) {
+        const shipRate = Math.round((100 * s.activeDays) / s.spanDays);
+        rows.push(c.dim(`   you shipped on ${shipRate}% of the days since your first commit (${fmtInt(s.spanDays)} days)`));
+      }
+    }
+    // The machine's share of your diff. Not scored, not sent — a baseline to
+    // shrink. Lines nobody read line-by-line are the cheapest thing to stop
+    // committing.
+    if (s.locGenerated > 0) {
+      const total = s.locTotal + s.locGenerated;
+      const pct = total > 0 ? Math.round((100 * s.locGenerated) / total) : 0;
+      rows.push(
+        `⚙️  ${c.bold(fmtCompact(s.locGenerated))} generated lines committed · ${c.bold(`${pct}%`)} of your diff was machine noise`,
+      );
+    }
     // Outcomes over volume (gstack's shift): features shipped + PRs merged, and
     // the cost-to-ship efficiency (tokens per feature) when both are known.
     if (s.featsShipped > 0 || s.prsMerged > 0) {

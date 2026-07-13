@@ -3,7 +3,7 @@ import type { RawStats, TokenUsage } from './types.js';
 export function emptyStats(): RawStats {
   return {
     projects: 0, commits: 0, featsShipped: 0, prsMerged: 0, streakDays: 0, lateNightCommits: 0, historyRewrites: 0,
-    locTotal: 0, locByLang: {}, maxRepoLoc: 0,
+    locTotal: 0, locByLang: {}, maxRepoLoc: 0, locGenerated: 0, activeDays: 0, spanDays: 0,
     tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
     tokensByAgent: {},
     costUsd: 0, ghStars: 0, agents: [], sources: [], warnings: [],
@@ -36,6 +36,12 @@ export function mergeStats(base: RawStats, add: Partial<RawStats>): RawStats {
     locTotal: base.locTotal + (add.locTotal ?? 0),
     locByLang,
     maxRepoLoc: Math.max(base.maxRepoLoc, add.maxRepoLoc ?? 0),
+    locGenerated: base.locGenerated + (add.locGenerated ?? 0),
+    // Calendar facts, not quantities: only the git collector knows them, and it
+    // has already taken the union across every repo. Adding them would count a
+    // day you touched three repos as three days.
+    activeDays: Math.max(base.activeDays, add.activeDays ?? 0),
+    spanDays: Math.max(base.spanDays, add.spanDays ?? 0),
     tokens: {
       input: base.tokens.input + (t?.input ?? 0),
       output: base.tokens.output + (t?.output ?? 0),

@@ -16,6 +16,16 @@ export interface RawStats {
   locTotal: number;
   locByLang: Record<string, number>;
   maxRepoLoc: number;
+  /**
+   * Lines of machine output you committed (generated types, bundles, lockfiles).
+   * Deliberately NOT part of locTotal — it isn't code you wrote. Reported so you
+   * can see, and shrink, the share of your diff no human ever read.
+   */
+  locGenerated: number;
+  /** Distinct days you committed on — the union across repos, never a sum. */
+  activeDays: number;
+  /** Calendar days from your first commit to your last, inclusive. */
+  spanDays: number;
   tokens: TokenUsage;
   tokensByAgent: Record<string, number>; // total tokens attributed per agent (distribution strip)
   costUsd: number;

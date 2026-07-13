@@ -127,13 +127,25 @@ export function isGenerated(path: string): boolean {
  * repeatedly does add up — that is churn, and it is real work you committed; what
  * it is not is other people's code.
  */
+export interface AuthoredLoc {
+  byLang: Record<string, number>;
+  /**
+   * Lines you committed that a machine wrote. Not counted as yours — but worth
+   * knowing: it is the share of your diff that no human reviewed line by line,
+   * and the baseline you'd optimise against (commit generated output less often,
+   * or stop committing it at all).
+   */
+  generated: number;
+}
+
 async function authoredLoc(
   repo: string,
   email: string,
   since?: Date,
   until?: Date,
-): Promise<Record<string, number>> {
+): Promise<AuthoredLoc> {
   const byLang: Record<string, number> = {};
+  let generated = 0;
   const args = [
     '-C', repo, 'log',
     '--regexp-ignore-case',
@@ -153,12 +165,17 @@ async function authoredLoc(
     if (!m) continue;
     const added = Number(m[1]);
     const path = m[3]!;
-    if (isGenerated(path)) continue;
+    if (isGenerated(path)) {
+      // Counted separately, not silently dropped: a number you cannot see is a
+      // number you cannot reduce.
+      generated += added;
+      continue;
+    }
     const lang = classifyExt(path);
     if (!lang) continue;
     byLang[lang] = (byLang[lang] ?? 0) + added;
   }
-  return byLang;
+  return { byLang, generated };
 }
 
 export const gitCollector: Collector = {
@@ -180,7 +197,7 @@ export const gitCollector: Collector = {
 
     let projects = 0, commits = 0, lateNightCommits = 0, historyRewrites = 0;
     let featsShipped = 0, prsMerged = 0;
-    let locTotal = 0, maxRepoLoc = 0;
+    let locTotal = 0, maxRepoLoc = 0, locGenerated = 0;
     const locByLang: Record<string, number> = {};
     const allDates: string[] = [];
     const warnings: string[] = [];
@@ -214,13 +231,14 @@ export const gitCollector: Collector = {
           historyRewrites += reflog.split('\n').filter((l) => /^(rebase|reset: moving)/.test(l)).length;
         } catch { /* fresh clone without reflog — fine */ }
 
-        const byLang = await authoredLoc(repo, email, ctx.since, ctx.until);
+        const authored = await authoredLoc(repo, email, ctx.since, ctx.until);
         let repoLoc = 0;
-        for (const [lang, n] of Object.entries(byLang)) {
+        for (const [lang, n] of Object.entries(authored.byLang)) {
           locByLang[lang] = (locByLang[lang] ?? 0) + n;
           repoLoc += n;
         }
         locTotal += repoLoc;
+        locGenerated += authored.generated;
         if (repoLoc > maxRepoLoc) maxRepoLoc = repoLoc;
       } catch (err) {
         // The basename alone is useless: several repos share one, and it hides
@@ -240,9 +258,21 @@ export const gitCollector: Collector = {
       if (n > busiestDayCount) { busiestDayCount = n; busiestDay = d; }
     }
 
+    // Days you committed on, and the span you committed across. `dayCounts` is
+    // already the union across every repo — summing per-repo day counts would
+    // triple-count a day you touched three repos, and inflate the cadence.
+    const activeDays = dayCounts.size;
+    const sorted = [...dayCounts.keys()].sort();
+    const spanDays =
+      sorted.length > 0
+        ? Math.round(
+            (Date.parse(`${sorted[sorted.length - 1]}T00:00:00Z`) - Date.parse(`${sorted[0]}T00:00:00Z`)) / 86_400_000,
+          ) + 1
+        : 0;
+
     return {
       projects, commits, featsShipped, prsMerged, streakDays: longestStreak(allDates), lateNightCommits, historyRewrites,
-      locTotal, locByLang, maxRepoLoc, sources: ['git'], warnings,
+      locTotal, locByLang, maxRepoLoc, locGenerated, activeDays, spanDays, sources: ['git'], warnings,
       busiestDay, busiestDayCount,
     };
   },
