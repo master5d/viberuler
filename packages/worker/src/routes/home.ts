@@ -36,8 +36,20 @@ const HOME_CSS = `
   .links{margin-top:12px;color:${PALETTE.muted};font-size:13px}
   .links a{margin:0 10px}
   img.av{width:20px;height:20px;border-radius:50%;vertical-align:-4px;margin-right:8px}
-  .contact{max-width:720px;width:100%;margin-top:32px;padding:24px;border:1px solid ${PALETTE.hairline};border-radius:4px;box-sizing:border-box}
-  .contact .csub{color:${PALETTE.muted};font-size:12px;text-align:center;margin:-8px 0 16px}
+  /* Collapsed by default: <details> gives us keyboard support and the correct
+     expanded state announced to screen readers for free — a hand-rolled toggle
+     would have to earn both back. */
+  /* the page is centred; an inline-block summary would otherwise hug the left */
+  .contact{max-width:560px;width:100%;margin:20px 0 8px;box-sizing:border-box;text-align:center}
+  .contact>summary{list-style:none;cursor:pointer;display:inline-block;
+       border:1px solid ${PALETTE.hairline};border-radius:8px;padding:9px 18px;
+       color:${PALETTE.muted};font-size:13px;background:transparent;user-select:none}
+  .contact>summary::-webkit-details-marker{display:none}
+  .contact>summary:hover{color:${PALETTE.ivory};border-color:${PALETTE.violet}}
+  .contact>summary:focus-visible{outline:2px solid ${PALETTE.violet};outline-offset:2px}
+  .contact[open]>summary{color:${PALETTE.ivory};border-color:${PALETTE.violet};margin-bottom:14px}
+  .cbody{padding:24px;border:1px solid ${PALETTE.hairline};border-radius:4px;text-align:left}
+  .contact .csub{color:${PALETTE.muted};font-size:12px;text-align:center;margin:0 0 16px}
   .contact form{display:flex;flex-direction:column;gap:12px}
   .contact input,.contact textarea{background:${PALETTE.surface};border:1px solid ${PALETTE.hairline};border-radius:8px;
        padding:12px 14px;color:${PALETTE.ivory};font-family:inherit;font-size:14px;box-sizing:border-box;width:100%}
@@ -106,25 +118,33 @@ export async function handleHome(_req: Request, env: Env, url: URL): Promise<Res
       ${board}
     </div>
     <div class="disclaimer">This measurement is scientifically meaningless. Notarized anyway.</div>
-    <div class="contact paper">
-      <h2>CONTACT THE BUREAU</h2>
-      <div class="csub">Bug, idea, or a collector for your favorite agent? File it below.</div>
-      <form id="contact-form" novalidate>
-        <input name="name" type="text" placeholder="name (optional)" maxlength="100" autocomplete="name">
-        <input name="email" type="email" placeholder="you@example.com" maxlength="200" autocomplete="email" required>
-        <textarea name="message" placeholder="your message to the Bureau" maxlength="5000" required></textarea>
-        <input class="hp" name="fax" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <button type="submit" id="contact-send">Send to the Bureau</button>
-        <div class="cstatus" id="contact-status" role="status" aria-live="polite"></div>
-      </form>
-      <div class="calt">or email the Bureau directly: <a href="mailto:hello@viberuler.dev">hello@viberuler.dev</a></div>
-    </div>
     <div class="links">
       <a href="https://github.com/master5d/viberuler">GitHub</a> ·
       <a href="https://github.com/master5d/viberuler/blob/master/METHODOLOGY.md">Methodology</a> ·
       <a href="https://github.com/master5d/viberuler/blob/master/PRIVACY.md">Privacy</a> ·
       <a href="/api/leaderboard">API</a>
     </div>
+    <details class="contact" id="contact">
+      <summary>Contact the Bureau</summary>
+      <div class="cbody paper">
+        <div class="csub">Bug, idea, or a collector for your favorite agent? File it below.</div>
+        <form id="contact-form" novalidate>
+          <input name="name" type="text" placeholder="name (optional)" maxlength="100" autocomplete="name">
+          <input name="email" type="email" placeholder="you@example.com" maxlength="200" autocomplete="email" required>
+          <textarea name="message" placeholder="your message to the Bureau" maxlength="5000" required></textarea>
+          <input class="hp" name="fax" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <button type="submit" id="contact-send">Send to the Bureau</button>
+          <div class="cstatus" id="contact-status" role="status" aria-live="polite"></div>
+        </form>
+        <div class="calt">or email the Bureau directly: <a href="mailto:hello@viberuler.dev">hello@viberuler.dev</a></div>
+      </div>
+    </details>
+    <script>(function(){var d=document.getElementById('contact');if(!d)return;
+      // #contact must open the panel, or a link to it lands on a closed box.
+      if(location.hash==='#contact')d.open=true;
+      addEventListener('hashchange',function(){if(location.hash==='#contact')d.open=true;});
+      // Opening it should put the cursor where the user is going anyway.
+      d.addEventListener('toggle',function(){if(d.open){var e=d.querySelector('[name="email"]');if(e)e.focus();}});})();</script>
     <script>(function(){var f=document.getElementById('contact-form');if(!f)return;var s=document.getElementById('contact-status'),b=document.getElementById('contact-send');var g=function(n){var el=f.querySelector('[name="'+n+'"]');return el?el.value:'';};f.addEventListener('submit',async function(e){e.preventDefault();s.className='cstatus';s.textContent='filing…';b.disabled=true;try{var r=await fetch('/api/contact',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:g('name'),email:g('email'),message:g('message'),fax:g('fax')})});if(r.ok){f.reset();s.className='cstatus ok';s.textContent='Filed with the Bureau. We’ll be in touch.';}else{var j=await r.json().catch(function(){return{};});s.className='cstatus err';s.textContent=j.error||'Something went wrong — try again.';}}catch(_){s.className='cstatus err';s.textContent='Network error — try again.';}b.disabled=false;});})();</script>
     </body></html>`;
 

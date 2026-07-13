@@ -36,8 +36,12 @@ describe('GET /', () => {
     expect(html).toContain(rankForVibe(6065));
     // #1 listed before #2
     expect(html.indexOf('master5d')).toBeLessThan(html.indexOf('runnerup'));
-    // contact form wired into the footer
-    expect(html).toContain('CONTACT THE BUREAU');
+    // contact form: folded into a footer button, not sprawled across the page
+    expect(html).toContain('<summary>Contact the Bureau</summary>');
+    // <details> with no `open` attribute — collapsed on arrival
+    expect(html).toContain('<details class="contact" id="contact">');
+    expect(html).not.toContain('<details class="contact" id="contact" open>');
+    // …but the form itself is still really there, not lazy-loaded behind a fetch
     expect(html).toContain('id="contact-form"');
     expect(html).toContain('/api/contact');
     expect(html).toContain('name="fax"'); // honeypot present
