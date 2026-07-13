@@ -1,6 +1,7 @@
 import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Collector, ScanContext } from '../types.js';
+import { agentHomes } from '../roots.js';
 
 // Ordered roster: first marker hit wins. Markers are paths relative to home.
 // More specific markers must come before generic ones that share a parent
@@ -37,11 +38,13 @@ async function exists(path: string): Promise<boolean> {
 
 export async function detectAgents(ctx: ScanContext): Promise<string[]> {
   const found: string[] = [];
+  const homes = agentHomes(ctx); // OS home + any --agent-home
   for (const agent of AGENT_ROSTER) {
-    for (const marker of agent.markers) {
-      if (await exists(join(ctx.home, ...marker.split('/')))) {
+    const marks = agent.markers.flatMap((m) => homes.map((h) => join(h, ...m.split('/'))));
+    for (const mark of marks) {
+      if (await exists(mark)) {
         found.push(agent.name);
-        break;
+        break; // one marker is enough — an agent is listed once, not per home
       }
     }
   }

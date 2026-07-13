@@ -148,11 +148,27 @@ Fable 5 · ⚡3982 Context Goblin · 481.5K tok/$
 - [x] Cursor collector (input-side lower bound, estimated)
 - [x] Gemini CLI collector
 - [x] Cline / Roo Code / KiloCode collectors (one parser, three forks)
-- [ ] Windsurf / Aider collectors — `good first issue`
+- [x] Multi-agent rigs — repeatable `--agent-home`, plus `CODEX_HOME` / `CLAUDE_CONFIG_DIR`
+- [ ] **[Windsurf](https://github.com/master5d/viberuler/issues/3)** / **[Aider](https://github.com/master5d/viberuler/issues/4)** collectors — `good first issue`
 - [x] Vibe Wrapped — monthly recap card
 - [ ] Team leaderboards
 
-A collector is one file implementing a 2-method interface: [`packages/cli/src/types.ts`](packages/cli/src/types.ts).
+**Want your agent on the board?** A collector is ~70 lines and a test: two methods,
+*is this agent here* and *what did it burn*. [CONTRIBUTING.md](CONTRIBUTING.md) walks
+through it, including the two parsing traps that already bit us. Draft PRs are fine —
+you don't have to finish it before asking.
+
+### Multi-agent rigs
+
+If your agents don't live in your home directory, point at them — every extra root
+is searched, and mounting the same logs twice never double-counts:
+
+```bash
+npx viberuler --agent-home C:\agents\Claude --agent-home C:\agents\codex
+```
+
+`CODEX_HOME` and `CLAUDE_CONFIG_DIR` are honoured automatically, so if you already
+relocate your agents the normal way, there is nothing to pass.
 
 ## Stack
 

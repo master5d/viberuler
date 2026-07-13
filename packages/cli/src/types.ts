@@ -29,6 +29,12 @@ export interface RawStats {
 
 export interface ScanContext {
   home: string;
+  /**
+   * Extra agent homes (--agent-home, repeatable). Multi-agent rigs relocate
+   * their agents out of the OS home entirely; collectors must look in these too.
+   * Resolve them through `resolveRoots` rather than joining ctx.home by hand.
+   */
+  agentHomes?: string[];
   scanDirs: string[];
   since?: Date;
   until?: Date; // exclusive upper bound for time-windowed recaps (wrapped)

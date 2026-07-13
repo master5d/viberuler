@@ -21,13 +21,21 @@ session contents, and MCP setup are a fingerprint of how you work; none of it is
 part of the submit payload and none of it ever will be. The audit exists to show
 *you* what your rig costs *you*.
 
+## `--agent-home` widens what is *read*, never what is *sent*
+
+`--agent-home <path>` (and `VIBERULER_AGENT_HOMES`) tells the scanner to look for
+agent logs outside your OS home — for rigs that keep their agents elsewhere. It
+only ever adds directories to the **local** scan. `CODEX_HOME` and
+`CLAUDE_CONFIG_DIR` are honoured the same way. The payload below does not change:
+no path you point at is ever transmitted, named, or counted separately.
+
 ## What `--submit` sends
 
 Exactly fourteen fields — aggregates only. This is the complete, real shape (built in [`packages/cli/src/payload.ts`](packages/cli/src/payload.ts), ~30 lines):
 
 ```json
 {
-  "client_version": "0.4.1",
+  "client_version": "0.5.0",
   "vibe_score": 3101,
   "loc": 312441,
   "projects": 47,

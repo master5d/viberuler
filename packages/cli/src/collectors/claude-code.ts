@@ -1,7 +1,8 @@
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Collector, ScanContext, TokenUsage } from '../types.js';
+import type { Collector, TokenUsage } from '../types.js';
 import { costForUsage } from '../pricing.js';
+import { resolveRoots, type RootSpec } from '../roots.js';
 
 export function parseClaudeJsonl(
   content: string,
@@ -62,36 +63,40 @@ async function* walkJsonl(dir: string): AsyncGenerator<string> {
   }
 }
 
-function projectsDir(ctx: ScanContext): string {
-  return join(ctx.home, '.claude', 'projects');
-}
+// CLAUDE_CONFIG_DIR points at the .claude dir itself, so its sub-path is just
+// 'projects'. Every known agent home is searched, not only the OS one.
+const PROJECTS: RootSpec = {
+  under: ['.claude', 'projects'],
+  env: 'CLAUDE_CONFIG_DIR',
+  envUnder: ['projects'],
+};
 
 export const claudeCodeCollector: Collector = {
   id: 'claude-code',
   async detect(ctx) {
-    try {
-      return (await stat(projectsDir(ctx))).isDirectory();
-    } catch {
-      return false;
-    }
+    return (await resolveRoots(ctx, PROJECTS)).length > 0;
   },
   async collect(ctx) {
+    // `seen` spans every root on purpose: mounting the same transcripts twice
+    // (a repeated --agent-home, a junction) must not double-count them.
     const seen = new Set<string>();
     const tokens: TokenUsage = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 };
     let costUsd = 0;
     let skipped = 0;
 
-    for await (const file of walkJsonl(projectsDir(ctx))) {
-      try {
-        const r = parseClaudeJsonl(await readFile(file, 'utf8'), seen, ctx.since, ctx.until);
-        tokens.input += r.tokens.input;
-        tokens.output += r.tokens.output;
-        tokens.cacheWrite += r.tokens.cacheWrite;
-        tokens.cacheRead += r.tokens.cacheRead;
-        costUsd += r.costUsd;
-        skipped += r.skipped;
-      } catch {
-        skipped++;
+    for (const root of await resolveRoots(ctx, PROJECTS)) {
+      for await (const file of walkJsonl(root)) {
+        try {
+          const r = parseClaudeJsonl(await readFile(file, 'utf8'), seen, ctx.since, ctx.until);
+          tokens.input += r.tokens.input;
+          tokens.output += r.tokens.output;
+          tokens.cacheWrite += r.tokens.cacheWrite;
+          tokens.cacheRead += r.tokens.cacheRead;
+          costUsd += r.costUsd;
+          skipped += r.skipped;
+        } catch {
+          skipped++;
+        }
       }
     }
     const warnings = skipped > 0 ? [`claude-code: skipped ${skipped} malformed line(s)`] : [];

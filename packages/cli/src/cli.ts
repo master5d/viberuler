@@ -21,6 +21,7 @@ import { runAudit } from './audit.js';
 import { renderAudit } from './render-audit.js';
 import { buildPayload } from './payload.js';
 import { DEFAULT_API, DEFAULT_CLIENT_ID, githubDeviceFlow, fetchPercentile, submitScore, shareLinks } from './submit.js';
+import { parseHomeList } from './roots.js';
 
 const COLLECTORS: Collector[] = [claudeCodeCollector, codexCollector, clineCollector, geminiCollector, cursorCollector, litellmCollector, agentsCollector, gitCollector, githubCollector];
 
@@ -49,6 +50,9 @@ Commands:
 
 Options:
   --scan-dir <path>    git scan root, repeatable        (default: your home dir)
+  --agent-home <path>  extra agent home, repeatable — for rigs that keep their
+                       agents outside the OS home (C:\\agents\\Claude, ...).
+                       CODEX_HOME / CLAUDE_CONFIG_DIR are honoured automatically.
   --since <date>       only count activity since YYYY-MM-DD
   --month <YYYY-MM>    the month for \`wrapped\`
   --github <handle>    also pull public GitHub stars    (the only network call)
@@ -61,6 +65,7 @@ Options:
 
 Env (opt-in): LITELLM_SPEND_DB=<sqlite path> or LITELLM_BASE_URL(+LITELLM_API_KEY)
   count tokens your self-built agents burned through a LiteLLM gateway
+Env: VIBERULER_AGENT_HOMES=<path list>  same as repeating --agent-home
 `;
 
 function version(): string {
@@ -120,6 +125,7 @@ export async function main(
       allowPositionals: true,
       options: {
         'scan-dir': { type: 'string', multiple: true },
+        'agent-home': { type: 'string', multiple: true },
         since: { type: 'string' },
         month: { type: 'string' },
         github: { type: 'string' },
@@ -147,6 +153,12 @@ export async function main(
   }
 
   const home = process.env.VIBERULER_HOME ?? homedir();
+  // Multi-agent rigs relocate agents out of the OS home entirely. Extra roots
+  // come from --agent-home (repeatable) or VIBERULER_AGENT_HOMES (a path list).
+  const agentHomes = [
+    ...(values['agent-home'] ?? []),
+    ...parseHomeList(process.env.VIBERULER_AGENT_HOMES),
+  ];
   const since = values.since ? new Date(`${values.since}T00:00:00Z`) : undefined;
   if (since && Number.isNaN(since.getTime())) {
     process.stderr.write('Invalid --since date, expected YYYY-MM-DD\n');
@@ -154,7 +166,7 @@ export async function main(
   }
 
   if (command === 'audit') {
-    const actx: ScanContext = { home, scanDirs: [], since, authorEmail: undefined, env: process.env };
+    const actx: ScanContext = { home, agentHomes, scanDirs: [], since, authorEmail: undefined, env: process.env };
     const report = await runAudit(actx);
     for (const w of report.warnings) process.stderr.write(`[viberuler] ${w}\n`);
     if (values.json) { out(JSON.stringify(report, null, 2)); return 0; }
@@ -177,6 +189,7 @@ export async function main(
     const nextMonth = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1));
     const wctx: ScanContext = {
       home,
+      agentHomes,
       scanDirs: values['scan-dir'] ?? [home],
       since: monthStart,
       until: nextMonth,
@@ -192,6 +205,7 @@ export async function main(
 
   const ctx: ScanContext = {
     home,
+    agentHomes,
     scanDirs: values['scan-dir'] ?? [home],
     since,
     githubHandle: values.github,

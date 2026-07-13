@@ -1,7 +1,8 @@
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Collector, ScanContext, TokenUsage } from '../types.js';
+import type { Collector, TokenUsage } from '../types.js';
 import { costForUsage } from '../pricing.js';
+import { resolveRoots, type RootSpec } from '../roots.js';
 
 export function parseCodexJsonl(content: string): TokenUsage | null {
   let last: TokenUsage | null = null;
@@ -40,30 +41,32 @@ async function* walkJsonl(dir: string): AsyncGenerator<string> {
   }
 }
 
-function sessionsDir(ctx: ScanContext): string {
-  return join(ctx.home, '.codex', 'sessions');
-}
+// CODEX_HOME points at the .codex dir itself, so its sub-path is just 'sessions'.
+const SESSIONS: RootSpec = {
+  under: ['.codex', 'sessions'],
+  env: 'CODEX_HOME',
+  envUnder: ['sessions'],
+};
 
 export const codexCollector: Collector = {
   id: 'codex',
   async detect(ctx) {
-    try {
-      return (await stat(sessionsDir(ctx))).isDirectory();
-    } catch {
-      return false;
-    }
+    return (await resolveRoots(ctx, SESSIONS)).length > 0;
   },
   async collect(ctx) {
     const tokens: TokenUsage = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 };
-    for await (const file of walkJsonl(sessionsDir(ctx))) {
-      try {
-        const u = parseCodexJsonl(await readFile(file, 'utf8'));
-        if (!u) continue;
-        tokens.input += u.input;
-        tokens.output += u.output;
-        tokens.cacheRead += u.cacheRead;
-      } catch {
-        /* unreadable file — skip */
+    // Roots are deduped upstream, so the same session file cannot be walked twice.
+    for (const root of await resolveRoots(ctx, SESSIONS)) {
+      for await (const file of walkJsonl(root)) {
+        try {
+          const u = parseCodexJsonl(await readFile(file, 'utf8'));
+          if (!u) continue;
+          tokens.input += u.input;
+          tokens.output += u.output;
+          tokens.cacheRead += u.cacheRead;
+        } catch {
+          /* unreadable file — skip */
+        }
       }
     }
     return { tokens, costUsd: costForUsage('codex-default', tokens), sources: ['codex'] };
