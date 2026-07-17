@@ -376,3 +376,31 @@ describe('wasteEvents', () => {
       (r) => r.motif === 'subagent-result-bloat')).toBe(true);
   });
 });
+
+describe('runAudit rootCauses (--why)', () => {
+  it('omits rootCauses without ctx.why and populates with it', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'vr-why-'));
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+    const readUse = JSON.stringify({
+      type: 'assistant', requestId: 'r1', message: {
+        id: 'm1', model: 'claude-sonnet-4-5',
+        usage: { input_tokens: 10, output_tokens: 5 },
+        content: [{ type: 'tool_use', id: 't1', name: 'Read', input: { file_path: '/x/big.ts' } }],
+      },
+    });
+    const result = JSON.stringify({
+      type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'x'.repeat(9000) }] },
+    });
+    await writeFile(join(proj, 's.jsonl'), [readUse, result].join('\n'));
+
+    const base = { home, scanDirs: [], env: {} };
+    const without = await runAudit(base);
+    expect(without.rootCauses).toBeUndefined();
+
+    const withWhy = await runAudit({ ...base, why: true });
+    expect(Array.isArray(withWhy.rootCauses)).toBe(true);
+    // an oversized, never-edited whole read → explore-wide or oversized motif present
+    expect(withWhy.rootCauses!.length).toBeGreaterThan(0);
+  });
+});

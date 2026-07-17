@@ -51,6 +51,7 @@ export interface ScanContext {
   githubHandle?: string;
   authorEmail?: string; // test seam / override — real runs read `git config --get user.email`
   env?: Record<string, string | undefined>; // test seam — real runs pass process.env
+  why?: boolean; // audit --why: compute the root-cause attribution section
 }
 
 export interface Collector {

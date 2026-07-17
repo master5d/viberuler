@@ -2,7 +2,7 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ScanContext, TokenUsage } from './types.js';
 import { costForUsage } from './pricing.js';
-import type { WasteEvent } from './root-cause.js';
+import { attributeRootCauses, type RootCause, type WasteEvent } from './root-cause.js';
 
 // Tool results are raw text; 4 chars/token is the standard rough conversion.
 const CHARS_PER_TOKEN = 4;
@@ -116,6 +116,8 @@ export interface AuditReport {
   /** Configured + enabled MCP surfaces with zero tool calls — pure overhead. */
   dead: McpSurface[];
   warnings: string[];
+  /** Populated only under `--why`: ranked structural root-cause attribution. */
+  rootCauses?: RootCause[];
 }
 
 interface ChainAcc {
@@ -508,7 +510,7 @@ export async function runAudit(ctx: ScanContext): Promise<AuditReport> {
   };
   const warnings = acc.skipped > 0 ? [`audit: skipped ${acc.skipped} malformed line(s)`] : [];
 
-  return {
+  const report: AuditReport = {
     sessions,
     tokens,
     costUsd: acc.costUsd,
@@ -532,4 +534,12 @@ export async function runAudit(ctx: ScanContext): Promise<AuditReport> {
     dead,
     warnings,
   };
+
+  if (ctx.why) {
+    const totalInput = tokens.input + tokens.cacheWrite + tokens.cacheRead;
+    const rate = totalInput > 0 ? acc.costUsd / totalInput : 0; // session's own $/token
+    report.rootCauses = attributeRootCauses(acc.wasteEvents, (t) => t * rate);
+  }
+
+  return report;
 }
