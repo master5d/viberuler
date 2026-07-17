@@ -47,6 +47,7 @@ Commands:
   wrapped              monthly recap card — needs --month YYYY-MM (Claude Code + git)
   audit                audit your rig: cache economy, context amplification,
                        and MCP tools that are loaded but never called (dead weight)
+                       (add --why for root-cause attribution)
 
 Options:
   --scan-dir <path>    git scan root, repeatable        (default: your home dir)
@@ -133,6 +134,7 @@ export async function main(
         'no-color': { type: 'boolean' },
         submit: { type: 'boolean' },
         yes: { type: 'boolean' },
+        why: { type: 'boolean' },
         version: { type: 'boolean' },
         help: { type: 'boolean' },
       },
@@ -167,6 +169,7 @@ export async function main(
 
   if (command === 'audit') {
     const actx: ScanContext = { home, agentHomes, scanDirs: [], since, authorEmail: undefined, env: process.env };
+    actx.why = Boolean(values.why);
     const report = await runAudit(actx);
     for (const w of report.warnings) process.stderr.write(`[viberuler] ${w}\n`);
     if (values.json) { out(JSON.stringify(report, null, 2)); return 0; }

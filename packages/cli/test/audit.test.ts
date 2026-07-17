@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseAuditJsonl, emptyAcc, discoverSurfaces, runAudit } from '../src/audit.js';
 import { attributeRootCauses } from '../src/root-cause.js';
+import { renderRootCauses } from '../src/render-audit.js';
+import type { RootCause } from '../src/root-cause.js';
 
 const asst = (id: string, req: string, usage: object, content?: unknown[], side = false) =>
   JSON.stringify({
@@ -402,5 +404,27 @@ describe('runAudit rootCauses (--why)', () => {
     expect(Array.isArray(withWhy.rootCauses)).toBe(true);
     // an oversized, never-edited whole read → explore-wide or oversized motif present
     expect(withWhy.rootCauses!.length).toBeGreaterThan(0);
+  });
+});
+
+describe('renderRootCauses', () => {
+  const rc: RootCause[] = [
+    { motif: 'subagent-result-bloat', rootCause: 'subagents returned large results',
+      fix: 'return summaries', attributableTokens: 3000, attributableUsd: 0.01, evidence: [] },
+    { motif: 'read-whole-then-reread', rootCause: 're-read an unchanged file',
+      fix: 'slice reads', attributableTokens: 300, attributableUsd: 0.001,
+      evidence: ['big.ts (300 tok)'] },
+  ];
+
+  it('renders the disclaimer, ranked motifs, evidence, and a total', () => {
+    const s = renderRootCauses(rc);
+    expect(s.toLowerCase()).toContain('not proven causation');   // honesty disclaimer
+    expect(s.indexOf('subagent-result-bloat')).toBeLessThan(s.indexOf('read-whole-then-reread')); // ranked
+    expect(s).toContain('big.ts (300 tok)');                     // evidence
+    expect(s).toContain('3300');                                 // total attributed tokens
+  });
+
+  it('renders nothing for an empty list', () => {
+    expect(renderRootCauses([])).toBe('');
   });
 });

@@ -2,8 +2,28 @@ import { createColors } from 'picocolors';
 import type { AuditReport } from './audit.js';
 import { railCard } from './render.js';
 import { fmtCompact, fmtInt, fmtUsd } from './format.js';
+import type { RootCause } from './root-cause.js';
 
 const TOP_TOOLS = 8;
+
+export function renderRootCauses(rootCauses: RootCause[]): string {
+  if (!rootCauses.length) return '';
+  const total = rootCauses.reduce((s, r) => s + r.attributableTokens, 0);
+  const lines: string[] = [];
+  lines.push('');
+  lines.push('Root causes — structural attribution: these motifs precede the waste and');
+  lines.push('are the most actionable fix — not proven causation.');
+  for (const r of rootCauses) {
+    lines.push('');
+    lines.push(`  ${r.motif}  —  ${r.attributableTokens} tok  ($${r.attributableUsd.toFixed(4)})`);
+    lines.push(`    cause: ${r.rootCause}`);
+    lines.push(`    fix:   ${r.fix}`);
+    for (const e of r.evidence) lines.push(`    · ${e}`);
+  }
+  lines.push('');
+  lines.push(`  attributed ${total} tok across ${rootCauses.length} root cause(s).`);
+  return lines.join('\n');
+}
 
 export function renderAudit(r: AuditReport, opts: { colors: boolean; version: string }): string {
   const c = createColors(opts.colors);
@@ -133,5 +153,5 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
 
   rows.push('');
   rows.push(c.dim('— The Bureau · calibrated to ±0.001 vibes'));
-  return railCard(rows, opts.colors);
+  return railCard(rows, opts.colors) + renderRootCauses(r.rootCauses ?? []);
 }
