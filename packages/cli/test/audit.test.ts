@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseAuditJsonl, emptyAcc, discoverSurfaces, runAudit } from '../src/audit.js';
+import { attributeRootCauses } from '../src/root-cause.js';
 
 const asst = (id: string, req: string, usage: object, content?: unknown[], side = false) =>
   JSON.stringify({
@@ -333,5 +334,45 @@ describe('runAudit', () => {
     expect(r.subagents.calls).toBe(0);
     expect(r.coldMain.medianTokens).toBe(0);
     expect(r.ghosts.readCalls).toBe(0);
+  });
+});
+
+describe('wasteEvents', () => {
+  const readUse = (id: string, path: string, sliced = false) =>
+    JSON.stringify({
+      type: 'assistant', requestId: `r-${id}`, message: {
+        id: `m-${id}`, model: 'claude-sonnet-4-5', usage: { input_tokens: 1 },
+        content: [{ type: 'tool_use', id, name: 'Read',
+          input: sliced ? { file_path: path, offset: 0, limit: 10 } : { file_path: path } }],
+      },
+    });
+
+  it('emits a read WasteEvent and marks exploratory when the path is never edited', () => {
+    const acc = emptyAcc();
+    // Read big.ts whole (never edited later) → exploratory
+    parseAuditJsonl([readUse('t1', '/x/big.ts'), res('t1', 8000)].join('\n'), acc);
+    const reads = acc.wasteEvents.filter((e) => e.kind === 'read');
+    expect(reads).toHaveLength(1);
+    expect(reads[0]!.path).toBe('/x/big.ts');
+    expect(reads[0]!.oversized).toBe(true);       // 8000 chars > 4096
+    expect(reads[0]!.sliced).toBe(false);
+    expect(reads[0]!.exploratory).toBe(true);      // never edited
+  });
+
+  it('emits an agent WasteEvent for an Agent return', () => {
+    const acc = emptyAcc();
+    const agentUse = JSON.stringify({
+      type: 'assistant', requestId: 'ra', message: {
+        id: 'ma', model: 'claude-sonnet-4-5', usage: { input_tokens: 1 },
+        content: [{ type: 'tool_use', id: 'ag1', name: 'Agent', input: {} }],
+      },
+    });
+    parseAuditJsonl([agentUse, res('ag1', 20000)].join('\n'), acc);
+    const agents = acc.wasteEvents.filter((e) => e.kind === 'agent');
+    expect(agents).toHaveLength(1);
+    expect(agents[0]!.tokens).toBeGreaterThan(0);
+    // and it flows through attribution as bloat (20000 chars ≈ >2000 tokens)
+    expect(attributeRootCauses(acc.wasteEvents, (t) => t).some(
+      (r) => r.motif === 'subagent-result-bloat')).toBe(true);
   });
 });

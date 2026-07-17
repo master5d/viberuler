@@ -2,6 +2,7 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ScanContext, TokenUsage } from './types.js';
 import { costForUsage } from './pricing.js';
+import type { WasteEvent } from './root-cause.js';
 
 // Tool results are raw text; 4 chars/token is the standard rough conversion.
 const CHARS_PER_TOKEN = 4;
@@ -142,6 +143,7 @@ interface Acc {
   coldMain: number[];
   coldSub: number[];
   ghosts: GhostStats;
+  wasteEvents: WasteEvent[];
   skipped: number;
 }
 
@@ -184,6 +186,7 @@ export function emptyAcc(): Acc {
     coldMain: [],
     coldSub: [],
     ghosts: emptyGhosts(),
+    wasteEvents: [],
     skipped: 0,
   };
 }
@@ -228,6 +231,7 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
   const reads: { path: string; tokens: number; sliced: boolean }[] = [];
   const readSizes = new Map<string, number[]>();
   const edited = new Set<string>();
+  const wasteStart = acc.wasteEvents.length;
 
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
@@ -336,6 +340,7 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
           if (read) {
             g.readCalls++;
             g.readTokens += tok;
+            let isRepeat = false;
             if (read.sliced) {
               g.slicedCalls++;
             } else {
@@ -351,13 +356,25 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
             if (prior.includes(tok)) {
               g.repeatReadCalls++;
               g.repeatReadTokens += tok;
+              isRepeat = true;
             }
             prior.push(tok);
+            acc.wasteEvents.push({
+              path: read.path, tokens: tok, kind: 'read',
+              oversized: chars > OVERSIZED_CHARS, sliced: read.sliced,
+              repeat: isRepeat, exploratory: false, // exploratory resolved post-loop
+            });
           }
         }
         // An Agent result is the ONLY part of a subagent's work that lands in
         // the parent context — the compression denominator.
-        if (name === 'Agent' && !isSide) acc.agentReturned += tok;
+        if (name === 'Agent' && !isSide) {
+          acc.agentReturned += tok;
+          acc.wasteEvents.push({
+            path: '', tokens: tok, kind: 'agent',
+            oversized: false, sliced: false, repeat: false, exploratory: false,
+          });
+        }
       }
     }
   }
@@ -368,6 +385,16 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
     if (edited.has(r.path)) continue;
     acc.ghosts.exploratoryCalls++;
     acc.ghosts.exploratoryTokens += r.tokens;
+  }
+  // Mark exploratory on the emitted events: a whole-file (non-sliced) read of a
+  // path this session never edited. Resolved here because `edited` is only
+  // complete once the whole transcript is parsed. Only events pushed during
+  // THIS call (from wasteStart onward) are considered.
+  for (let i = wasteStart; i < acc.wasteEvents.length; i++) {
+    const e = acc.wasteEvents[i]!;
+    if (e.kind === 'read' && !e.sliced && e.path && !edited.has(e.path)) {
+      e.exploratory = true;
+    }
   }
   if (firstTokens > 0) {
     (firstIsSide ? acc.coldSub : acc.coldMain).push(firstTokens);
