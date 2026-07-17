@@ -180,3 +180,28 @@ We catch the blatant — client-side and now server-side, cross-checked against 
 - Offline percentile is a curve fit, not the real distribution — submit to get the real one.
 - Repos nested *inside* another git repo are not scanned (the walker stops at the first `.git` it meets). If your projects live under one umbrella repo, pass `--scan-dir` pointing below it (e.g. `--scan-dir ~/lab/projects`). Tracked as [#6](https://github.com/master5d/viberuler/issues/6).
 - Cursor figures are an **estimated lower bound** — only per-conversation input tokens are stored locally (`state.vscdb`); output and server-side cache tokens are not, so a Cursor-heavy user is undercounted. The collector invents nothing (it counts only real input tokens, priced at a conservative sonnet-tier rate ≈ 333K tok/$); it can't fabricate cheap tokens. One honest nuance: since Cursor's counted ratio is ~333K tok/$, mixing it into your aggregate nudges tok/$ *toward* that value — so if your other tools already run leaner than ~333K tok/$, adding Cursor slightly lowers your displayed efficiency, and if they run richer, it slightly raises it. Either way it's a conservative real number, never a fabricated one.
+
+## Root-cause attribution (`audit --why`)
+
+`viberuler audit --why` partitions the audit's measured waste under the upstream **motif**
+that most actionably explains it. It is **structural attribution, not proven causation** — a
+motif precedes and correlates with the waste; the tool cannot replay the session to prove
+counterfactually that the tokens would not have been spent. Cache economy (§"Cache economy"
+above) is the one axis with a real counterfactual and is reported separately, never as a
+motif.
+
+Each waste event (a non-side Read result, or an Agent return) is attributed to **exactly
+one** motif by precedence, so the totals are disjoint and sum to ≤ the measured waste (no
+double-count). Source: [`packages/cli/src/root-cause.ts`](packages/cli/src/root-cause.ts).
+
+| # | motif | detection rule | fix |
+|---|---|---|---|
+| 1 | `read-whole-then-reread` | a Read result of identical size to a prior read of the same path (the second+ read bought nothing) | slice large reads; trust the first read |
+| 2 | `oversized-unslice` | a non-sliced Read result over 4 KB | head_limit/offset; paginate |
+| 3 | `explore-wide-use-narrow` | a whole-file Read of a path never edited in the session | outline/grep first; read only what you'll touch |
+| 4 | `subagent-result-bloat` | an Agent return above `SUBAGENT_RETURN_BUDGET_TOKENS` (2000); only the excess is attributed | subagents return files/summaries |
+
+Precedence 1 > 2 > 3 (a repeat-read of an oversized whole file is owned by #1, counted once);
+#4 is scored independently on Agent returns. The rendered section shows, per motif, the
+attributable tokens/USD and the top offending paths, plus a total-attributed line — off by
+default, shown only with `--why`.
