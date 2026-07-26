@@ -3,7 +3,9 @@ import { join } from 'node:path';
 import type { ScanContext, TokenUsage } from './types.js';
 import { costForUsage } from './pricing.js';
 import { attributeRootCauses, type RootCause, type WasteEvent } from './root-cause.js';
-import { collectTime, type TimeReport } from './time-collect.js';
+import { createTimeAccumulator, type TimeReport } from './time-collect.js';
+import { resolveRoots } from './roots.js';
+import { PROJECTS, walkJsonl } from './collectors/claude-code.js';
 
 // Tool results are raw text; 4 chars/token is the standard rough conversion.
 const CHARS_PER_TOKEN = 4;
@@ -405,20 +407,6 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
   }
 }
 
-async function* walkJsonl(dir: string): AsyncGenerator<string> {
-  let entries;
-  try {
-    entries = await readdir(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    const p = join(dir, e.name);
-    if (e.isDirectory()) yield* walkJsonl(p);
-    else if (e.isFile() && e.name.endsWith('.jsonl')) yield p;
-  }
-}
-
 const exists = async (p: string): Promise<boolean> => stat(p).then(() => true, () => false);
 
 /**
@@ -483,14 +471,36 @@ function finishChain(a: ChainAcc): ChainStats {
 
 export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000): Promise<AuditReport> {
   const acc = emptyAcc();
+  const timeAcc = createTimeAccumulator(gapMs);
+  const sinceMs = ctx.since?.getTime();
+  const untilMs = ctx.until?.getTime();
   let sessions = 0;
-  const dir = join(ctx.home, '.claude', 'projects');
-  for await (const file of walkJsonl(dir)) {
-    sessions++;
-    try {
-      parseAuditJsonl(await readFile(file, 'utf8'), acc, ctx.since, ctx.until);
-    } catch {
-      acc.skipped++;
+  let timeFailures = 0;
+
+  const roots = await resolveRoots(ctx, PROJECTS);
+  for (const root of roots) {
+    for await (const file of walkJsonl(root)) {
+      sessions++;
+
+      let content: string;
+      try {
+        content = await readFile(file, 'utf8');
+      } catch {
+        acc.skipped++;
+        continue;
+      }
+
+      try {
+        parseAuditJsonl(content, acc, ctx.since, ctx.until);
+      } catch {
+        acc.skipped++;
+      }
+
+      try {
+        timeAcc.addFile(content, sinceMs, untilMs);
+      } catch {
+        timeFailures++;
+      }
     }
   }
 
@@ -511,13 +521,11 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
     cacheRead: acc.main.tokens.cacheRead + acc.side.tokens.cacheRead,
   };
   const warnings = acc.skipped > 0 ? [`audit: skipped ${acc.skipped} malformed line(s)`] : [];
-
-  let time: TimeReport | undefined;
-  try {
-    time = await collectTime(ctx, gapMs);
-  } catch (err) {
-    warnings.push(`audit: collectTime failed: ${err instanceof Error ? err.message : String(err)}`);
+  if (timeFailures > 0) {
+    warnings.push(`audit: time accumulation failed for ${timeFailures} file(s)`);
   }
+
+  const time = timeAcc.report();
 
   const report: AuditReport = {
     sessions,
@@ -553,3 +561,5 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
 
   return report;
 }
+
+

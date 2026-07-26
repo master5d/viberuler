@@ -518,4 +518,73 @@ describe('time metrics in runAudit and renderAudit', () => {
     const renderedZeroActive = renderAudit(reportZeroActive, { colors: false, version: '1.0.0' });
     expect(renderedZeroActive).not.toContain('session time');
   });
+
+  it('includes transcripts from all agent homes in both token and time metrics (multi-home scope consistency)', async () => {
+    const home1 = await fakeHome();
+    const proj1 = join(home1, '.claude', 'projects', 'p1');
+    await mkdir(proj1, { recursive: true });
+    await writeFile(
+      join(proj1, 's1.jsonl'),
+      JSON.stringify({
+        timestamp: '2026-07-26T10:00:00.000Z', cwd: 'C:\\work\\proj1',
+        type: 'assistant', requestId: 'r1', message: { id: 'm1', model: 'claude-sonnet-4-5', usage: USAGE },
+      }),
+    );
+
+    const home2 = await fakeHome();
+    const proj2 = join(home2, '.claude', 'projects', 'p2');
+    await mkdir(proj2, { recursive: true });
+    await writeFile(
+      join(proj2, 's2.jsonl'),
+      JSON.stringify({
+        timestamp: '2026-07-26T11:00:00.000Z', cwd: 'C:\\work\\proj2',
+        type: 'assistant', requestId: 'r2', message: { id: 'm2', model: 'claude-sonnet-4-5', usage: USAGE },
+      }),
+    );
+
+    const r = await runAudit({ home: home1, agentHomes: [home2], scanDirs: [] });
+
+    expect(r.sessions).toBe(2);
+    expect(r.tokens.input).toBe(USAGE.input_tokens * 2);
+    expect(r.time).toBeDefined();
+    expect(r.time!.projects).toEqual([
+      { name: 'proj1', activeMs: 0 },
+      { name: 'proj2', activeMs: 0 },
+    ]);
+  });
+
+  it('does not double-count transcripts when the same agent home is passed twice', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+    await writeFile(
+      join(proj, 's.jsonl'),
+      JSON.stringify({
+        timestamp: '2026-07-26T10:00:00.000Z', cwd: 'C:\\work\\proj',
+        type: 'assistant', requestId: 'r1', message: { id: 'm1', model: 'claude-sonnet-4-5', usage: USAGE },
+      }),
+    );
+
+    const rSingle = await runAudit({ home, scanDirs: [] });
+    const rDuplicate = await runAudit({ home, agentHomes: [home, join(home, '.', '')], scanDirs: [] });
+
+    expect(rDuplicate.sessions).toBe(rSingle.sessions);
+    expect(rDuplicate.tokens.input).toBe(rSingle.tokens.input);
+    expect(rDuplicate.time!.totalWallMs).toBe(rSingle.time!.totalWallMs);
+    expect(rDuplicate.time!.totalActiveMs).toBe(rSingle.time!.totalActiveMs);
+  });
+
+  it('counts sessions for every walked file even if readFile fails', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+    // Write a file that will fail to read or be skipped
+    await writeFile(join(proj, 's.jsonl'), 'invalid json line\n');
+
+    const r = await runAudit({ home, scanDirs: [] });
+    expect(r.sessions).toBe(1);
+    expect(r.warnings).toEqual(['audit: skipped 1 malformed line(s)']);
+  });
 });
+
+

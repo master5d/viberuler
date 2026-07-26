@@ -2,9 +2,25 @@ import { describe, it, expect } from 'vitest';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { collectTime } from '../src/time-collect.js';
+import { collectTime, createTimeAccumulator } from '../src/time-collect.js';
+
+describe('createTimeAccumulator', () => {
+  it('accumulates timestamps per file and outputs a aggregated TimeReport', () => {
+    const acc = createTimeAccumulator(120_000);
+    const content = [
+      JSON.stringify({ timestamp: '2026-07-26T10:00:00.000Z', cwd: '/work/alpha' }),
+      JSON.stringify({ timestamp: '2026-07-26T10:01:00.000Z', cwd: '/work/alpha' }),
+    ].join('\n');
+    acc.addFile(content);
+    const report = acc.report();
+    expect(report.totalWallMs).toBe(60_000);
+    expect(report.totalActiveMs).toBe(60_000);
+    expect(report.projects).toEqual([{ name: 'alpha', activeMs: 60_000 }]);
+  });
+});
 
 describe('collectTime', () => {
+
   it('collects time metrics from multiple jsonl files and attributes projects', async () => {
     const home = await mkdtemp(join(tmpdir(), 'vibe-time-home-'));
     const proj = join(home, '.claude', 'projects', 'x');
