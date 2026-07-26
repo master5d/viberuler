@@ -1,5 +1,4 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import type { ScanContext } from './types.js';
 import { resolveRoots } from './roots.js';
 import { PROJECTS, walkJsonl } from './collectors/claude-code.js';
@@ -111,14 +110,9 @@ export async function collectTime(ctx: ScanContext, gapMs: number): Promise<Time
   const timeAcc = createTimeAccumulator(gapMs);
   const sinceMs = ctx.since?.getTime();
   const untilMs = ctx.until?.getTime();
-  const seenFiles = new Set<string>();
 
   for (const root of roots) {
     for await (const file of walkJsonl(root)) {
-      const normFile = resolve(file);
-      if (seenFiles.has(normFile)) continue;
-      seenFiles.add(normFile);
-
       let content: string;
       try {
         content = await readFile(file, 'utf8');
@@ -131,4 +125,5 @@ export async function collectTime(ctx: ScanContext, gapMs: number): Promise<Time
 
   return timeAcc.report();
 }
+
 

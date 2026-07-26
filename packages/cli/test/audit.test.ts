@@ -573,5 +573,18 @@ describe('time metrics in runAudit and renderAudit', () => {
     expect(rDuplicate.time!.totalWallMs).toBe(rSingle.time!.totalWallMs);
     expect(rDuplicate.time!.totalActiveMs).toBe(rSingle.time!.totalActiveMs);
   });
+
+  it('counts sessions for every walked file even if readFile fails', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+    // Write a file that will fail to read or be skipped
+    await writeFile(join(proj, 's.jsonl'), 'invalid json line\n');
+
+    const r = await runAudit({ home, scanDirs: [] });
+    expect(r.sessions).toBe(1);
+    expect(r.warnings).toEqual(['audit: skipped 1 malformed line(s)']);
+  });
 });
+
 

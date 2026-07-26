@@ -1,5 +1,5 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import type { ScanContext, TokenUsage } from './types.js';
 import { costForUsage } from './pricing.js';
 import { attributeRootCauses, type RootCause, type WasteEvent } from './root-cause.js';
@@ -475,14 +475,12 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
   const sinceMs = ctx.since?.getTime();
   const untilMs = ctx.until?.getTime();
   let sessions = 0;
-  const seenFiles = new Set<string>();
+  let timeFailures = 0;
 
   const roots = await resolveRoots(ctx, PROJECTS);
   for (const root of roots) {
     for await (const file of walkJsonl(root)) {
-      const normFile = resolve(file);
-      if (seenFiles.has(normFile)) continue;
-      seenFiles.add(normFile);
+      sessions++;
 
       let content: string;
       try {
@@ -491,8 +489,6 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
         acc.skipped++;
         continue;
       }
-
-      sessions++;
 
       try {
         parseAuditJsonl(content, acc, ctx.since, ctx.until);
@@ -503,7 +499,7 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
       try {
         timeAcc.addFile(content, sinceMs, untilMs);
       } catch {
-        // time-parse failure must not affect token accounting
+        timeFailures++;
       }
     }
   }
@@ -525,6 +521,9 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
     cacheRead: acc.main.tokens.cacheRead + acc.side.tokens.cacheRead,
   };
   const warnings = acc.skipped > 0 ? [`audit: skipped ${acc.skipped} malformed line(s)`] : [];
+  if (timeFailures > 0) {
+    warnings.push(`audit: time accumulation failed for ${timeFailures} file(s)`);
+  }
 
   const time = timeAcc.report();
 
@@ -562,4 +561,5 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
 
   return report;
 }
+
 
