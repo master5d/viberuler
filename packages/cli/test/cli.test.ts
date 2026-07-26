@@ -126,4 +126,20 @@ describe('main', () => {
     const { code } = await run(['wrapped', '--month', 'June', '--no-color']);
     expect(code).toBe(1);
   });
+
+  it('audit --json output contains time object', async () => {
+    const { code, lines } = await run(['audit', '--json']);
+    expect(code).toBe(0);
+    const report = JSON.parse(lines.join('\n'));
+    expect(report.time).toBeDefined();
+    expect(report.time).toHaveProperty('totalWallMs');
+    expect(report.time).toHaveProperty('totalActiveMs');
+  });
+
+  it('audit rejects invalid --idle-gap', async () => {
+    const { code } = await run(['audit', '--idle-gap', '0']);
+    expect(code).toBe(1);
+    const { code: code2 } = await run(['audit', '--idle-gap', 'abc']);
+    expect(code2).toBe(1);
+  });
 });

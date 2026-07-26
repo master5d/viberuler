@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseAuditJsonl, emptyAcc, discoverSurfaces, runAudit } from '../src/audit.js';
 import { attributeRootCauses } from '../src/root-cause.js';
-import { renderRootCauses } from '../src/render-audit.js';
+import { renderRootCauses, renderAudit } from '../src/render-audit.js';
 import type { RootCause } from '../src/root-cause.js';
 
 const asst = (id: string, req: string, usage: object, content?: unknown[], side = false) =>
@@ -426,5 +426,83 @@ describe('renderRootCauses', () => {
 
   it('renders nothing for an empty list', () => {
     expect(renderRootCauses([])).toBe('');
+  });
+});
+
+describe('time metrics in runAudit and renderAudit', () => {
+  it('populates time metrics when transcripts with timestamps exist', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'vibe-audit-time-'));
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+
+    const lines = [
+      JSON.stringify({
+        timestamp: '2026-07-26T10:00:00.000Z', cwd: 'C:\\work\\myproj',
+        type: 'assistant', requestId: 'r1', message: { id: 'm1', model: 'claude-sonnet-4-5', usage: USAGE },
+      }),
+      JSON.stringify({
+        timestamp: '2026-07-26T10:01:00.000Z', cwd: 'C:\\work\\myproj',
+        type: 'assistant', requestId: 'r2', message: { id: 'm2', model: 'claude-sonnet-4-5', usage: USAGE },
+      }),
+    ];
+    await writeFile(join(proj, 's.jsonl'), lines.join('\n'));
+
+    const r = await runAudit({ home, scanDirs: [] });
+    expect(r.time).toBeDefined();
+    expect(r.time!.totalActiveMs).toBeGreaterThan(0);
+    expect(r.time!.days.length).toBeGreaterThan(0);
+    expect(r.time!.projects).toEqual([{ name: 'myproj', activeMs: 60_000 }]);
+  });
+
+  it('changes activeMs when gap threshold changes via gapMs parameter', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'vibe-audit-gap-'));
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+
+    const lines = [
+      JSON.stringify({ timestamp: '2026-07-26T10:00:00.000Z', cwd: 'C:\\work\\myproj' }),
+      JSON.stringify({ timestamp: '2026-07-26T10:02:00.000Z', cwd: 'C:\\work\\myproj' }),
+    ];
+    await writeFile(join(proj, 's.jsonl'), lines.join('\n'));
+
+    // gapMs = 60_000 (1 min): 2 min gap > 1 min threshold => activeMs is 0
+    const r1 = await runAudit({ home, scanDirs: [] }, 60_000);
+    expect(r1.time!.totalActiveMs).toBe(0);
+
+    // gapMs = 180_000 (3 min, default): 2 min gap <= 3 min threshold => activeMs is 120_000
+    const r3 = await runAudit({ home, scanDirs: [] }, 180_000);
+    expect(r3.time!.totalActiveMs).toBe(120_000);
+  });
+
+  it('renders session time section when present and omits when absent or totalActiveMs === 0', () => {
+    const reportWithTime: any = {
+      sessions: 1,
+      main: { admittedTokens: 0, inputSideTokens: 0, amplification: 0 },
+      sub: { admittedTokens: 0, inputSideTokens: 0, amplification: 0 },
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      costUsd: 0, costNoCacheUsd: 0, cacheHitPct: 0,
+      subagents: { calls: 0 }, coldMain: { sessions: 0 }, coldSub: { sessions: 0 },
+      ghosts: { readCalls: 0, oversizedCalls: 0 }, tools: [], surfaces: [], dead: [], warnings: [],
+      time: {
+        totalWallMs: 31 * 3600 * 1000,
+        totalActiveMs: 12.4 * 3600 * 1000,
+        days: [{ day: '2026-07-26', wallMs: 31 * 3600 * 1000, activeMs: 12.4 * 3600 * 1000 }],
+        projects: [{ name: 'NAUTILUS', activeMs: 6.2 * 3600 * 1000 }, { name: 'viberuler', activeMs: 3.1 * 3600 * 1000 }],
+      },
+    };
+
+    const rendered = renderAudit(reportWithTime, { colors: false, version: '1.0.0' });
+    expect(rendered).toContain('session time');
+    expect(rendered).toContain('12.4h attention');
+    expect(rendered).toContain('31.0h wall');
+    expect(rendered).toContain('NAUTILUS 6.2h');
+
+    const reportNoTime = { ...reportWithTime, time: undefined };
+    const renderedNoTime = renderAudit(reportNoTime, { colors: false, version: '1.0.0' });
+    expect(renderedNoTime).not.toContain('session time');
+
+    const reportZeroActive = { ...reportWithTime, time: { totalWallMs: 1000, totalActiveMs: 0, days: [], projects: [] } };
+    const renderedZeroActive = renderAudit(reportZeroActive, { colors: false, version: '1.0.0' });
+    expect(renderedZeroActive).not.toContain('session time');
   });
 });

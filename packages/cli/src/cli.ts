@@ -56,6 +56,7 @@ Options:
                        CODEX_HOME / CLAUDE_CONFIG_DIR are honoured automatically.
   --since <date>       only count activity since YYYY-MM-DD
   --month <YYYY-MM>    the month for \`wrapped\`
+  --idle-gap <min>     max pause before idle, in minutes (default: 3)
   --github <handle>    also pull public GitHub stars    (the only network call)
   --json               machine-readable full report
   --no-color           plain output
@@ -129,6 +130,7 @@ export async function main(
         'agent-home': { type: 'string', multiple: true },
         since: { type: 'string' },
         month: { type: 'string' },
+        'idle-gap': { type: 'string', default: '3' },
         github: { type: 'string' },
         json: { type: 'boolean' },
         'no-color': { type: 'boolean' },
@@ -167,10 +169,18 @@ export async function main(
     return 1;
   }
 
+  const idleGapStr = values['idle-gap'] ?? '3';
+  const idleGapMin = Number(idleGapStr);
+  if (!Number.isFinite(idleGapMin) || idleGapMin <= 0) {
+    process.stderr.write('Invalid --idle-gap, expected positive number of minutes\n');
+    return 1;
+  }
+  const gapMs = idleGapMin * 60 * 1000;
+
   if (command === 'audit') {
     const actx: ScanContext = { home, agentHomes, scanDirs: [], since, authorEmail: undefined, env: process.env };
     actx.why = Boolean(values.why);
-    const report = await runAudit(actx);
+    const report = await runAudit(actx, gapMs);
     for (const w of report.warnings) process.stderr.write(`[viberuler] ${w}\n`);
     if (values.json) { out(JSON.stringify(report, null, 2)); return 0; }
     const colors = shouldColor(Boolean(values['no-color']));

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { ScanContext, TokenUsage } from './types.js';
 import { costForUsage } from './pricing.js';
 import { attributeRootCauses, type RootCause, type WasteEvent } from './root-cause.js';
+import { collectTime, type TimeReport } from './time-collect.js';
 
 // Tool results are raw text; 4 chars/token is the standard rough conversion.
 const CHARS_PER_TOKEN = 4;
@@ -116,6 +117,7 @@ export interface AuditReport {
   /** Configured + enabled MCP surfaces with zero tool calls — pure overhead. */
   dead: McpSurface[];
   warnings: string[];
+  time?: TimeReport;
   /** Populated only under `--why`: ranked structural root-cause attribution. */
   rootCauses?: RootCause[];
 }
@@ -479,7 +481,7 @@ function finishChain(a: ChainAcc): ChainStats {
   };
 }
 
-export async function runAudit(ctx: ScanContext): Promise<AuditReport> {
+export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000): Promise<AuditReport> {
   const acc = emptyAcc();
   let sessions = 0;
   const dir = join(ctx.home, '.claude', 'projects');
@@ -510,6 +512,13 @@ export async function runAudit(ctx: ScanContext): Promise<AuditReport> {
   };
   const warnings = acc.skipped > 0 ? [`audit: skipped ${acc.skipped} malformed line(s)`] : [];
 
+  let time: TimeReport | undefined;
+  try {
+    time = await collectTime(ctx, gapMs);
+  } catch (err) {
+    warnings.push(`audit: collectTime failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   const report: AuditReport = {
     sessions,
     tokens,
@@ -533,6 +542,7 @@ export async function runAudit(ctx: ScanContext): Promise<AuditReport> {
     surfaces,
     dead,
     warnings,
+    ...(time ? { time } : {}),
   };
 
   if (ctx.why) {
