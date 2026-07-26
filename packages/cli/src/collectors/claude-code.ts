@@ -49,7 +49,7 @@ export function parseClaudeJsonl(
   return { tokens, costUsd, skipped };
 }
 
-async function* walkJsonl(dir: string): AsyncGenerator<string> {
+export async function* walkJsonl(dir: string): AsyncGenerator<string> {
   let entries;
   try {
     entries = await readdir(dir, { withFileTypes: true });
@@ -65,7 +65,7 @@ async function* walkJsonl(dir: string): AsyncGenerator<string> {
 
 // CLAUDE_CONFIG_DIR points at the .claude dir itself, so its sub-path is just
 // 'projects'. Every known agent home is searched, not only the OS one.
-const PROJECTS: RootSpec = {
+export const PROJECTS: RootSpec = {
   under: ['.claude', 'projects'],
   env: 'CLAUDE_CONFIG_DIR',
   envUnder: ['projects'],

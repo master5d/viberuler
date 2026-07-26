@@ -156,6 +156,7 @@ Fable 5 · ⚡3982 Context Goblin · 481.5K tok/$
 - [x] Multi-agent rigs — repeatable `--agent-home`, plus `CODEX_HOME` / `CLAUDE_CONFIG_DIR`
 - [ ] **[Windsurf](https://github.com/master5d/viberuler/issues/3)** / **[Aider](https://github.com/master5d/viberuler/issues/4)** collectors — `good first issue`
 - [x] Vibe Wrapped — monthly recap card
+- [x] Time metrics — session wall-clock & attention time from transcripts ([#21](https://github.com/master5d/viberuler/issues/21))
 - [ ] Team leaderboards
 
 **Want your agent on the board?** A collector is ~70 lines and a test: two methods,

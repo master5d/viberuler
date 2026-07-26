@@ -25,6 +25,17 @@ export function renderRootCauses(rootCauses: RootCause[]): string {
   return lines.join('\n');
 }
 
+function fmtDuration(ms: number): string {
+  if (ms >= 3600000) {
+    return `${(ms / 3600000).toFixed(1)}h`;
+  }
+  const mins = Math.round(ms / 60000);
+  if (mins === 0 && ms > 0) {
+    return '<1m';
+  }
+  return `${mins}m`;
+}
+
 export function renderAudit(r: AuditReport, opts: { colors: boolean; version: string }): string {
   const c = createColors(opts.colors);
   const rows: string[] = [];
@@ -48,6 +59,29 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
   rows.push(`  💸 ${c.bold(fmtUsd(r.costUsd))} spent · ${c.bold(fmtUsd(r.costNoCacheUsd))} without caching`);
   if (saved > 0) rows.push(`  ✅ caching saved ${c.bold(c.green(fmtUsd(saved)))}`);
   rows.push('');
+
+  if (r.time && r.time.totalActiveMs > 0) {
+    const attentionStr = fmtDuration(r.time.totalActiveMs);
+    const wallStr = fmtDuration(r.time.totalWallMs);
+    const nDays = r.time.days.length;
+    const daysStr = `(across ${nDays} ${nDays === 1 ? 'day' : 'days'})`;
+
+    rows.push(
+      `  ⏱  session time     ${c.bold(attentionStr)} attention · ${c.bold(wallStr)} wall ${c.dim(daysStr)}`,
+    );
+
+    if (r.time.projects.length > 0) {
+      const top3 = r.time.projects.slice(0, 3);
+      const rest = r.time.projects.slice(3);
+      const items = top3.map((p) => `${p.name} ${fmtDuration(p.activeMs)}`);
+      if (rest.length > 0) {
+        const restMs = rest.reduce((sum, p) => sum + p.activeMs, 0);
+        items.push(`+${rest.length} more ${fmtDuration(restMs)}`);
+      }
+      rows.push(`     by project       ${items.join(' · ')}`);
+    }
+    rows.push('');
+  }
 
   // 2. Context amplification — MAIN THREAD only. Pooling subagent contexts in
   // here would halve the number: they are short-lived and drag the average
