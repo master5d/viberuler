@@ -495,7 +495,20 @@ describe('time metrics in runAudit and renderAudit', () => {
     expect(rendered).toContain('session time');
     expect(rendered).toContain('12.4h attention');
     expect(rendered).toContain('31.0h wall');
+    expect(rendered).toContain('across 1 day');
     expect(rendered).toContain('NAUTILUS 6.2h');
+
+    const reportSubMinute: any = {
+      ...reportWithTime,
+      time: {
+        totalWallMs: 40_000,
+        totalActiveMs: 15_000, // 15 sec -> <1m
+        days: [{ day: '2026-07-26', wallMs: 40_000, activeMs: 15_000 }],
+        projects: [{ name: 'tiny', activeMs: 15_000 }],
+      },
+    };
+    const renderedSubMinute = renderAudit(reportSubMinute, { colors: false, version: '1.0.0' });
+    expect(renderedSubMinute).toContain('<1m attention');
 
     const reportNoTime = { ...reportWithTime, time: undefined };
     const renderedNoTime = renderAudit(reportNoTime, { colors: false, version: '1.0.0' });

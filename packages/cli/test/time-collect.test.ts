@@ -62,10 +62,18 @@ describe('collectTime', () => {
     const report = await collectTime({ home, scanDirs: [] }, 120_000);
 
     expect(report.days.length).toBe(2);
-    for (const d of report.days) {
-      expect(d.wallMs).toBeGreaterThanOrEqual(0);
-      expect(d.activeMs).toBeGreaterThanOrEqual(0);
-    }
+    expect(report.days[0]).toEqual({
+      day: `${d1.getFullYear()}-07-26`,
+      wallMs: 60_000,
+      activeMs: 60_000,
+    });
+    expect(report.days[1]).toEqual({
+      day: `${d2.getFullYear()}-07-27`,
+      wallMs: 60_000,
+      activeMs: 60_000,
+    });
+    expect(report.totalWallMs).toBe(120_000);
+    expect(report.totalActiveMs).toBe(120_000);
   });
 
   it('excludes gaps larger than threshold from activeMs while wallMs remains intact', async () => {

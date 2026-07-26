@@ -28,6 +28,12 @@ function toLocalDateString(ts: number): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Known v1 limitation: token accounting in audit.ts walks only `ctx.home`'s projects dir,
+ * while collectTime resolves ALL roots (agent-homes, CLAUDE_CONFIG_DIR). On multi-home rigs,
+ * the time section covers more homes than the token numbers. Follow-up tracked in repo issue
+ * about fusing the walks.
+ */
 export async function collectTime(ctx: ScanContext, gapMs: number): Promise<TimeReport> {
   const roots = await resolveRoots(ctx, PROJECTS);
 

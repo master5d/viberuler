@@ -29,7 +29,11 @@ function fmtDuration(ms: number): string {
   if (ms >= 3600000) {
     return `${(ms / 3600000).toFixed(1)}h`;
   }
-  return `${Math.round(ms / 60000)}m`;
+  const mins = Math.round(ms / 60000);
+  if (mins === 0 && ms > 0) {
+    return '<1m';
+  }
+  return `${mins}m`;
 }
 
 export function renderAudit(r: AuditReport, opts: { colors: boolean; version: string }): string {
@@ -60,7 +64,7 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
     const attentionStr = fmtDuration(r.time.totalActiveMs);
     const wallStr = fmtDuration(r.time.totalWallMs);
     const nDays = r.time.days.length;
-    const daysStr = `(last ${nDays} ${nDays === 1 ? 'day' : 'days'})`;
+    const daysStr = `(across ${nDays} ${nDays === 1 ? 'day' : 'days'})`;
 
     rows.push(
       `  ⏱  session time     ${c.bold(attentionStr)} attention · ${c.bold(wallStr)} wall ${c.dim(daysStr)}`,
