@@ -198,6 +198,14 @@ describe('main', () => {
     expect(jsonText).not.toContain('board:  viberuler');
   });
 
+  it('quotes scan-dir path in CTA line when it contains whitespace', async () => {
+    const spaceDir = join(home, 'code with space');
+    await mkdir(spaceDir, { recursive: true });
+    const { lines } = await run(['--no-color', '--scan-dir', spaceDir]);
+    const text = lines.join('\n');
+    expect(text).toContain(`board:  viberuler --scan-dir "${spaceDir}" --submit`);
+  });
+
   it('prints hint line on zero-projects inside nested repo, omits on non-zero projects', async () => {
     const outerRepo = await mkdtemp(join(tmpdir(), 'vibe-outer-repo-'));
     execFileSync('git', ['-C', outerRepo, 'init']);

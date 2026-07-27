@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile, chmod, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { SubmitPayload } from './payload.js';
 import { fmtCompact, fmtUsd } from './format.js';
 
@@ -28,8 +28,8 @@ export async function readCachedToken(home?: string): Promise<string | null> {
 
 export async function saveCachedToken(token: string, home?: string): Promise<void> {
   const p = getTokenPath(home);
-  const dir = join(p, '..');
-  await mkdir(dir, { recursive: true });
+  const dir = dirname(p);
+  await mkdir(dir, { recursive: true, mode: 0o700 });
   await writeFile(p, JSON.stringify({ token }, null, 2), { mode: 0o600, encoding: 'utf8' });
   try {
     await chmod(p, 0o600);

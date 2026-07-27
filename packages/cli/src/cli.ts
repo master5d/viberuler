@@ -72,6 +72,7 @@ Options:
   --month <YYYY-MM>    the month for \`wrapped\`
   --idle-gap <min>     max pause before idle, in minutes (default: 3)
   --github <handle>    also pull public GitHub stars    (the only network call)
+  --api <url>          custom API base URL              (default: https://viberuler.dev)
   --json               machine-readable full report
   --no-color           plain output
   --share              print a shareable card URL (nothing is sent)
@@ -247,12 +248,13 @@ export async function main(
   for (const w of stats.warnings) process.stderr.write(`[viberuler] ${w}\n`);
   let report = computeScore(stats);
 
-  let timeReport: TimeReport | undefined;
-  try {
-    timeReport = await collectTime(ctx, gapMs);
-  } catch {
-    /* fail open — card renders without time */
-  }
+  let timeReportPromise: Promise<TimeReport | undefined> | null = null;
+  const getTimeReport = (): Promise<TimeReport | undefined> => {
+    if (!timeReportPromise) {
+      timeReportPromise = collectTime(ctx, gapMs).catch(() => undefined);
+    }
+    return timeReportPromise;
+  };
 
   if (values.submit) {
     const apiBase = values.api ?? process.env.VIBERULER_API ?? DEFAULT_API;
@@ -264,6 +266,7 @@ export async function main(
     }
 
     const colors = shouldColor(Boolean(values['no-color']));
+    const timeReport = await getTimeReport();
     out(renderCard(report, { colors, version: version(), timeReport }));
 
     const payload = buildPayload(report, version());
@@ -332,6 +335,7 @@ export async function main(
     return 0;
   }
   const colors = shouldColor(Boolean(values['no-color']));
+  const timeReport = await getTimeReport();
   out(renderCard(report, { colors, version: version(), timeReport }));
 
   if (values.share) {
@@ -345,7 +349,6 @@ export async function main(
       loc: payload.loc,
       streak: payload.streak_days,
       agents: payload.agents,
-      ach: payload.achievements,
       ...(timeReport && timeReport.totalActiveMs > 0
         ? { hours: Number((timeReport.totalActiveMs / 3600000).toFixed(1)) }
         : {}),
@@ -366,10 +369,10 @@ export async function main(
   }
 
   const c = createColors(colors);
-  const resolvedScanDir = ctx.scanDirs.join(' ');
+  const formattedScanDirs = ctx.scanDirs.map((d) => (/\s/.test(d) ? `"${d}"` : d)).join(' ');
   out('');
   out(c.dim('share:  viberuler --share'));
-  out(c.dim(`board:  viberuler --scan-dir ${resolvedScanDir} --submit`));
+  out(c.dim(`board:  viberuler --scan-dir ${formattedScanDirs} --submit`));
 
   if (stats.projects === 0 && (await isInsideGitRepo(ctx.scanDirs))) {
     out(

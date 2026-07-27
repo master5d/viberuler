@@ -16,7 +16,6 @@ describe('share-card module', () => {
     streak: 7,
     hours: 12.4,
     agents: ['Claude Code', 'Cursor'],
-    ach: ['first_scan', 'token_burn_1m'],
   };
 
   it('round-trip: decodeShareCard(encodeShareCard(d)) deep-equals d', () => {
@@ -32,38 +31,19 @@ describe('share-card module', () => {
     expect(encoded).not.toContain('=');
   });
 
-  it('size guard: a data object exceeding 1800 chars loses ach first, agents second', () => {
-    const longAch = Array.from({ length: 60 }, (_, i) => `achievement_${i}_${'x'.repeat(40)}`);
-    const shortAgents = Array.from({ length: 20 }, (_, i) => `agent_${i}`);
-
-    const largeDataAchOnlyDrop: ShareCardData = {
-      ...sampleData,
-      ach: longAch,
-      agents: shortAgents,
-    };
-
-    const encoded1 = encodeShareCard(largeDataAchOnlyDrop);
-    expect(encoded1.length).toBeLessThanOrEqual(1800);
-    const decoded1 = decodeShareCard(encoded1);
-    expect(decoded1.ach).toBeUndefined();
-    expect(decoded1.agents).toEqual(shortAgents);
-    expect(decoded1.v).toBe(sampleData.v);
-    expect(decoded1.s).toBe(sampleData.s);
-
+  it('size guard: a data object exceeding 1800 chars drops agents', () => {
     const longAgents = Array.from({ length: 100 }, (_, i) => `agent_${i}_${'y'.repeat(40)}`);
-    const largeDataBothDrop: ShareCardData = {
+    const largeData: ShareCardData = {
       ...sampleData,
-      ach: longAch,
       agents: longAgents,
     };
 
-    const encoded2 = encodeShareCard(largeDataBothDrop);
-    expect(encoded2.length).toBeLessThanOrEqual(1800);
-    const decoded2 = decodeShareCard(encoded2);
-    expect(decoded2.ach).toBeUndefined();
-    expect(decoded2.agents).toBeUndefined();
-    expect(decoded2.v).toBe(sampleData.v);
-    expect(decoded2.s).toBe(sampleData.s);
+    const encoded = encodeShareCard(largeData);
+    expect(encoded.length).toBeLessThanOrEqual(1800);
+    const decoded = decodeShareCard(encoded);
+    expect(decoded.agents).toBeUndefined();
+    expect(decoded.v).toBe(sampleData.v);
+    expect(decoded.s).toBe(sampleData.s);
   });
 
   it('malformed input throws an Error', () => {

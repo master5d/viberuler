@@ -11,6 +11,7 @@ export const SANITY_CAPS = {
   tok_per_usd: 100_000_000,
   tok_per_loc: 100_000_000,
   vibe_score: 50_000,
+  streak: 3650,
 } as const;
 
 export const submitPayloadSchema = z
@@ -44,7 +45,6 @@ export const shareCardSchema = z
     streak: z.number().int().nonnegative(),
     hours: z.number().nonnegative().optional(),
     agents: z.array(z.string().max(40)).max(32).optional(),
-    ach: z.array(z.string().max(40)).max(32).optional(),
   })
   .strict();
 

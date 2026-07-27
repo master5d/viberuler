@@ -5,21 +5,14 @@ export interface ShareCardData {
   tpl: number | null;   // tok_per_loc
   loc: number;
   streak: number;
-  hours?: number;       // attention hours, 1 decimal — optional, added in a later slice
+  hours?: number;       // attention hours, 1 decimal — optional
   agents?: string[];
-  ach?: string[];       // achievements
 }
 
 export function encodeShareCard(d: ShareCardData): string {
   const copy: ShareCardData = { ...d };
   let json = JSON.stringify(copy);
   let encoded = Buffer.from(json, 'utf-8').toString('base64url');
-
-  if (encoded.length > 1800 && copy.ach !== undefined) {
-    delete copy.ach;
-    json = JSON.stringify(copy);
-    encoded = Buffer.from(json, 'utf-8').toString('base64url');
-  }
 
   if (encoded.length > 1800 && copy.agents !== undefined) {
     delete copy.agents;
@@ -80,9 +73,6 @@ export function decodeShareCard(s: string): ShareCardData {
   if (record.agents !== undefined && (!Array.isArray(record.agents) || !record.agents.every((a) => typeof a === 'string'))) {
     throw new Error('Invalid optional key: agents');
   }
-  if (record.ach !== undefined && (!Array.isArray(record.ach) || !record.ach.every((a) => typeof a === 'string'))) {
-    throw new Error('Invalid optional key: ach');
-  }
 
   return {
     v: record.v,
@@ -93,7 +83,6 @@ export function decodeShareCard(s: string): ShareCardData {
     streak: record.streak as number,
     ...(record.hours !== undefined ? { hours: record.hours as number } : {}),
     ...(record.agents !== undefined ? { agents: record.agents as string[] } : {}),
-    ...(record.ach !== undefined ? { ach: record.ach as string[] } : {}),
   };
 }
 

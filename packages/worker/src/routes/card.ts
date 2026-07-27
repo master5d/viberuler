@@ -3,16 +3,17 @@ import type { Env } from '../index.js';
 import { gaugeHtml, PALETTE } from '../brand.js';
 import font from '../assets/JetBrainsMono-Regular.ttf';
 import { shareCardSchema, SANITY_CAPS, type ShareCardPayload } from '../validation.js';
+import { escapeHtml } from './share.js';
 
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
-export function escapeHtml(s: string): string {
+export function sanitizeLabel(s: string): string {
+  if (typeof s !== 'string') return '';
   return s
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+    .replace(/[\p{Cc}\p{Cf}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 24);
 }
 
 export function cardCertificateHtml(data: ShareCardPayload): string {
@@ -115,16 +116,22 @@ export async function handleCard(_request: Request, _env: Env, url: URL): Promis
   }
 
   const raw = parseResult.data;
+  const sanitizedAgents = raw.agents
+    ? raw.agents
+        .map(sanitizeLabel)
+        .filter((s) => s.length > 0)
+        .slice(0, 3)
+    : undefined;
+
   const clampedData: ShareCardPayload = {
     v: raw.v,
     s: Math.min(raw.s, SANITY_CAPS.vibe_score),
     tpu: raw.tpu !== null ? Math.min(raw.tpu, SANITY_CAPS.tok_per_usd) : null,
     tpl: raw.tpl !== null ? Math.min(raw.tpl, SANITY_CAPS.tok_per_loc) : null,
     loc: Math.min(raw.loc, SANITY_CAPS.loc),
-    streak: Math.min(raw.streak, 3650),
+    streak: Math.min(raw.streak, SANITY_CAPS.streak),
     ...(raw.hours !== undefined ? { hours: Math.min(raw.hours, 100_000) } : {}),
-    agents: raw.agents,
-    ach: raw.ach,
+    ...(sanitizedAgents && sanitizedAgents.length > 0 ? { agents: sanitizedAgents } : {}),
   };
 
   const html = cardCertificateHtml(clampedData);

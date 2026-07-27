@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { exports } from 'cloudflare:workers';
-import { cardCertificateHtml, handleCard } from '../src/routes/card.js';
+import { cardCertificateHtml, handleCard, sanitizeLabel } from '../src/routes/card.js';
 
 function encodeData(obj: unknown): string {
   const json = JSON.stringify(obj);
@@ -21,7 +21,6 @@ const VALID_CARD = {
   streak: 14,
   hours: 12.4,
   agents: ['Claude Code', 'Codex'],
-  ach: ['token-billionaire'],
 };
 
 describe('GET /card route', () => {
@@ -133,5 +132,31 @@ describe('cardCertificateHtml', () => {
     expect(html).not.toContain('GLOBAL RANK');
     expect(html).not.toContain('The Bureau certifies:');
     expect(html).not.toContain('percentile');
+  });
+});
+
+describe('sanitizeLabel', () => {
+  it('removes bidi override characters (U+202E)', () => {
+    expect(sanitizeLabel('\u202EBadLabel')).toBe('BadLabel');
+  });
+
+  it('removes control characters', () => {
+    expect(sanitizeLabel('\u0007Hello\x00World')).toBe('HelloWorld');
+  });
+
+  it('slices long strings at 24 chars', () => {
+    const long = '123456789012345678901234567890';
+    expect(sanitizeLabel(long)).toBe('123456789012345678901234');
+    expect(sanitizeLabel(long).length).toBe(24);
+  });
+
+  it('collapses internal whitespace runs and trims', () => {
+    expect(sanitizeLabel('  a   b \t\n c  ')).toBe('a b c');
+  });
+
+  it('drops entries that become empty after cleaning', () => {
+    const list = ['  \u202E  ', 'ValidAgent', '\u0000'];
+    const cleaned = list.map(sanitizeLabel).filter((s) => s.length > 0);
+    expect(cleaned).toEqual(['ValidAgent']);
   });
 });
