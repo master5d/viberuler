@@ -51,31 +51,53 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
   rows.push('');
 
   if (r.compare) {
+    const comp = r.compare;
     rows.push(c.bold('CONTEXT WASTE — TWO WINDOWS'));
-    const sA = r.compare.windows.a.since.slice(0, 10);
-    const uA = r.compare.windows.a.until.slice(0, 10);
-    const sB = r.compare.windows.b.since.slice(0, 10);
-    const uB = r.compare.windows.b.until.slice(0, 10);
+    const sA = comp.windows.a.since.slice(0, 10);
+    const uA = comp.windows.a.until.slice(0, 10);
+    const sB = comp.windows.b.since.slice(0, 10);
+    const uB = comp.windows.b.until.slice(0, 10);
     rows.push(c.dim(`  window A: ${sA}..${uA}   window B: ${sB}..${uB}`));
     rows.push('');
 
-    if (r.compare.classes.length > 0) {
-      const maxLabelLen = Math.max(...r.compare.classes.map((cls) => cls.label.length));
-      const maxATokLen = Math.max(...r.compare.classes.map((cls) => `${fmtCompact(cls.a.tokens)} tok`.length), 6);
-      const maxBTokLen = Math.max(...r.compare.classes.map((cls) => `${fmtCompact(cls.b.tokens)} tok`.length), 6);
+    if (comp.warnings && comp.warnings.length > 0) {
+      for (const w of comp.warnings) {
+        if (w.includes('extends past now')) {
+          rows.push(c.yellow(`  ⚠️  ${w}`));
+          rows.push('');
+        }
+      }
+    }
 
-      for (const cls of r.compare.classes) {
-        const aTokStr = `${fmtCompact(cls.a.tokens)} tok`;
-        const bTokStr = `${fmtCompact(cls.b.tokens)} tok`;
+    if (comp.insufficient && comp.insufficient.length > 0) {
+      if (comp.insufficient.includes('a')) {
+        rows.push(c.dim(`  not enough data in window A (${comp.windows.a.sessions} sessions)`));
+      }
+      if (comp.insufficient.includes('b')) {
+        rows.push(c.dim(`  not enough data in window B (${comp.windows.b.sessions} sessions)`));
+      }
+    } else if (comp.classes.length > 0) {
+      const maxLabelLen = Math.max(...comp.classes.map((cls) => cls.label.length));
+      const aStrs = comp.classes.map((cls) => `${fmtInt(cls.a.calls)} calls · ${fmtCompact(cls.a.tokens)} tok`);
+      const bStrs = comp.classes.map((cls) => `${fmtInt(cls.b.calls)} calls · ${fmtCompact(cls.b.tokens)} tok`);
+      const maxALen = Math.max(...aStrs.map((s) => s.length));
+      const maxBLen = Math.max(...bStrs.map((s) => s.length));
+
+      for (let i = 0; i < comp.classes.length; i++) {
+        const cls = comp.classes[i]!;
+        const aStr = aStrs[i]!;
+        const bStr = bStrs[i]!;
         const deltaStr = fmtSignedCompact(cls.deltaTokens);
         rows.push(
-          `  ${cls.label.padEnd(maxLabelLen)}   ${aTokStr.padStart(maxATokLen)} → ${bTokStr.padStart(maxBTokLen)}   (Δ ${deltaStr})`,
+          `  ${cls.label.padEnd(maxLabelLen)}   ${aStr.padStart(maxALen)} → ${bStr.padStart(maxBLen)}   (Δ ${deltaStr})`,
         );
       }
     } else {
       rows.push(c.dim('  no waste recorded in either window'));
     }
-    rows.push(c.dim(`  ${r.compare.note}`));
+
+    rows.push(c.dim('  classes overlap — an oversized read can also be exploratory; do not sum them'));
+    rows.push(c.dim(`  ${comp.note}`));
     rows.push('');
     rows.push(c.dim('— The Bureau · calibrated to ±0.001 vibes'));
     return railCard(rows, opts.colors);
@@ -132,7 +154,8 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
         `  ${tokStr.padStart(maxTokLen)} · ${callsStr.padStart(maxCallsLen)}   ${cls.label.padEnd(maxLabelLen)}   → ${cls.lever}`,
       );
     }
-    rows.push(c.dim('  observations, not savings estimates — see --json note'));
+    rows.push(c.dim('  classes overlap — an oversized read can also be exploratory; do not sum them'));
+    rows.push(c.dim(`  ${r.waste.note}`));
     rows.push('');
   }
 

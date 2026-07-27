@@ -94,7 +94,7 @@ Options:
                        agents outside the OS home (C:\\agents\\Claude, ...).
                        CODEX_HOME / CLAUDE_CONFIG_DIR are honoured automatically.
   --since <date>       only count activity since YYYY-MM-DD
-  --compare A..B        two windows: the range, then the equally long span after it
+  --compare A..B       two windows: the range, then the equally long span after it
   --month <YYYY-MM>    the month for \`wrapped\`
   --idle-gap <min>     max pause before idle, in minutes (default: 3)
   --github <handle>    also pull public GitHub stars    (the only network call)
@@ -201,6 +201,10 @@ export async function main(
     return 1;
   }
 
+  if (values.compare !== undefined && command !== 'audit') {
+    process.stderr.write('--compare is only used by audit\n');
+  }
+
   const home = process.env.VIBERULER_HOME ?? homedir();
   // Multi-agent rigs relocate agents out of the OS home entirely. Extra roots
   // come from --agent-home (repeatable) or VIBERULER_AGENT_HOMES (a path list).
@@ -224,18 +228,24 @@ export async function main(
 
   if (command === 'audit') {
     if (values.compare !== undefined) {
+      if (values.since !== undefined) {
+        process.stderr.write('--since is ignored when --compare is given\n');
+      }
       const range = parseCompareRange(values.compare);
       if (!range) {
         process.stderr.write('Invalid --compare range, expected YYYY-MM-DD..YYYY-MM-DD\n');
         return 1;
       }
-      const actxA: ScanContext = { home, agentHomes, scanDirs: [], since: range.windowA.since, until: range.windowA.until, authorEmail: undefined, env: process.env };
-      const actxB: ScanContext = { home, agentHomes, scanDirs: [], since: range.windowB.since, until: range.windowB.until, authorEmail: undefined, env: process.env };
-      const report = await runAuditCompare(actxA, actxB, range.windowA, range.windowB, gapMs);
-      for (const w of report.warnings) process.stderr.write(`[viberuler] ${w}\n`);
-      if (values.json) { out(JSON.stringify(report, null, 2)); return 0; }
+      const actx: ScanContext = { home, agentHomes, scanDirs: [], authorEmail: undefined, env: process.env };
+      const compare = await runAuditCompare(actx, range.windowA, range.windowB, gapMs);
+      for (const w of compare.warnings ?? []) {
+        if (!w.includes('extends past now')) {
+          process.stderr.write(`[viberuler] ${w}\n`);
+        }
+      }
+      if (values.json) { out(JSON.stringify(compare, null, 2)); return 0; }
       const colors = shouldColor(Boolean(values['no-color']));
-      out(renderAudit(report, { colors, version: version() }));
+      out(renderAudit({ compare } as any, { colors, version: version() }));
       return 0;
     }
     const actx: ScanContext = { home, agentHomes, scanDirs: [], since, authorEmail: undefined, env: process.env };

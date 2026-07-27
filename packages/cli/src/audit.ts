@@ -107,6 +107,12 @@ export interface WasteReport {
   note: string;
 }
 
+export interface WasteCompareWindow {
+  since: string;
+  until: string;
+  sessions: number;
+}
+
 export interface WasteCompareClass {
   id: string;
   label: string;
@@ -116,9 +122,11 @@ export interface WasteCompareClass {
 }
 
 export interface WasteCompare {
-  windows: { a: { since: string; until: string }; b: { since: string; until: string } };
+  windows: { a: WasteCompareWindow; b: WasteCompareWindow };
   classes: WasteCompareClass[];
   note: string;
+  warnings?: string[];
+  insufficient?: ('a' | 'b')[];
 }
 
 export interface AuditReport {
@@ -257,7 +265,7 @@ function bump(acc: Acc, name: string): ToolStat {
  * Subagent turns carry `isSidechain: true` and an `agentId`, which is what lets
  * us keep the main thread and the isolated subagent threads apart.
  */
-export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?: Date): void {
+export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?: Date): boolean {
   // Per-transcript state. Cold context and read discipline are session-scoped:
   // a file re-read in a *different* session is a fresh, legitimate read.
   let firstTs = '';
@@ -267,6 +275,7 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
   const readSizes = new Map<string, number[]>();
   const edited = new Set<string>();
   const wasteStart = acc.wasteEvents.length;
+  let matched = false;
 
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
@@ -280,6 +289,7 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
     }
     if (since && obj.timestamp && Date.parse(obj.timestamp) < since.getTime()) continue;
     if (until && obj.timestamp && Date.parse(obj.timestamp) >= until.getTime()) continue;
+    matched = true;
 
     const isSide = obj.isSidechain === true;
     const chain = isSide ? acc.side : acc.main;
@@ -434,6 +444,7 @@ export function parseAuditJsonl(content: string, acc: Acc, since?: Date, until?:
   if (firstTokens > 0) {
     (firstIsSide ? acc.coldSub : acc.coldMain).push(firstTokens);
   }
+  return matched;
 }
 
 const exists = async (p: string): Promise<boolean> => stat(p).then(() => true, () => false);
@@ -506,23 +517,28 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
   let sessions = 0;
   let timeFailures = 0;
 
+  const hasWindowFilter = Boolean(ctx.since || ctx.until);
   const roots = await resolveRoots(ctx, PROJECTS);
   for (const root of roots) {
     for await (const file of walkJsonl(root)) {
-      sessions++;
-
       let content: string;
       try {
         content = await readFile(file, 'utf8');
       } catch {
         acc.skipped++;
+        if (!hasWindowFilter) sessions++;
         continue;
       }
 
+      let matched = false;
       try {
-        parseAuditJsonl(content, acc, ctx.since, ctx.until);
+        matched = parseAuditJsonl(content, acc, ctx.since, ctx.until);
       } catch {
         acc.skipped++;
+      }
+
+      if (!hasWindowFilter || matched) {
+        sessions++;
       }
 
       try {
@@ -623,7 +639,7 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
     classes.sort((a, b) => b.tokens - a.tokens);
     report.waste = {
       classes,
-      note: 'Class sizes are observations from your own transcripts, not savings estimates: a read that changed nothing may still be the read that told you not to change it.',
+      note: 'Class sizes are observations from your own transcripts, not savings estimates: a read that changed nothing may still be the read that told you not to change it. Classes overlap — an oversized read can also be exploratory; do not sum them.',
     };
   } catch {
     // Fail-open: omit waste on error
@@ -639,73 +655,82 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
 }
 
 export async function runAuditCompare(
-  actxA: ScanContext,
-  actxB: ScanContext,
+  ctx: ScanContext,
   windowA: { since: Date; until: Date },
   windowB: { since: Date; until: Date },
   gapMs?: number,
-): Promise<AuditReport> {
-  const ctxA: ScanContext = { ...actxA, since: windowA.since, until: windowA.until };
-  const ctxB: ScanContext = { ...actxB, since: windowB.since, until: windowB.until };
+): Promise<WasteCompare> {
+  const ctxA: ScanContext = { ...ctx, since: windowA.since, until: windowA.until };
+  const ctxB: ScanContext = { ...ctx, since: windowB.since, until: windowB.until };
+
   const [reportA, reportB] = await Promise.all([
     runAudit(ctxA, gapMs),
     runAudit(ctxB, gapMs),
   ]);
 
-  const classesA = reportA.waste?.classes ?? [];
-  const classesB = reportB.waste?.classes ?? [];
+  const warnings = [...new Set([...reportA.warnings, ...reportB.warnings])];
 
-  const mapA = new Map(classesA.map((c) => [c.id, c]));
-  const mapB = new Map(classesB.map((c) => [c.id, c]));
-
-  const allIds = new Set([...mapA.keys(), ...mapB.keys()]);
-
-  const LABEL_LEVER: Record<string, { label: string; lever: string }> = {
-    exploratory: { label: 'whole-file reads never edited', lever: 'outline-first / symbol reads' },
-    'repeat-read': { label: 'repeat reads of unchanged files', lever: 'cache/dedup of tool output' },
-    oversized: { label: 'oversized single results', lever: 'slicing, head/grep before read' },
-    'subagent-returned': { label: 'subagent-returned tokens', lever: 'tighter subagent contracts' },
-  };
-
-  const compareClasses: WasteCompareClass[] = [];
-  for (const id of allIds) {
-    const ca = mapA.get(id);
-    const cb = mapB.get(id);
-    const label = ca?.label ?? cb?.label ?? LABEL_LEVER[id]?.label ?? id;
-    const aStats = { calls: ca?.calls ?? 0, tokens: ca?.tokens ?? 0 };
-    const bStats = { calls: cb?.calls ?? 0, tokens: cb?.tokens ?? 0 };
-    const deltaTokens = bStats.tokens - aStats.tokens;
-    compareClasses.push({
-      id,
-      label,
-      a: aStats,
-      b: bStats,
-      deltaTokens,
-    });
+  const nowMs = Date.now();
+  if (windowB.until.getTime() > nowMs) {
+    const uB = windowB.until.toISOString().slice(0, 10);
+    warnings.push(`window B extends past now (${uB}) — it cannot contain a full period yet`);
   }
 
-  compareClasses.sort(
-    (x, y) => Math.max(y.a.tokens, y.b.tokens) - Math.max(x.a.tokens, x.b.tokens) || x.id.localeCompare(y.id),
-  );
+  const insufficient: ('a' | 'b')[] = [];
+  if (reportA.sessions === 0) insufficient.push('a');
+  if (reportB.sessions === 0) insufficient.push('b');
+
+  const compareClasses: WasteCompareClass[] = [];
+
+  if (insufficient.length === 0) {
+    const classesA = reportA.waste?.classes ?? [];
+    const classesB = reportB.waste?.classes ?? [];
+
+    const mapA = new Map(classesA.map((c) => [c.id, c]));
+    const mapB = new Map(classesB.map((c) => [c.id, c]));
+
+    const allIds = new Set([...mapA.keys(), ...mapB.keys()]);
+
+    const LABEL_LEVER: Record<string, { label: string; lever: string }> = {
+      exploratory: { label: 'whole-file reads never edited', lever: 'outline-first / symbol reads' },
+      'repeat-read': { label: 'repeat reads of unchanged files', lever: 'cache/dedup of tool output' },
+      oversized: { label: 'oversized single results', lever: 'slicing, head/grep before read' },
+      'subagent-returned': { label: 'subagent-returned tokens', lever: 'tighter subagent contracts' },
+    };
+
+    for (const id of allIds) {
+      const ca = mapA.get(id);
+      const cb = mapB.get(id);
+      const label = ca?.label ?? cb?.label ?? LABEL_LEVER[id]?.label ?? id;
+      const aStats = { calls: ca?.calls ?? 0, tokens: ca?.tokens ?? 0 };
+      const bStats = { calls: cb?.calls ?? 0, tokens: cb?.tokens ?? 0 };
+      const deltaTokens = bStats.tokens - aStats.tokens;
+      compareClasses.push({
+        id,
+        label,
+        a: aStats,
+        b: bStats,
+        deltaTokens,
+      });
+    }
+
+    compareClasses.sort(
+      (x, y) => Math.max(y.a.tokens, y.b.tokens) - Math.max(x.a.tokens, x.b.tokens) || x.id.localeCompare(y.id),
+    );
+  }
 
   const compare: WasteCompare = {
     windows: {
-      a: { since: windowA.since.toISOString(), until: windowA.until.toISOString() },
-      b: { since: windowB.since.toISOString(), until: windowB.until.toISOString() },
+      a: { since: windowA.since.toISOString(), until: windowA.until.toISOString(), sessions: reportA.sessions },
+      b: { since: windowB.since.toISOString(), until: windowB.until.toISOString(), sessions: reportB.sessions },
     },
     classes: compareClasses,
-    note: 'Two windows, not an experiment: workload differs between them, so a delta shows what changed, not what caused it.',
-  };
-
-  const warnings = [...new Set([...reportA.warnings, ...reportB.warnings])];
-
-  return {
-    ...reportB,
-    sessions: reportA.sessions + reportB.sessions,
+    note: 'Two windows, not an experiment: workload differs between them, so a delta shows what changed, not what caused it. Classes overlap — an oversized read can also be exploratory; do not sum them.',
     warnings,
-    compare,
-    waste: undefined,
+    ...(insufficient.length > 0 ? { insufficient } : {}),
   };
+
+  return compare;
 }
 
 

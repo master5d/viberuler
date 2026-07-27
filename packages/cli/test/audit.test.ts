@@ -717,9 +717,12 @@ describe('waste accounting and render', () => {
     const r = await runAudit({ home, scanDirs: [] });
     const jsonStr = JSON.stringify(r);
     const expectedNote =
-      'Class sizes are observations from your own transcripts, not savings estimates: a read that changed nothing may still be the read that told you not to change it.';
+      'Class sizes are observations from your own transcripts, not savings estimates: a read that changed nothing may still be the read that told you not to change it. Classes overlap — an oversized read can also be exploratory; do not sum them.';
     expect(r.waste?.note).toBe(expectedNote);
     expect(jsonStr).toContain(expectedNote);
+
+    const rendered = renderAudit(r, { colors: false, version: '1.0.0' });
+    expect(rendered).toContain('classes overlap — an oversized read can also be exploratory; do not sum them');
   });
 });
 
@@ -760,37 +763,93 @@ describe('audit --compare two-window comparison', () => {
     const windowA = { since: new Date('2026-01-01T00:00:00Z'), until: new Date('2026-01-10T00:00:00Z') };
     const windowB = { since: new Date('2026-01-10T00:00:00Z'), until: new Date('2026-01-19T00:00:00Z') };
 
-    const r = await runAuditCompare({ home, scanDirs: [] }, { home, scanDirs: [] }, windowA, windowB);
+    const comp = await runAuditCompare({ home, scanDirs: [] }, windowA, windowB);
 
-    expect(r.compare).toBeDefined();
-    expect(r.compare!.windows).toEqual({
-      a: { since: '2026-01-01T00:00:00.000Z', until: '2026-01-10T00:00:00.000Z' },
-      b: { since: '2026-01-10T00:00:00.000Z', until: '2026-01-19T00:00:00.000Z' },
+    expect(comp.windows).toEqual({
+      a: { since: '2026-01-01T00:00:00.000Z', until: '2026-01-10T00:00:00.000Z', sessions: 1 },
+      b: { since: '2026-01-10T00:00:00.000Z', until: '2026-01-19T00:00:00.000Z', sessions: 1 },
     });
 
-    const oversized = r.compare!.classes.find((c) => c.id === 'oversized');
+    const oversized = comp.classes.find((c) => c.id === 'oversized');
     expect(oversized).toBeDefined();
     expect(oversized!.a.tokens).toBeGreaterThan(0);
+    expect(oversized!.a.calls).toBe(1);
     expect(oversized!.b.tokens).toBe(0);
+    expect(oversized!.b.calls).toBe(0);
     expect(oversized!.deltaTokens).toBeLessThan(0);
 
-    const jsonStr = JSON.stringify(r);
+    const jsonStr = JSON.stringify(comp);
     const expectedDisclaimer =
-      'Two windows, not an experiment: workload differs between them, so a delta shows what changed, not what caused it.';
-    expect(r.compare!.note).toBe(expectedDisclaimer);
+      'Two windows, not an experiment: workload differs between them, so a delta shows what changed, not what caused it. Classes overlap — an oversized read can also be exploratory; do not sum them.';
+    expect(comp.note).toBe(expectedDisclaimer);
     expect(jsonStr).toContain(expectedDisclaimer);
 
-    // Verify no "total*" field in compare or report waste
-    for (const key of Object.keys(r.compare!)) {
+    // Verify no "total*" field in compare
+    for (const key of Object.keys(comp)) {
       expect(key.toLowerCase()).not.toContain('total');
     }
     expect(jsonStr).not.toContain('totalWaste');
 
     // Render verification
-    const rendered = renderAudit(r, { colors: false, version: '1.0.0' });
+    const rendered = renderAudit({ compare: comp } as any, { colors: false, version: '1.0.0' });
     expect(rendered).toContain('CONTEXT WASTE — TWO WINDOWS');
     expect(rendered).not.toContain('CONTEXT WASTE\n');
     expect(rendered).toContain(expectedDisclaimer);
+    expect(rendered).toContain('classes overlap — an oversized read can also be exploratory; do not sum them');
+  });
+
+  it('handles empty rig + --compare with not enough data for both windows and no class rows', async () => {
+    const home = await fakeHome();
+    const windowA = { since: new Date('2026-01-01T00:00:00Z'), until: new Date('2026-01-10T00:00:00Z') };
+    const windowB = { since: new Date('2026-01-10T00:00:00Z'), until: new Date('2026-01-19T00:00:00Z') };
+
+    const comp = await runAuditCompare({ home, scanDirs: [] }, windowA, windowB);
+    expect(comp.insufficient).toEqual(['a', 'b']);
+    expect(comp.classes).toEqual([]);
+
+    const rendered = renderAudit({ compare: comp } as any, { colors: false, version: '1.0.0' });
+    expect(rendered).toContain('not enough data in window A (0 sessions)');
+    expect(rendered).toContain('not enough data in window B (0 sessions)');
+  });
+
+  it('handles window A with data and window B empty with not-enough-data for B and no deltas printed', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+
+    const lineA = JSON.stringify({
+      timestamp: '2026-01-02T10:00:00.000Z',
+      type: 'assistant', requestId: 'rA', message: { id: 'mA', model: 'claude-sonnet-4-5', usage: USAGE },
+    });
+    await writeFile(join(proj, 's.jsonl'), lineA);
+
+    const windowA = { since: new Date('2026-01-01T00:00:00Z'), until: new Date('2026-01-10T00:00:00Z') };
+    const windowB = { since: new Date('2026-01-10T00:00:00Z'), until: new Date('2026-01-19T00:00:00Z') };
+
+    const comp = await runAuditCompare({ home, scanDirs: [] }, windowA, windowB);
+    expect(comp.insufficient).toEqual(['b']);
+    expect(comp.classes).toEqual([]);
+
+    const rendered = renderAudit({ compare: comp } as any, { colors: false, version: '1.0.0' });
+    expect(rendered).not.toContain('not enough data in window A');
+    expect(rendered).toContain('not enough data in window B (0 sessions)');
+  });
+
+  it('emits a warning when window B extends into the future', async () => {
+    const home = await fakeHome();
+    const windowA = { since: new Date('2026-01-01T00:00:00Z'), until: new Date('2026-01-10T00:00:00Z') };
+    // Future window B
+    const futureUntil = new Date(Date.now() + 86400 * 1000 * 30);
+    const windowB = { since: new Date('2026-01-10T00:00:00Z'), until: futureUntil };
+
+    const comp = await runAuditCompare({ home, scanDirs: [] }, windowA, windowB);
+    expect(comp.warnings).toBeDefined();
+    const uB = futureUntil.toISOString().slice(0, 10);
+    const expectedWarn = `window B extends past now (${uB}) — it cannot contain a full period yet`;
+    expect(comp.warnings!.some((w) => w.includes(expectedWarn))).toBe(true);
+
+    const rendered = renderAudit({ compare: comp } as any, { colors: false, version: '1.0.0' });
+    expect(rendered).toContain(expectedWarn);
   });
 });
 

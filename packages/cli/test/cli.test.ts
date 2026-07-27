@@ -257,14 +257,37 @@ describe('main', () => {
       }
     });
 
-    it('runs audit --compare --json cleanly', async () => {
+    it('prints a stderr note when --compare is passed outside audit or when --since is combined with --compare', async () => {
+      let stderrMsg = '';
+      const origWrite = process.stderr.write;
+      process.stderr.write = ((chunk: any) => {
+        stderrMsg += String(chunk);
+        return true;
+      }) as any;
+
+      try {
+        await run(['--compare', '2026-01-01..2026-01-10', '--no-color', '--scan-dir', join(home, 'code')]);
+        expect(stderrMsg).toContain('--compare is only used by audit');
+
+        stderrMsg = '';
+        await run(['audit', '--compare', '2026-01-01..2026-01-10', '--since', '2026-01-05']);
+        expect(stderrMsg).toContain('--since is ignored when --compare is given');
+      } finally {
+        process.stderr.write = origWrite;
+      }
+    });
+
+    it('runs audit --compare --json cleanly, emitting only the comparison object with per-window sessions and no chimera fields', async () => {
       const { code, lines } = await run(['audit', '--compare', '2026-01-01..2026-01-10', '--json']);
       expect(code).toBe(0);
       const json = JSON.parse(lines.join('\n'));
-      expect(json.compare).toBeDefined();
-      expect(json.compare.note).toBe(
-        'Two windows, not an experiment: workload differs between them, so a delta shows what changed, not what caused it.',
-      );
+      expect(json.windows).toBeDefined();
+      expect(json.windows.a.sessions).toBeDefined();
+      expect(json.windows.b.sessions).toBeDefined();
+      expect(json.note).toContain('Two windows, not an experiment');
+      expect(json.tokens).toBeUndefined();
+      expect(json.costUsd).toBeUndefined();
+      expect(json.ghosts).toBeUndefined();
     });
   });
 });
