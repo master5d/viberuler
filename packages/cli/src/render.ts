@@ -1,7 +1,19 @@
 import { createColors } from 'picocolors';
 import type { ScoreReport } from './score.js';
+import type { TimeReport } from './time-collect.js';
 import { totalTokens } from './merge.js';
 import { fmtCompact, fmtInt, fmtUsd } from './format.js';
+
+function fmtDuration(ms: number): string {
+  if (ms >= 3600000) {
+    return `${(ms / 3600000).toFixed(1)}h`;
+  }
+  const mins = Math.round(ms / 60000);
+  if (mins === 0 && ms > 0) {
+    return '<1m';
+  }
+  return `${mins}m`;
+}
 
 const BAR_CELLS = 16;
 const ESC = '';
@@ -103,7 +115,10 @@ function tokenStrip(
   return [c.dim('TOKENS BY AGENT'), cells.join(''), legend];
 }
 
-export function renderCard(report: ScoreReport, opts: { colors: boolean; version: string }): string {
+export function renderCard(
+  report: ScoreReport,
+  opts: { colors: boolean; version: string; timeReport?: TimeReport },
+): string {
   const c = createColors(opts.colors);
   const s = report.stats;
   const tokens = totalTokens(s.tokens);
@@ -169,6 +184,13 @@ export function renderCard(report: ScoreReport, opts: { colors: boolean; version
   rows.push(`VIBE SCORE  ${bar(report.vibe, opts.colors, c)}  ${c.bold(fmtInt(report.vibe))}`);
   const rankDisplay = isNpc ? report.rank : report.rank.toUpperCase();
   rows.push(isNpc ? `RANK: ${c.bold(c.cyan(rankDisplay))}` : `THE BUREAU CERTIFIES: ${c.bold(c.cyan(rankDisplay))}`);
+
+  if (opts.timeReport && opts.timeReport.totalActiveMs > 0) {
+    rows.push('');
+    const attentionStr = fmtDuration(opts.timeReport.totalActiveMs);
+    const wallStr = fmtDuration(opts.timeReport.totalWallMs);
+    rows.push(`⏱ ${c.bold(attentionStr)} of your attention · ${c.bold(wallStr)} wall`);
+  }
 
   if (report.achievements.length > 0) {
     rows.push('');

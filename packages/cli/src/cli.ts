@@ -17,11 +17,25 @@ import { githubCollector } from './collectors/github.js';
 import { computeScore } from './score.js';
 import { renderCard } from './render.js';
 import { renderWrapped } from './wrapped.js';
+import { createColors } from 'picocolors';
 import { runAudit } from './audit.js';
 import { renderAudit } from './render-audit.js';
 import { buildPayload } from './payload.js';
-import { DEFAULT_API, DEFAULT_CLIENT_ID, githubDeviceFlow, fetchPercentile, submitScore, shareLinks } from './submit.js';
-import { parseHomeList } from './roots.js';
+import {
+  DEFAULT_API,
+  DEFAULT_CLIENT_ID,
+  githubDeviceFlow,
+  fetchPercentile,
+  submitScore,
+  shareLinks,
+  readCachedToken,
+  saveCachedToken,
+  clearCachedToken,
+  type SubmitResult,
+} from './submit.js';
+import { parseHomeList, isInsideGitRepo } from './roots.js';
+import { shareCardUrl, type ShareCardData } from './share-card.js';
+import { collectTime, type TimeReport } from './time-collect.js';
 
 const COLLECTORS: Collector[] = [claudeCodeCollector, codexCollector, clineCollector, geminiCollector, cursorCollector, litellmCollector, agentsCollector, gitCollector, githubCollector];
 
@@ -58,8 +72,10 @@ Options:
   --month <YYYY-MM>    the month for \`wrapped\`
   --idle-gap <min>     max pause before idle, in minutes (default: 3)
   --github <handle>    also pull public GitHub stars    (the only network call)
+  --api <url>          custom API base URL              (default: https://viberuler.dev)
   --json               machine-readable full report
   --no-color           plain output
+  --share              print a shareable card URL (nothing is sent)
   --submit             push your score to the global leaderboard (GitHub device flow)
   --yes                skip the submit confirmation
   --version            print version
@@ -135,6 +151,8 @@ export async function main(
         json: { type: 'boolean' },
         'no-color': { type: 'boolean' },
         submit: { type: 'boolean' },
+        share: { type: 'boolean' },
+        api: { type: 'string' },
         yes: { type: 'boolean' },
         why: { type: 'boolean' },
         version: { type: 'boolean' },
@@ -230,8 +248,16 @@ export async function main(
   for (const w of stats.warnings) process.stderr.write(`[viberuler] ${w}\n`);
   let report = computeScore(stats);
 
+  let timeReportPromise: Promise<TimeReport | undefined> | null = null;
+  const getTimeReport = (): Promise<TimeReport | undefined> => {
+    if (!timeReportPromise) {
+      timeReportPromise = collectTime(ctx, gapMs).catch(() => undefined);
+    }
+    return timeReportPromise;
+  };
+
   if (values.submit) {
-    const apiBase = process.env.VIBERULER_API ?? DEFAULT_API;
+    const apiBase = values.api ?? process.env.VIBERULER_API ?? DEFAULT_API;
     const clientId = process.env.VIBERULER_GITHUB_CLIENT_ID ?? DEFAULT_CLIENT_ID;
 
     if (report.tokPerUsd !== null) {
@@ -240,7 +266,8 @@ export async function main(
     }
 
     const colors = shouldColor(Boolean(values['no-color']));
-    out(renderCard(report, { colors, version: version() }));
+    const timeReport = await getTimeReport();
+    out(renderCard(report, { colors, version: version(), timeReport }));
 
     const payload = buildPayload(report, version());
     out('');
@@ -259,8 +286,24 @@ export async function main(
     }
 
     try {
-      const token = await githubDeviceFlow(clientId, { fetchImpl: deps.fetchImpl, out });
-      const result = await submitScore(apiBase, token, payload, deps.fetchImpl);
+      let token = await readCachedToken(home);
+      let result: SubmitResult;
+
+      if (token) {
+        out('using saved GitHub auth');
+        result = await submitScore(apiBase, token, payload, deps.fetchImpl);
+        if (!result.ok && (result.status === 401 || result.status === 403)) {
+          await clearCachedToken(home);
+          token = await githubDeviceFlow(clientId, { fetchImpl: deps.fetchImpl, out });
+          await saveCachedToken(token, home);
+          result = await submitScore(apiBase, token, payload, deps.fetchImpl);
+        }
+      } else {
+        token = await githubDeviceFlow(clientId, { fetchImpl: deps.fetchImpl, out });
+        await saveCachedToken(token, home);
+        result = await submitScore(apiBase, token, payload, deps.fetchImpl);
+      }
+
       if (!result.ok) {
         process.stderr.write(`submit failed (${result.status}): ${result.error ?? 'unknown'}\n`);
         return 1;
@@ -292,6 +335,53 @@ export async function main(
     return 0;
   }
   const colors = shouldColor(Boolean(values['no-color']));
-  out(renderCard(report, { colors, version: version() }));
+  const timeReport = await getTimeReport();
+  out(renderCard(report, { colors, version: version(), timeReport }));
+
+  if (values.share) {
+    const apiBase = values.api ?? process.env.VIBERULER_API ?? DEFAULT_API;
+    const payload = buildPayload(report, version());
+    const cardData: ShareCardData = {
+      v: payload.client_version,
+      s: payload.vibe_score,
+      tpu: payload.tok_per_usd,
+      tpl: payload.tok_per_loc,
+      loc: payload.loc,
+      streak: payload.streak_days,
+      agents: payload.agents,
+      ...(timeReport && timeReport.totalActiveMs > 0
+        ? { hours: Number((timeReport.totalActiveMs / 3600000).toFixed(1)) }
+        : {}),
+    };
+    const cardUrl = shareCardUrl(apiBase, cardData);
+    const links = shareLinks(cardUrl, payload);
+    out('');
+    out('share your card:');
+    out(cardUrl);
+    out('');
+    out('  Flex it:');
+    out(`    X:        ${links.x}`);
+    out(`    LinkedIn: ${links.linkedin}`);
+    out(`    Facebook: ${links.facebook}`);
+    out(`    Bluesky:  ${links.bluesky}`);
+    out('');
+    out(`  📲 Stories: open ${cardUrl} on your phone → "Share to Stories" (Instagram · WhatsApp · Facebook)`);
+  }
+
+  const c = createColors(colors);
+  const formattedScanDirs = ctx.scanDirs.map((d) => (/\s/.test(d) ? `"${d}"` : d)).join(' ');
+  out('');
+  out(c.dim('share:  viberuler --share'));
+  out(c.dim(`board:  viberuler --scan-dir ${formattedScanDirs} --submit`));
+
+  if (stats.projects === 0 && (await isInsideGitRepo(ctx.scanDirs))) {
+    out(
+      c.dim(
+        'hint: no projects found — if your repos live under an outer repo, point --scan-dir at the folder that holds them',
+      ),
+    );
+  }
+
   return 0;
 }
+

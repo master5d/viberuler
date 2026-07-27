@@ -1,6 +1,24 @@
 import { realpath, stat } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import type { ScanContext } from './types.js';
+
+export async function isInsideGitRepo(scanDirs: string[]): Promise<boolean> {
+  for (const dir of scanDirs) {
+    let curr = resolve(dir);
+    while (true) {
+      try {
+        await stat(join(curr, '.git'));
+        return true;
+      } catch {
+        // missing .git at curr
+      }
+      const parent = dirname(curr);
+      if (parent === curr) break;
+      curr = parent;
+    }
+  }
+  return false;
+}
 
 /**
  * Where one agent keeps its logs.

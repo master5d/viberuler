@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { main, collectAll } from '../src/cli.js';
 import type { Collector } from '../src/types.js';
+import { decodeShareCard } from '../src/share-card.js';
 
 const fixture = fileURLToPath(new URL('./fixtures/claude/session-a.jsonl', import.meta.url));
 
@@ -142,4 +143,82 @@ describe('main', () => {
     const { code: code2 } = await run(['audit', '--idle-gap', 'abc']);
     expect(code2).toBe(1);
   });
+
+  it('--share prints a card url and makes no network call', async () => {
+    let fetchCalled = false;
+    const fetchImpl = async () => {
+      fetchCalled = true;
+      throw new Error('fetch should not be called');
+    };
+    const lines: string[] = [];
+    const code = await main(['--share', '--no-color', '--scan-dir', join(home, 'code')], (l) => lines.push(l), {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(code).toBe(0);
+    expect(fetchCalled).toBe(false);
+    const text = lines.join('\n');
+    expect(text).toContain('/card?d=');
+    expect(text).toContain('share your card:');
+  });
+
+  it('--share output decoded d contains hours when time exists', async () => {
+    const demoDir = join(home, '.claude', 'projects', 'demo');
+    await mkdir(demoDir, { recursive: true });
+    const sessionLines = [
+      JSON.stringify({ timestamp: '2026-07-26T10:00:00.000Z', cwd: repoDir }),
+      JSON.stringify({ timestamp: '2026-07-26T10:01:00.000Z', cwd: repoDir }),
+      JSON.stringify({ timestamp: '2026-07-26T10:02:00.000Z', cwd: repoDir }),
+      JSON.stringify({ timestamp: '2026-07-26T10:03:00.000Z', cwd: repoDir }),
+      JSON.stringify({ timestamp: '2026-07-26T10:04:00.000Z', cwd: repoDir }),
+      JSON.stringify({ timestamp: '2026-07-26T10:05:00.000Z', cwd: repoDir }),
+      JSON.stringify({ timestamp: '2026-07-26T10:06:00.000Z', cwd: repoDir }),
+    ];
+    await writeFile(join(demoDir, 'session.jsonl'), sessionLines.join('\n'));
+
+    const lines: string[] = [];
+    const code = await main(['--share', '--no-color', '--scan-dir', join(home, 'code')], (l) => lines.push(l));
+    expect(code).toBe(0);
+    const text = lines.join('\n');
+    const match = text.match(/\/card\?d=([A-Za-z0-9_-]+)/);
+    expect(match).not.toBeNull();
+    const decoded = decodeShareCard(match![1]!);
+    expect(decoded.hours).toBeGreaterThan(0);
+  });
+
+  it('CTA lines present on a default run, absent under --json', async () => {
+    const scanDir = join(home, 'code');
+    const { lines: defaultLines } = await run(['--no-color', '--scan-dir', scanDir]);
+    const defaultText = defaultLines.join('\n');
+    expect(defaultText).toContain('share:  viberuler --share');
+    expect(defaultText).toContain(`board:  viberuler --scan-dir ${scanDir} --submit`);
+
+    const { lines: jsonLines } = await run(['--json', '--scan-dir', scanDir]);
+    const jsonText = jsonLines.join('\n');
+    expect(jsonText).not.toContain('share:  viberuler --share');
+    expect(jsonText).not.toContain('board:  viberuler');
+  });
+
+  it('quotes scan-dir path in CTA line when it contains whitespace', async () => {
+    const spaceDir = join(home, 'code with space');
+    await mkdir(spaceDir, { recursive: true });
+    const { lines } = await run(['--no-color', '--scan-dir', spaceDir]);
+    const text = lines.join('\n');
+    expect(text).toContain(`board:  viberuler --scan-dir "${spaceDir}" --submit`);
+  });
+
+  it('prints hint line on zero-projects inside nested repo, omits on non-zero projects', async () => {
+    const outerRepo = await mkdtemp(join(tmpdir(), 'vibe-outer-repo-'));
+    execFileSync('git', ['-C', outerRepo, 'init']);
+    const emptySub = join(outerRepo, 'subfolder');
+    await mkdir(emptySub, { recursive: true });
+
+    const { lines: zeroLines } = await run(['--no-color', '--scan-dir', emptySub]);
+    const zeroText = zeroLines.join('\n');
+    expect(zeroText).toContain('hint: no projects found — if your repos live under an outer repo, point --scan-dir at the folder that holds them');
+
+    const { lines: nonZeroLines } = await run(['--no-color', '--scan-dir', join(home, 'code')]);
+    const nonZeroText = nonZeroLines.join('\n');
+    expect(nonZeroText).not.toContain('hint: no projects found');
+  });
 });
+
