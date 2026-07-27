@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { main, collectAll } from '../src/cli.js';
+import { main, collectAll, parseCompareRange } from '../src/cli.js';
 import type { Collector } from '../src/types.js';
 import { decodeShareCard } from '../src/share-card.js';
 
@@ -219,6 +219,76 @@ describe('main', () => {
     const { lines: nonZeroLines } = await run(['--no-color', '--scan-dir', join(home, 'code')]);
     const nonZeroText = nonZeroLines.join('\n');
     expect(nonZeroText).not.toContain('hint: no projects found');
+  });
+
+  describe('parseCompareRange', () => {
+    it('parses valid range and computes window B as the equally long span after A', () => {
+      const res = parseCompareRange('2026-01-01..2026-01-10');
+      expect(res).not.toBeNull();
+      expect(res!.windowA.since.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+      expect(res!.windowA.until.toISOString()).toBe('2026-01-10T00:00:00.000Z');
+      expect(res!.windowB.since.toISOString()).toBe('2026-01-10T00:00:00.000Z');
+      expect(res!.windowB.until.toISOString()).toBe('2026-01-19T00:00:00.000Z');
+    });
+
+    it('rejects malformed inputs (single date, invalid strings, reversed or equal dates)', () => {
+      expect(parseCompareRange('2026-01-01')).toBeNull();
+      expect(parseCompareRange('a..b')).toBeNull();
+      expect(parseCompareRange('2026-01-10..2026-01-01')).toBeNull();
+      expect(parseCompareRange('2026-01-01..2026-01-01')).toBeNull();
+    });
+  });
+
+  describe('audit --compare command', () => {
+    it('rejects malformed --compare range with exit code 1 and error message to stderr', async () => {
+      let stderrMsg = '';
+      const origWrite = process.stderr.write;
+      process.stderr.write = ((chunk: any) => {
+        stderrMsg += String(chunk);
+        return true;
+      }) as any;
+
+      try {
+        const { code } = await run(['audit', '--compare', 'invalid-range']);
+        expect(code).toBe(1);
+        expect(stderrMsg).toContain('Invalid --compare range, expected YYYY-MM-DD..YYYY-MM-DD');
+      } finally {
+        process.stderr.write = origWrite;
+      }
+    });
+
+    it('prints a stderr note when --compare is passed outside audit or when --since is combined with --compare', async () => {
+      let stderrMsg = '';
+      const origWrite = process.stderr.write;
+      process.stderr.write = ((chunk: any) => {
+        stderrMsg += String(chunk);
+        return true;
+      }) as any;
+
+      try {
+        await run(['--compare', '2026-01-01..2026-01-10', '--no-color', '--scan-dir', join(home, 'code')]);
+        expect(stderrMsg).toContain('--compare is only used by audit');
+
+        stderrMsg = '';
+        await run(['audit', '--compare', '2026-01-01..2026-01-10', '--since', '2026-01-05']);
+        expect(stderrMsg).toContain('--since is ignored when --compare is given');
+      } finally {
+        process.stderr.write = origWrite;
+      }
+    });
+
+    it('runs audit --compare --json cleanly, emitting only the comparison object with per-window sessions and no chimera fields', async () => {
+      const { code, lines } = await run(['audit', '--compare', '2026-01-01..2026-01-10', '--json']);
+      expect(code).toBe(0);
+      const json = JSON.parse(lines.join('\n'));
+      expect(json.windows).toBeDefined();
+      expect(json.windows.a.sessions).toBeDefined();
+      expect(json.windows.b.sessions).toBeDefined();
+      expect(json.note).toContain('Two windows, not an experiment');
+      expect(json.tokens).toBeUndefined();
+      expect(json.costUsd).toBeUndefined();
+      expect(json.ghosts).toBeUndefined();
+    });
   });
 });
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseAuditJsonl, emptyAcc, discoverSurfaces, runAudit } from '../src/audit.js';
+import { parseAuditJsonl, emptyAcc, discoverSurfaces, runAudit, runAuditCompare } from '../src/audit.js';
 import { attributeRootCauses } from '../src/root-cause.js';
 import { renderRootCauses, renderAudit } from '../src/render-audit.js';
 import type { RootCause } from '../src/root-cause.js';
@@ -584,6 +584,272 @@ describe('time metrics in runAudit and renderAudit', () => {
     const r = await runAudit({ home, scanDirs: [] });
     expect(r.sessions).toBe(1);
     expect(r.warnings).toEqual(['audit: skipped 1 malformed line(s)']);
+  });
+});
+
+describe('waste accounting and render', () => {
+  it('reports exact calls and tokens per class for exploratory, repeat read, and oversized results', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+
+    // 1. Exploratory read: whole-file read of /unedited.ts (never edited).
+    // 1000 chars -> 250 tokens
+    const exploreRes = res('t1', 1000);
+
+    // 2. Repeat read of unchanged file: read /repeat.ts twice at 400 chars (100 tokens), plus edit /repeat.ts so it's not exploratory.
+    const repeatRes1 = res('t2', 400);
+    const repeatRes2 = res('t3', 400);
+
+    // 3. Oversized result: tool result > 4096 chars (5000 chars = 1250 tokens), plus edit /oversized.ts so it's not exploratory.
+    const oversizedRes = res('t4', 5000);
+
+    const edits = JSON.stringify({
+      type: 'assistant',
+      requestId: 'r-edits',
+      message: {
+        id: 'm-edits',
+        model: 'claude-sonnet-4-5',
+        usage: { input_tokens: 10 },
+        content: [
+          { type: 'tool_use', id: 'e1', name: 'Edit', input: { file_path: '/repeat.ts' } },
+          { type: 'tool_use', id: 'e2', name: 'Edit', input: { file_path: '/oversized.ts' } },
+        ],
+      },
+    });
+
+    const lines = [
+      asst('m1', 'r1', USAGE, [readUse('t1', '/unedited.ts'), readUse('t2', '/repeat.ts'), readUse('t3', '/repeat.ts'), readUse('t4', '/oversized.ts')]),
+      exploreRes,
+      repeatRes1,
+      repeatRes2,
+      oversizedRes,
+      edits,
+    ];
+
+    await writeFile(join(proj, 's.jsonl'), lines.join('\n'));
+
+    const r = await runAudit({ home, scanDirs: [] });
+    expect(r.waste).toBeDefined();
+    expect(r.waste!.classes).toHaveLength(3);
+
+    const oversized = r.waste!.classes.find((c) => c.id === 'oversized');
+    expect(oversized).toBeDefined();
+    expect(oversized!.calls).toBe(1);
+    expect(oversized!.tokens).toBe(1250);
+    expect(oversized!.label).toBe('oversized single results');
+    expect(oversized!.lever).toBe('slicing, head/grep before read');
+
+    const exploratory = r.waste!.classes.find((c) => c.id === 'exploratory');
+    expect(exploratory).toBeDefined();
+    expect(exploratory!.calls).toBe(1);
+    expect(exploratory!.tokens).toBe(250);
+    expect(exploratory!.label).toBe('whole-file reads never edited');
+    expect(exploratory!.lever).toBe('outline-first / symbol reads');
+
+    const repeatRead = r.waste!.classes.find((c) => c.id === 'repeat-read');
+    expect(repeatRead).toBeDefined();
+    expect(repeatRead!.calls).toBe(1);
+    expect(repeatRead!.tokens).toBe(100);
+    expect(repeatRead!.label).toBe('repeat reads of unchanged files');
+    expect(repeatRead!.lever).toBe('cache/dedup of tool output');
+
+    // Assert sorted by tokens desc: 1250 > 250 > 100
+    expect(r.waste!.classes.map((c) => c.id)).toEqual(['oversized', 'exploratory', 'repeat-read']);
+  });
+
+  it('includes an event that is BOTH oversized and exploratory in both classes and has no total waste field', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+
+    // Whole file read of /huge.ts (8000 chars = 2000 tokens), never edited
+    const lines = [
+      asst('m1', 'r1', USAGE, [readUse('t1', '/huge.ts')]),
+      res('t1', 8000),
+    ];
+    await writeFile(join(proj, 's.jsonl'), lines.join('\n'));
+
+    const r = await runAudit({ home, scanDirs: [] });
+    expect(r.waste).toBeDefined();
+    expect(r.waste!.classes).toHaveLength(2);
+
+    const ids = r.waste!.classes.map((c) => c.id).sort();
+    expect(ids).toEqual(['exploratory', 'oversized']);
+
+    const oversized = r.waste!.classes.find((c) => c.id === 'oversized')!;
+    const exploratory = r.waste!.classes.find((c) => c.id === 'exploratory')!;
+    expect(oversized.tokens).toBe(2000);
+    expect(exploratory.tokens).toBe(2000);
+
+    // Assert the report object has no field containing "total" associated with waste
+    const reportKeys = Object.keys(r);
+    const wasteKeys = Object.keys(r.waste!);
+    const allKeys = [...reportKeys, ...wasteKeys];
+    for (const key of allKeys) {
+      if (key.toLowerCase().includes('waste')) {
+        expect(key.toLowerCase()).not.toContain('total');
+      }
+    }
+    expect(JSON.stringify(r)).not.toContain('totalWaste');
+  });
+
+  it('omits CONTEXT WASTE section on empty transcripts', async () => {
+    const home = await fakeHome();
+    const r = await runAudit({ home, scanDirs: [] });
+    expect(r.sessions).toBe(0);
+    expect(r.waste === undefined || r.waste.classes.length === 0).toBe(true);
+
+    const rendered = renderAudit(r, { colors: false, version: '1.0.0' });
+    expect(rendered).not.toContain('CONTEXT WASTE');
+  });
+
+  it('includes verbatim disclaimer note string in --json output', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+    const lines = [
+      asst('m1', 'r1', USAGE, [readUse('t1', '/a.ts')]),
+      res('t1', 800),
+    ];
+    await writeFile(join(proj, 's.jsonl'), lines.join('\n'));
+
+    const r = await runAudit({ home, scanDirs: [] });
+    const jsonStr = JSON.stringify(r);
+    const expectedNote =
+      'Class sizes are observations from your own transcripts, not savings estimates: a read that changed nothing may still be the read that told you not to change it. Classes overlap — an oversized read can also be exploratory; do not sum them.';
+    expect(r.waste?.note).toBe(expectedNote);
+    expect(jsonStr).toContain(expectedNote);
+
+    const rendered = renderAudit(r, { colors: false, version: '1.0.0' });
+    expect(rendered).toContain('classes overlap — an oversized read can also be exploratory; do not sum them');
+  });
+});
+
+describe('audit --compare two-window comparison', () => {
+  it('compares seeded fixture where window A has an oversized read and window B does not', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+
+    // Window A: 2026-01-01 to 2026-01-10 with oversized read
+    const lineA = JSON.stringify({
+      timestamp: '2026-01-02T10:00:00.000Z',
+      type: 'assistant', requestId: 'rA', message: {
+        id: 'mA', model: 'claude-sonnet-4-5', usage: USAGE,
+        content: [{ type: 'tool_use', id: 'tA', name: 'Read', input: { file_path: '/oversized.ts' } }],
+      },
+    });
+    const resA = JSON.stringify({
+      timestamp: '2026-01-02T10:00:01.000Z',
+      type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'tA', content: 'x'.repeat(8000) }] },
+    });
+
+    // Window B: 2026-01-10 to 2026-01-19 with small normal read
+    const lineB = JSON.stringify({
+      timestamp: '2026-01-12T10:00:00.000Z',
+      type: 'assistant', requestId: 'rB', message: {
+        id: 'mB', model: 'claude-sonnet-4-5', usage: USAGE,
+        content: [{ type: 'tool_use', id: 'tB', name: 'Read', input: { file_path: '/small.ts', offset: 0, limit: 10 } }],
+      },
+    });
+    const resB = JSON.stringify({
+      timestamp: '2026-01-12T10:00:01.000Z',
+      type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'tB', content: 'x'.repeat(400) }] },
+    });
+
+    await writeFile(join(proj, 's.jsonl'), [lineA, resA, lineB, resB].join('\n'));
+
+    const windowA = { since: new Date('2026-01-01T00:00:00Z'), until: new Date('2026-01-10T00:00:00Z') };
+    const windowB = { since: new Date('2026-01-10T00:00:00Z'), until: new Date('2026-01-19T00:00:00Z') };
+
+    const comp = await runAuditCompare({ home, scanDirs: [] }, windowA, windowB);
+
+    expect(comp.windows).toEqual({
+      a: { since: '2026-01-01T00:00:00.000Z', until: '2026-01-10T00:00:00.000Z', sessions: 1 },
+      b: { since: '2026-01-10T00:00:00.000Z', until: '2026-01-19T00:00:00.000Z', sessions: 1 },
+    });
+
+    const oversized = comp.classes.find((c) => c.id === 'oversized');
+    expect(oversized).toBeDefined();
+    expect(oversized!.a.tokens).toBeGreaterThan(0);
+    expect(oversized!.a.calls).toBe(1);
+    expect(oversized!.b.tokens).toBe(0);
+    expect(oversized!.b.calls).toBe(0);
+    expect(oversized!.deltaTokens).toBeLessThan(0);
+
+    const jsonStr = JSON.stringify(comp);
+    const expectedDisclaimer =
+      'Two windows, not an experiment: workload differs between them, so a delta shows what changed, not what caused it. Classes overlap — an oversized read can also be exploratory; do not sum them.';
+    expect(comp.note).toBe(expectedDisclaimer);
+    expect(jsonStr).toContain(expectedDisclaimer);
+
+    // Verify no "total*" field in compare
+    for (const key of Object.keys(comp)) {
+      expect(key.toLowerCase()).not.toContain('total');
+    }
+    expect(jsonStr).not.toContain('totalWaste');
+
+    // Render verification
+    const rendered = renderAudit({ compare: comp } as any, { colors: false, version: '1.0.0' });
+    expect(rendered).toContain('CONTEXT WASTE — TWO WINDOWS');
+    expect(rendered).not.toContain('CONTEXT WASTE\n');
+    expect(rendered).toContain(expectedDisclaimer);
+    expect(rendered).toContain('classes overlap — an oversized read can also be exploratory; do not sum them');
+  });
+
+  it('handles empty rig + --compare with not enough data for both windows and no class rows', async () => {
+    const home = await fakeHome();
+    const windowA = { since: new Date('2026-01-01T00:00:00Z'), until: new Date('2026-01-10T00:00:00Z') };
+    const windowB = { since: new Date('2026-01-10T00:00:00Z'), until: new Date('2026-01-19T00:00:00Z') };
+
+    const comp = await runAuditCompare({ home, scanDirs: [] }, windowA, windowB);
+    expect(comp.insufficient).toEqual(['a', 'b']);
+    expect(comp.classes).toEqual([]);
+
+    const rendered = renderAudit({ compare: comp } as any, { colors: false, version: '1.0.0' });
+    expect(rendered).toContain('not enough data in window A (0 sessions)');
+    expect(rendered).toContain('not enough data in window B (0 sessions)');
+  });
+
+  it('handles window A with data and window B empty with not-enough-data for B and no deltas printed', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+
+    const lineA = JSON.stringify({
+      timestamp: '2026-01-02T10:00:00.000Z',
+      type: 'assistant', requestId: 'rA', message: { id: 'mA', model: 'claude-sonnet-4-5', usage: USAGE },
+    });
+    await writeFile(join(proj, 's.jsonl'), lineA);
+
+    const windowA = { since: new Date('2026-01-01T00:00:00Z'), until: new Date('2026-01-10T00:00:00Z') };
+    const windowB = { since: new Date('2026-01-10T00:00:00Z'), until: new Date('2026-01-19T00:00:00Z') };
+
+    const comp = await runAuditCompare({ home, scanDirs: [] }, windowA, windowB);
+    expect(comp.insufficient).toEqual(['b']);
+    expect(comp.classes).toEqual([]);
+
+    const rendered = renderAudit({ compare: comp } as any, { colors: false, version: '1.0.0' });
+    expect(rendered).not.toContain('not enough data in window A');
+    expect(rendered).toContain('not enough data in window B (0 sessions)');
+  });
+
+  it('emits a warning when window B extends into the future', async () => {
+    const home = await fakeHome();
+    const windowA = { since: new Date('2026-01-01T00:00:00Z'), until: new Date('2026-01-10T00:00:00Z') };
+    // Future window B
+    const futureUntil = new Date(Date.now() + 86400 * 1000 * 30);
+    const windowB = { since: new Date('2026-01-10T00:00:00Z'), until: futureUntil };
+
+    const comp = await runAuditCompare({ home, scanDirs: [] }, windowA, windowB);
+    expect(comp.warnings).toBeDefined();
+    const uB = futureUntil.toISOString().slice(0, 10);
+    const expectedWarn = `window B extends past now (${uB}) — it cannot contain a full period yet`;
+    expect(comp.warnings!.some((w) => w.includes(expectedWarn))).toBe(true);
+
+    const rendered = renderAudit({ compare: comp } as any, { colors: false, version: '1.0.0' });
+    expect(rendered).toContain(expectedWarn);
   });
 });
 

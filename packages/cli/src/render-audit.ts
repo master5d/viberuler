@@ -36,6 +36,12 @@ function fmtDuration(ms: number): string {
   return `${mins}m`;
 }
 
+function fmtSignedCompact(n: number): string {
+  if (n > 0) return `+${fmtCompact(n)}`;
+  if (n < 0) return `-${fmtCompact(Math.abs(n))}`;
+  return '0';
+}
+
 export function renderAudit(r: AuditReport, opts: { colors: boolean; version: string }): string {
   const c = createColors(opts.colors);
   const rows: string[] = [];
@@ -43,6 +49,59 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
   rows.push(c.bold(c.magenta(`VIBERULER v${opts.version} — RIG AUDIT`)));
   rows.push(c.dim('· bureau of vibe measurement'));
   rows.push('');
+
+  if (r.compare) {
+    const comp = r.compare;
+    rows.push(c.bold('CONTEXT WASTE — TWO WINDOWS'));
+    const sA = comp.windows.a.since.slice(0, 10);
+    const uA = comp.windows.a.until.slice(0, 10);
+    const sB = comp.windows.b.since.slice(0, 10);
+    const uB = comp.windows.b.until.slice(0, 10);
+    rows.push(c.dim(`  window A: ${sA}..${uA}   window B: ${sB}..${uB}`));
+    rows.push('');
+
+    if (comp.warnings && comp.warnings.length > 0) {
+      for (const w of comp.warnings) {
+        if (w.includes('extends past now')) {
+          rows.push(c.yellow(`  ⚠️  ${w}`));
+          rows.push('');
+        }
+      }
+    }
+
+    if (comp.insufficient && comp.insufficient.length > 0) {
+      if (comp.insufficient.includes('a')) {
+        rows.push(c.dim(`  not enough data in window A (${comp.windows.a.sessions} sessions)`));
+      }
+      if (comp.insufficient.includes('b')) {
+        rows.push(c.dim(`  not enough data in window B (${comp.windows.b.sessions} sessions)`));
+      }
+    } else if (comp.classes.length > 0) {
+      const maxLabelLen = Math.max(...comp.classes.map((cls) => cls.label.length));
+      const aStrs = comp.classes.map((cls) => `${fmtInt(cls.a.calls)} calls · ${fmtCompact(cls.a.tokens)} tok`);
+      const bStrs = comp.classes.map((cls) => `${fmtInt(cls.b.calls)} calls · ${fmtCompact(cls.b.tokens)} tok`);
+      const maxALen = Math.max(...aStrs.map((s) => s.length));
+      const maxBLen = Math.max(...bStrs.map((s) => s.length));
+
+      for (let i = 0; i < comp.classes.length; i++) {
+        const cls = comp.classes[i]!;
+        const aStr = aStrs[i]!;
+        const bStr = bStrs[i]!;
+        const deltaStr = fmtSignedCompact(cls.deltaTokens);
+        rows.push(
+          `  ${cls.label.padEnd(maxLabelLen)}   ${aStr.padStart(maxALen)} → ${bStr.padStart(maxBLen)}   (Δ ${deltaStr})`,
+        );
+      }
+    } else {
+      rows.push(c.dim('  no waste recorded in either window'));
+    }
+
+    rows.push(c.dim('  classes overlap — an oversized read can also be exploratory; do not sum them'));
+    rows.push(c.dim(`  ${comp.note}`));
+    rows.push('');
+    rows.push(c.dim('— The Bureau · calibrated to ±0.001 vibes'));
+    return railCard(rows, opts.colors);
+  }
 
   if (r.sessions === 0) {
     rows.push(c.dim('No Claude Code transcripts found on this rig.'));
@@ -80,6 +139,23 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
       }
       rows.push(`     by project       ${items.join(' · ')}`);
     }
+    rows.push('');
+  }
+
+  if (r.waste && r.waste.classes && r.waste.classes.length > 0) {
+    rows.push(c.bold('CONTEXT WASTE'));
+    const maxTokLen = Math.max(...r.waste.classes.map((cls) => `${fmtCompact(cls.tokens)} tok`.length), 8);
+    const maxCallsLen = Math.max(...r.waste.classes.map((cls) => `${fmtInt(cls.calls)} calls`.length), 9);
+    const maxLabelLen = Math.max(...r.waste.classes.map((cls) => cls.label.length));
+    for (const cls of r.waste.classes) {
+      const tokStr = `${fmtCompact(cls.tokens)} tok`;
+      const callsStr = `${fmtInt(cls.calls)} calls`;
+      rows.push(
+        `  ${tokStr.padStart(maxTokLen)} · ${callsStr.padStart(maxCallsLen)}   ${cls.label.padEnd(maxLabelLen)}   → ${cls.lever}`,
+      );
+    }
+    rows.push(c.dim('  classes overlap — an oversized read can also be exploratory; do not sum them'));
+    rows.push(c.dim(`  ${r.waste.note}`));
     rows.push('');
   }
 
