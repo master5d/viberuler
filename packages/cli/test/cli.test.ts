@@ -142,4 +142,22 @@ describe('main', () => {
     const { code: code2 } = await run(['audit', '--idle-gap', 'abc']);
     expect(code2).toBe(1);
   });
+
+  it('--share prints a card url and makes no network call', async () => {
+    let fetchCalled = false;
+    const fetchImpl = async () => {
+      fetchCalled = true;
+      throw new Error('fetch should not be called');
+    };
+    const lines: string[] = [];
+    const code = await main(['--share', '--no-color', '--scan-dir', join(home, 'code')], (l) => lines.push(l), {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(code).toBe(0);
+    expect(fetchCalled).toBe(false);
+    const text = lines.join('\n');
+    expect(text).toContain('/card?d=');
+    expect(text).toContain('share your card:');
+  });
 });
+

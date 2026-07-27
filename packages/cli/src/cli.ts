@@ -22,6 +22,7 @@ import { renderAudit } from './render-audit.js';
 import { buildPayload } from './payload.js';
 import { DEFAULT_API, DEFAULT_CLIENT_ID, githubDeviceFlow, fetchPercentile, submitScore, shareLinks } from './submit.js';
 import { parseHomeList } from './roots.js';
+import { shareCardUrl, type ShareCardData } from './share-card.js';
 
 const COLLECTORS: Collector[] = [claudeCodeCollector, codexCollector, clineCollector, geminiCollector, cursorCollector, litellmCollector, agentsCollector, gitCollector, githubCollector];
 
@@ -60,6 +61,7 @@ Options:
   --github <handle>    also pull public GitHub stars    (the only network call)
   --json               machine-readable full report
   --no-color           plain output
+  --share              print a shareable card URL (nothing is sent)
   --submit             push your score to the global leaderboard (GitHub device flow)
   --yes                skip the submit confirmation
   --version            print version
@@ -135,6 +137,8 @@ export async function main(
         json: { type: 'boolean' },
         'no-color': { type: 'boolean' },
         submit: { type: 'boolean' },
+        share: { type: 'boolean' },
+        api: { type: 'string' },
         yes: { type: 'boolean' },
         why: { type: 'boolean' },
         version: { type: 'boolean' },
@@ -231,7 +235,7 @@ export async function main(
   let report = computeScore(stats);
 
   if (values.submit) {
-    const apiBase = process.env.VIBERULER_API ?? DEFAULT_API;
+    const apiBase = values.api ?? process.env.VIBERULER_API ?? DEFAULT_API;
     const clientId = process.env.VIBERULER_GITHUB_CLIENT_ID ?? DEFAULT_CLIENT_ID;
 
     if (report.tokPerUsd !== null) {
@@ -293,5 +297,35 @@ export async function main(
   }
   const colors = shouldColor(Boolean(values['no-color']));
   out(renderCard(report, { colors, version: version() }));
+
+  if (values.share) {
+    const apiBase = values.api ?? process.env.VIBERULER_API ?? DEFAULT_API;
+    const payload = buildPayload(report, version());
+    const cardData: ShareCardData = {
+      v: payload.client_version,
+      s: payload.vibe_score,
+      tpu: payload.tok_per_usd,
+      tpl: payload.tok_per_loc,
+      loc: payload.loc,
+      streak: payload.streak_days,
+      agents: payload.agents,
+      ach: payload.achievements,
+    };
+    const cardUrl = shareCardUrl(apiBase, cardData);
+    const links = shareLinks(cardUrl, payload);
+    out('');
+    out('share your card:');
+    out(cardUrl);
+    out('');
+    out('  Flex it:');
+    out(`    X:        ${links.x}`);
+    out(`    LinkedIn: ${links.linkedin}`);
+    out(`    Facebook: ${links.facebook}`);
+    out(`    Bluesky:  ${links.bluesky}`);
+    out('');
+    out(`  📲 Stories: open ${cardUrl} on your phone → "Share to Stories" (Instagram · WhatsApp · Facebook)`);
+  }
+
   return 0;
 }
+
