@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseAuditJsonl, emptyAcc, discoverSurfaces, runAudit } from '../src/audit.js';
+import { parseAuditJsonl, emptyAcc, discoverSurfaces, runAudit, runAuditCompare } from '../src/audit.js';
 import { attributeRootCauses } from '../src/root-cause.js';
 import { renderRootCauses, renderAudit } from '../src/render-audit.js';
 import type { RootCause } from '../src/root-cause.js';
@@ -720,6 +720,77 @@ describe('waste accounting and render', () => {
       'Class sizes are observations from your own transcripts, not savings estimates: a read that changed nothing may still be the read that told you not to change it.';
     expect(r.waste?.note).toBe(expectedNote);
     expect(jsonStr).toContain(expectedNote);
+  });
+});
+
+describe('audit --compare two-window comparison', () => {
+  it('compares seeded fixture where window A has an oversized read and window B does not', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+
+    // Window A: 2026-01-01 to 2026-01-10 with oversized read
+    const lineA = JSON.stringify({
+      timestamp: '2026-01-02T10:00:00.000Z',
+      type: 'assistant', requestId: 'rA', message: {
+        id: 'mA', model: 'claude-sonnet-4-5', usage: USAGE,
+        content: [{ type: 'tool_use', id: 'tA', name: 'Read', input: { file_path: '/oversized.ts' } }],
+      },
+    });
+    const resA = JSON.stringify({
+      timestamp: '2026-01-02T10:00:01.000Z',
+      type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'tA', content: 'x'.repeat(8000) }] },
+    });
+
+    // Window B: 2026-01-10 to 2026-01-19 with small normal read
+    const lineB = JSON.stringify({
+      timestamp: '2026-01-12T10:00:00.000Z',
+      type: 'assistant', requestId: 'rB', message: {
+        id: 'mB', model: 'claude-sonnet-4-5', usage: USAGE,
+        content: [{ type: 'tool_use', id: 'tB', name: 'Read', input: { file_path: '/small.ts', offset: 0, limit: 10 } }],
+      },
+    });
+    const resB = JSON.stringify({
+      timestamp: '2026-01-12T10:00:01.000Z',
+      type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'tB', content: 'x'.repeat(400) }] },
+    });
+
+    await writeFile(join(proj, 's.jsonl'), [lineA, resA, lineB, resB].join('\n'));
+
+    const windowA = { since: new Date('2026-01-01T00:00:00Z'), until: new Date('2026-01-10T00:00:00Z') };
+    const windowB = { since: new Date('2026-01-10T00:00:00Z'), until: new Date('2026-01-19T00:00:00Z') };
+
+    const r = await runAuditCompare({ home, scanDirs: [] }, { home, scanDirs: [] }, windowA, windowB);
+
+    expect(r.compare).toBeDefined();
+    expect(r.compare!.windows).toEqual({
+      a: { since: '2026-01-01T00:00:00.000Z', until: '2026-01-10T00:00:00.000Z' },
+      b: { since: '2026-01-10T00:00:00.000Z', until: '2026-01-19T00:00:00.000Z' },
+    });
+
+    const oversized = r.compare!.classes.find((c) => c.id === 'oversized');
+    expect(oversized).toBeDefined();
+    expect(oversized!.a.tokens).toBeGreaterThan(0);
+    expect(oversized!.b.tokens).toBe(0);
+    expect(oversized!.deltaTokens).toBeLessThan(0);
+
+    const jsonStr = JSON.stringify(r);
+    const expectedDisclaimer =
+      'Two windows, not an experiment: workload differs between them, so a delta shows what changed, not what caused it.';
+    expect(r.compare!.note).toBe(expectedDisclaimer);
+    expect(jsonStr).toContain(expectedDisclaimer);
+
+    // Verify no "total*" field in compare or report waste
+    for (const key of Object.keys(r.compare!)) {
+      expect(key.toLowerCase()).not.toContain('total');
+    }
+    expect(jsonStr).not.toContain('totalWaste');
+
+    // Render verification
+    const rendered = renderAudit(r, { colors: false, version: '1.0.0' });
+    expect(rendered).toContain('CONTEXT WASTE — TWO WINDOWS');
+    expect(rendered).not.toContain('CONTEXT WASTE\n');
+    expect(rendered).toContain(expectedDisclaimer);
   });
 });
 

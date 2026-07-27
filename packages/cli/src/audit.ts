@@ -107,6 +107,20 @@ export interface WasteReport {
   note: string;
 }
 
+export interface WasteCompareClass {
+  id: string;
+  label: string;
+  a: { calls: number; tokens: number };
+  b: { calls: number; tokens: number };
+  deltaTokens: number;
+}
+
+export interface WasteCompare {
+  windows: { a: { since: string; until: string }; b: { since: string; until: string } };
+  classes: WasteCompareClass[];
+  note: string;
+}
+
 export interface AuditReport {
   sessions: number;
   tokens: TokenUsage;
@@ -134,6 +148,7 @@ export interface AuditReport {
   warnings: string[];
   time?: TimeReport;
   waste?: WasteReport;
+  compare?: WasteCompare;
   /** Populated only under `--why`: ranked structural root-cause attribution. */
   rootCauses?: RootCause[];
 }
@@ -621,6 +636,76 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
   }
 
   return report;
+}
+
+export async function runAuditCompare(
+  actxA: ScanContext,
+  actxB: ScanContext,
+  windowA: { since: Date; until: Date },
+  windowB: { since: Date; until: Date },
+  gapMs?: number,
+): Promise<AuditReport> {
+  const ctxA: ScanContext = { ...actxA, since: windowA.since, until: windowA.until };
+  const ctxB: ScanContext = { ...actxB, since: windowB.since, until: windowB.until };
+  const [reportA, reportB] = await Promise.all([
+    runAudit(ctxA, gapMs),
+    runAudit(ctxB, gapMs),
+  ]);
+
+  const classesA = reportA.waste?.classes ?? [];
+  const classesB = reportB.waste?.classes ?? [];
+
+  const mapA = new Map(classesA.map((c) => [c.id, c]));
+  const mapB = new Map(classesB.map((c) => [c.id, c]));
+
+  const allIds = new Set([...mapA.keys(), ...mapB.keys()]);
+
+  const LABEL_LEVER: Record<string, { label: string; lever: string }> = {
+    exploratory: { label: 'whole-file reads never edited', lever: 'outline-first / symbol reads' },
+    'repeat-read': { label: 'repeat reads of unchanged files', lever: 'cache/dedup of tool output' },
+    oversized: { label: 'oversized single results', lever: 'slicing, head/grep before read' },
+    'subagent-returned': { label: 'subagent-returned tokens', lever: 'tighter subagent contracts' },
+  };
+
+  const compareClasses: WasteCompareClass[] = [];
+  for (const id of allIds) {
+    const ca = mapA.get(id);
+    const cb = mapB.get(id);
+    const label = ca?.label ?? cb?.label ?? LABEL_LEVER[id]?.label ?? id;
+    const aStats = { calls: ca?.calls ?? 0, tokens: ca?.tokens ?? 0 };
+    const bStats = { calls: cb?.calls ?? 0, tokens: cb?.tokens ?? 0 };
+    const deltaTokens = bStats.tokens - aStats.tokens;
+    compareClasses.push({
+      id,
+      label,
+      a: aStats,
+      b: bStats,
+      deltaTokens,
+    });
+  }
+
+  compareClasses.sort(
+    (x, y) => Math.max(y.a.tokens, y.b.tokens) - Math.max(x.a.tokens, x.b.tokens) || x.id.localeCompare(y.id),
+  );
+
+  const compare: WasteCompare = {
+    windows: {
+      a: { since: windowA.since.toISOString(), until: windowA.until.toISOString() },
+      b: { since: windowB.since.toISOString(), until: windowB.until.toISOString() },
+    },
+    classes: compareClasses,
+    note: 'Two windows, not an experiment: workload differs between them, so a delta shows what changed, not what caused it.',
+  };
+
+  const warnings = [...new Set([...reportA.warnings, ...reportB.warnings])];
+
+  return {
+    ...reportB,
+    sessions: reportA.sessions + reportB.sessions,
+    warnings,
+    compare,
+    waste: undefined,
+  };
 }
 
 

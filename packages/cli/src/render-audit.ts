@@ -36,6 +36,12 @@ function fmtDuration(ms: number): string {
   return `${mins}m`;
 }
 
+function fmtSignedCompact(n: number): string {
+  if (n > 0) return `+${fmtCompact(n)}`;
+  if (n < 0) return `-${fmtCompact(Math.abs(n))}`;
+  return '0';
+}
+
 export function renderAudit(r: AuditReport, opts: { colors: boolean; version: string }): string {
   const c = createColors(opts.colors);
   const rows: string[] = [];
@@ -43,6 +49,37 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
   rows.push(c.bold(c.magenta(`VIBERULER v${opts.version} — RIG AUDIT`)));
   rows.push(c.dim('· bureau of vibe measurement'));
   rows.push('');
+
+  if (r.compare) {
+    rows.push(c.bold('CONTEXT WASTE — TWO WINDOWS'));
+    const sA = r.compare.windows.a.since.slice(0, 10);
+    const uA = r.compare.windows.a.until.slice(0, 10);
+    const sB = r.compare.windows.b.since.slice(0, 10);
+    const uB = r.compare.windows.b.until.slice(0, 10);
+    rows.push(c.dim(`  window A: ${sA}..${uA}   window B: ${sB}..${uB}`));
+    rows.push('');
+
+    if (r.compare.classes.length > 0) {
+      const maxLabelLen = Math.max(...r.compare.classes.map((cls) => cls.label.length));
+      const maxATokLen = Math.max(...r.compare.classes.map((cls) => `${fmtCompact(cls.a.tokens)} tok`.length), 6);
+      const maxBTokLen = Math.max(...r.compare.classes.map((cls) => `${fmtCompact(cls.b.tokens)} tok`.length), 6);
+
+      for (const cls of r.compare.classes) {
+        const aTokStr = `${fmtCompact(cls.a.tokens)} tok`;
+        const bTokStr = `${fmtCompact(cls.b.tokens)} tok`;
+        const deltaStr = fmtSignedCompact(cls.deltaTokens);
+        rows.push(
+          `  ${cls.label.padEnd(maxLabelLen)}   ${aTokStr.padStart(maxATokLen)} → ${bTokStr.padStart(maxBTokLen)}   (Δ ${deltaStr})`,
+        );
+      }
+    } else {
+      rows.push(c.dim('  no waste recorded in either window'));
+    }
+    rows.push(c.dim(`  ${r.compare.note}`));
+    rows.push('');
+    rows.push(c.dim('— The Bureau · calibrated to ±0.001 vibes'));
+    return railCard(rows, opts.colors);
+  }
 
   if (r.sessions === 0) {
     rows.push(c.dim('No Claude Code transcripts found on this rig.'));
