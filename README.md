@@ -74,6 +74,8 @@ GitHub device-flow login → your score goes live at `viberuler.dev/u/<you>` as 
 - The default run makes **zero network calls**. Zero.
 - `--submit` sends **aggregates only** — fourteen fields: aggregate stats, achievement ids, your coding-agent names, commit streak, and ship outcomes (features shipped / PRs merged). No paths, no repo names, no prompts, no code. Ever.
 - Before anything is sent, the CLI prints the **exact JSON payload** and asks.
+- `--share` also sends nothing: it *prints* a URL carrying your display numbers. Opening or posting that link is your choice, and the card it renders is marked unverified.
+- Time metrics come from timestamps already inside your transcripts. Nothing watches your screen, and no window titles, paths, or filenames are read, stored, or sent.
 - Don't trust us — read the ~140 lines: [`packages/cli/src/payload.ts`](packages/cli/src/payload.ts) and [`packages/cli/src/submit.ts`](packages/cli/src/submit.ts). Details: [PRIVACY.md](PRIVACY.md).
 
 ## The math
@@ -109,6 +111,9 @@ npx viberuler --json         # machine-readable
 npx viberuler --scan-dir ~/code --since 2026-01-01
 npx viberuler --scan-dir ~/work --scan-dir ~/oss   # repeatable — scans ALL repos under each root
 npx viberuler --github <handle>   # add your stars (the only other network call)
+npx viberuler --share        # print a shareable card URL (nothing is sent)
+npx viberuler audit --idle-gap 5             # pause (minutes) that stops counting as attention
+npx viberuler audit --compare 2026-06-01..2026-07-01   # that window vs the equally long one after it
 ```
 
 A bare run scans every git repo under your **home dir**. If your code lives elsewhere (or in several places), point `--scan-dir` at each root — it's repeatable, and every metric (LoC, commits, features, PRs) is summed across all repos found, so your certificate reflects your whole body of work, not one project.
@@ -138,6 +143,47 @@ That last one is the point. On the author's rig it found two MCP servers burning
 
 Measuring beats guessing, which is an awkward conclusion for a tool that scores you on vibes.
 
+### Context waste — sizes and levers, never a savings claim
+
+A crowded genre of tools promises to cut your tokens "by up to 90%". They're real
+projects; none of them publishes a methodology behind the number. `audit` takes the
+other side: it names where context went, on your own transcripts.
+
+```
+CONTEXT WASTE
+  5.7M tok · 2,555 calls   oversized single results          → slice / grep before read
+  2.2M tok · 4,068 calls   subagent-returned tokens          → tighter subagent contracts
+  1.9M tok · 3,394 calls   whole-file reads never edited     → outline-first / symbol reads
+```
+
+Three rules hold this honest, and they are enforced in the output, not just in docs:
+
+- **No "you would save N%".** The counterfactual is unknowable — a read that changed
+  nothing may be the read that told you *not* to change something.
+- **No total.** The classes overlap by construction (an oversized read can also be
+  exploratory), so summing them would double-count and manufacture a headline.
+- **`audit --compare A..B`** puts two windows side by side — install an optimizer,
+  compare before and after — and labels the delta an *observation, not causation*,
+  because workload differs between windows. A window with no sessions says "not enough
+  data" instead of printing a flattering zero.
+
+### Share without signing in
+
+```bash
+npx viberuler --share
+```
+
+Prints a card URL you can post anywhere. The image renders from the data in the link —
+no account, no submit, nothing written to the database — and is branded
+**SELF-REPORTED · UNVERIFIED** with no rank on it. The GitHub-verified certificate at
+`/u/:login` stays the only ranked surface.
+
+### Your own hours
+
+The card and `audit` also report time derived from transcript timestamps — attention
+time (gaps longer than `--idle-gap` don't count) against wall-clock. No daemon, no
+window tracking, nothing watching your screen.
+
 ## Statusline
 
 Put your score where your ego lives — ready-to-paste snippets for **Claude Code**, **Starship**, **oh-my-posh**, **tmux**, and raw shell prompts in [`integrations/statusline/`](integrations/statusline/). One cache file, sub-millisecond reads:
@@ -157,6 +203,8 @@ Fable 5 · ⚡3982 Context Goblin · 481.5K tok/$
 - [ ] **[Windsurf](https://github.com/master5d/viberuler/issues/3)** / **[Aider](https://github.com/master5d/viberuler/issues/4)** collectors — `good first issue`
 - [x] Vibe Wrapped — monthly recap card
 - [x] Time metrics — session wall-clock & attention time from transcripts ([#21](https://github.com/master5d/viberuler/issues/21))
+- [x] `--share` — a self-reported card URL you can post without signing in (unverified by design)
+- [x] Context-waste classes in `audit` + `--compare A..B` — sizes and levers, never savings claims
 - [ ] Team leaderboards
 
 **Want your agent on the board?** A collector is ~70 lines and a test: two methods,
