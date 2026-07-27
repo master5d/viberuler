@@ -83,6 +83,22 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
     rows.push('');
   }
 
+  if (r.waste && r.waste.classes && r.waste.classes.length > 0) {
+    rows.push(c.bold('CONTEXT WASTE'));
+    const maxTokLen = Math.max(...r.waste.classes.map((cls) => `${fmtCompact(cls.tokens)} tok`.length), 8);
+    const maxCallsLen = Math.max(...r.waste.classes.map((cls) => `${fmtInt(cls.calls)} calls`.length), 9);
+    const maxLabelLen = Math.max(...r.waste.classes.map((cls) => cls.label.length));
+    for (const cls of r.waste.classes) {
+      const tokStr = `${fmtCompact(cls.tokens)} tok`;
+      const callsStr = `${fmtInt(cls.calls)} calls`;
+      rows.push(
+        `  ${tokStr.padStart(maxTokLen)} · ${callsStr.padStart(maxCallsLen)}   ${cls.label.padEnd(maxLabelLen)}   → ${cls.lever}`,
+      );
+    }
+    rows.push(c.dim('  observations, not savings estimates — see --json note'));
+    rows.push('');
+  }
+
   // 2. Context amplification — MAIN THREAD only. Pooling subagent contexts in
   // here would halve the number: they are short-lived and drag the average
   // down, understating what a token actually costs in the thread you live in.

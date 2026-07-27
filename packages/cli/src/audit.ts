@@ -94,6 +94,19 @@ export interface SubagentStats {
   shareOfSpendPct: number;
 }
 
+export interface WasteClass {
+  id: 'exploratory' | 'repeat-read' | 'oversized' | 'subagent-returned';
+  label: string;   // human, lowercase, e.g. 'whole-file reads never edited'
+  calls: number;
+  tokens: number;
+  lever: string;   // e.g. 'outline-first / symbol reads'
+}
+
+export interface WasteReport {
+  classes: WasteClass[];
+  note: string;
+}
+
 export interface AuditReport {
   sessions: number;
   tokens: TokenUsage;
@@ -120,6 +133,7 @@ export interface AuditReport {
   dead: McpSurface[];
   warnings: string[];
   time?: TimeReport;
+  waste?: WasteReport;
   /** Populated only under `--why`: ranked structural root-cause attribution. */
   rootCauses?: RootCause[];
 }
@@ -552,6 +566,53 @@ export async function runAudit(ctx: ScanContext, gapMs: number = 3 * 60 * 1000):
     warnings,
     ...(time ? { time } : {}),
   };
+
+  try {
+    const classes: WasteClass[] = [];
+    if (acc.ghosts.exploratoryCalls > 0) {
+      classes.push({
+        id: 'exploratory',
+        label: 'whole-file reads never edited',
+        calls: acc.ghosts.exploratoryCalls,
+        tokens: acc.ghosts.exploratoryTokens,
+        lever: 'outline-first / symbol reads',
+      });
+    }
+    if (acc.ghosts.repeatReadCalls > 0) {
+      classes.push({
+        id: 'repeat-read',
+        label: 'repeat reads of unchanged files',
+        calls: acc.ghosts.repeatReadCalls,
+        tokens: acc.ghosts.repeatReadTokens,
+        lever: 'cache/dedup of tool output',
+      });
+    }
+    if (acc.ghosts.oversizedCalls > 0) {
+      classes.push({
+        id: 'oversized',
+        label: 'oversized single results',
+        calls: acc.ghosts.oversizedCalls,
+        tokens: acc.ghosts.oversizedTokens,
+        lever: 'slicing, head/grep before read',
+      });
+    }
+    if (acc.agentCalls > 0) {
+      classes.push({
+        id: 'subagent-returned',
+        label: 'subagent-returned tokens',
+        calls: acc.agentCalls,
+        tokens: acc.agentReturned,
+        lever: 'tighter subagent contracts',
+      });
+    }
+    classes.sort((a, b) => b.tokens - a.tokens);
+    report.waste = {
+      classes,
+      note: 'Class sizes are observations from your own transcripts, not savings estimates: a read that changed nothing may still be the read that told you not to change it.',
+    };
+  } catch {
+    // Fail-open: omit waste on error
+  }
 
   if (ctx.why) {
     const totalInput = tokens.input + tokens.cacheWrite + tokens.cacheRead;

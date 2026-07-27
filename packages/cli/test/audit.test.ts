@@ -587,4 +587,140 @@ describe('time metrics in runAudit and renderAudit', () => {
   });
 });
 
+describe('waste accounting and render', () => {
+  it('reports exact calls and tokens per class for exploratory, repeat read, and oversized results', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+
+    // 1. Exploratory read: whole-file read of /unedited.ts (never edited).
+    // 1000 chars -> 250 tokens
+    const exploreRes = res('t1', 1000);
+
+    // 2. Repeat read of unchanged file: read /repeat.ts twice at 400 chars (100 tokens), plus edit /repeat.ts so it's not exploratory.
+    const repeatRes1 = res('t2', 400);
+    const repeatRes2 = res('t3', 400);
+
+    // 3. Oversized result: tool result > 4096 chars (5000 chars = 1250 tokens), plus edit /oversized.ts so it's not exploratory.
+    const oversizedRes = res('t4', 5000);
+
+    const edits = JSON.stringify({
+      type: 'assistant',
+      requestId: 'r-edits',
+      message: {
+        id: 'm-edits',
+        model: 'claude-sonnet-4-5',
+        usage: { input_tokens: 10 },
+        content: [
+          { type: 'tool_use', id: 'e1', name: 'Edit', input: { file_path: '/repeat.ts' } },
+          { type: 'tool_use', id: 'e2', name: 'Edit', input: { file_path: '/oversized.ts' } },
+        ],
+      },
+    });
+
+    const lines = [
+      asst('m1', 'r1', USAGE, [readUse('t1', '/unedited.ts'), readUse('t2', '/repeat.ts'), readUse('t3', '/repeat.ts'), readUse('t4', '/oversized.ts')]),
+      exploreRes,
+      repeatRes1,
+      repeatRes2,
+      oversizedRes,
+      edits,
+    ];
+
+    await writeFile(join(proj, 's.jsonl'), lines.join('\n'));
+
+    const r = await runAudit({ home, scanDirs: [] });
+    expect(r.waste).toBeDefined();
+    expect(r.waste!.classes).toHaveLength(3);
+
+    const oversized = r.waste!.classes.find((c) => c.id === 'oversized');
+    expect(oversized).toBeDefined();
+    expect(oversized!.calls).toBe(1);
+    expect(oversized!.tokens).toBe(1250);
+    expect(oversized!.label).toBe('oversized single results');
+    expect(oversized!.lever).toBe('slicing, head/grep before read');
+
+    const exploratory = r.waste!.classes.find((c) => c.id === 'exploratory');
+    expect(exploratory).toBeDefined();
+    expect(exploratory!.calls).toBe(1);
+    expect(exploratory!.tokens).toBe(250);
+    expect(exploratory!.label).toBe('whole-file reads never edited');
+    expect(exploratory!.lever).toBe('outline-first / symbol reads');
+
+    const repeatRead = r.waste!.classes.find((c) => c.id === 'repeat-read');
+    expect(repeatRead).toBeDefined();
+    expect(repeatRead!.calls).toBe(1);
+    expect(repeatRead!.tokens).toBe(100);
+    expect(repeatRead!.label).toBe('repeat reads of unchanged files');
+    expect(repeatRead!.lever).toBe('cache/dedup of tool output');
+
+    // Assert sorted by tokens desc: 1250 > 250 > 100
+    expect(r.waste!.classes.map((c) => c.id)).toEqual(['oversized', 'exploratory', 'repeat-read']);
+  });
+
+  it('includes an event that is BOTH oversized and exploratory in both classes and has no total waste field', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+
+    // Whole file read of /huge.ts (8000 chars = 2000 tokens), never edited
+    const lines = [
+      asst('m1', 'r1', USAGE, [readUse('t1', '/huge.ts')]),
+      res('t1', 8000),
+    ];
+    await writeFile(join(proj, 's.jsonl'), lines.join('\n'));
+
+    const r = await runAudit({ home, scanDirs: [] });
+    expect(r.waste).toBeDefined();
+    expect(r.waste!.classes).toHaveLength(2);
+
+    const ids = r.waste!.classes.map((c) => c.id).sort();
+    expect(ids).toEqual(['exploratory', 'oversized']);
+
+    const oversized = r.waste!.classes.find((c) => c.id === 'oversized')!;
+    const exploratory = r.waste!.classes.find((c) => c.id === 'exploratory')!;
+    expect(oversized.tokens).toBe(2000);
+    expect(exploratory.tokens).toBe(2000);
+
+    // Assert the report object has no field containing "total" associated with waste
+    const reportKeys = Object.keys(r);
+    const wasteKeys = Object.keys(r.waste!);
+    const allKeys = [...reportKeys, ...wasteKeys];
+    for (const key of allKeys) {
+      if (key.toLowerCase().includes('waste')) {
+        expect(key.toLowerCase()).not.toContain('total');
+      }
+    }
+    expect(JSON.stringify(r)).not.toContain('totalWaste');
+  });
+
+  it('omits CONTEXT WASTE section on empty transcripts', async () => {
+    const home = await fakeHome();
+    const r = await runAudit({ home, scanDirs: [] });
+    expect(r.sessions).toBe(0);
+    expect(r.waste === undefined || r.waste.classes.length === 0).toBe(true);
+
+    const rendered = renderAudit(r, { colors: false, version: '1.0.0' });
+    expect(rendered).not.toContain('CONTEXT WASTE');
+  });
+
+  it('includes verbatim disclaimer note string in --json output', async () => {
+    const home = await fakeHome();
+    const proj = join(home, '.claude', 'projects', 'p');
+    await mkdir(proj, { recursive: true });
+    const lines = [
+      asst('m1', 'r1', USAGE, [readUse('t1', '/a.ts')]),
+      res('t1', 800),
+    ];
+    await writeFile(join(proj, 's.jsonl'), lines.join('\n'));
+
+    const r = await runAudit({ home, scanDirs: [] });
+    const jsonStr = JSON.stringify(r);
+    const expectedNote =
+      'Class sizes are observations from your own transcripts, not savings estimates: a read that changed nothing may still be the read that told you not to change it.';
+    expect(r.waste?.note).toBe(expectedNote);
+    expect(jsonStr).toContain(expectedNote);
+  });
+});
+
 
