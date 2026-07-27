@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { githubDeviceFlow, fetchPercentile, submitScore, shareLinks } from '../src/submit.js';
+import { stat, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  githubDeviceFlow,
+  fetchPercentile,
+  submitScore,
+  shareLinks,
+  readCachedToken,
+  saveCachedToken,
+  clearCachedToken,
+  getTokenPath,
+} from '../src/submit.js';
 
 const PAYLOAD = {
   client_version: '0.1.0', vibe_score: 3101, loc: 100, projects: 1, tokens: 1_200_000_000,
@@ -88,5 +100,25 @@ describe('shareLinks', () => {
       expect(link).not.toContain("'");
       expect(link).toContain('%27'); // the apostrophe from "What's"
     }
+  });
+});
+
+describe('token cache', () => {
+  it('writes cache file with 0600 mode and reads it back', async () => {
+    const tempHome = await mkdtemp(join(tmpdir(), 'vibe-token-test-'));
+    const p = getTokenPath(tempHome);
+    await saveCachedToken('gho_test123', tempHome);
+
+    const st = await stat(p);
+    expect(st.isFile()).toBe(true);
+    if (process.platform !== 'win32') {
+      expect((st.mode & 0o777).toString(8)).toBe('600');
+    }
+
+    const cached = await readCachedToken(tempHome);
+    expect(cached).toBe('gho_test123');
+
+    await clearCachedToken(tempHome);
+    expect(await readCachedToken(tempHome)).toBeNull();
   });
 });

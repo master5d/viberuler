@@ -1,8 +1,50 @@
+import { mkdir, readFile, writeFile, chmod, rm } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import type { SubmitPayload } from './payload.js';
 import { fmtCompact, fmtUsd } from './format.js';
 
 export const DEFAULT_API = 'https://viberuler.dev';
 export const DEFAULT_CLIENT_ID = 'Ov23li4ZfCaG86O8UGR3';
+
+export function getTokenPath(home?: string): string {
+  const h = home ?? process.env.VIBERULER_HOME ?? homedir();
+  return join(h, '.viberuler', 'token.json');
+}
+
+export async function readCachedToken(home?: string): Promise<string | null> {
+  try {
+    const p = getTokenPath(home);
+    const raw = await readFile(p, 'utf8');
+    const parsed = JSON.parse(raw) as { token?: string };
+    if (parsed && typeof parsed.token === 'string' && parsed.token.trim()) {
+      return parsed.token.trim();
+    }
+  } catch {
+    // missing or unreadable
+  }
+  return null;
+}
+
+export async function saveCachedToken(token: string, home?: string): Promise<void> {
+  const p = getTokenPath(home);
+  const dir = join(p, '..');
+  await mkdir(dir, { recursive: true });
+  await writeFile(p, JSON.stringify({ token }, null, 2), { mode: 0o600, encoding: 'utf8' });
+  try {
+    await chmod(p, 0o600);
+  } catch {
+    // ignore
+  }
+}
+
+export async function clearCachedToken(home?: string): Promise<void> {
+  try {
+    await rm(getTokenPath(home), { force: true });
+  } catch {
+    // ignore
+  }
+}
 
 export interface SubmitDeps {
   fetchImpl?: typeof fetch;

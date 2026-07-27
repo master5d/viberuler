@@ -169,4 +169,20 @@ describe('renderCard', () => {
     const out = renderCard(computeScore(stats), { colors: false, version: '0.1.0' });
     expect(out).not.toContain('line shipped');
   });
+
+  it('renders the time row when a timeReport is supplied and totalActiveMs > 0', () => {
+    const stats = { ...emptyStats(), commits: 10, sources: ['git'] };
+    const timeReport = { totalActiveMs: 44_640_000, totalWallMs: 111_600_000, days: [], projects: [] };
+    const out = renderCard(computeScore(stats), { colors: false, version: '0.1.0', timeReport });
+    expect(out).toContain('⏱ 12.4h of your attention · 31.0h wall');
+  });
+
+  it('omits the time row when timeReport is absent or totalActiveMs is 0', () => {
+    const stats = { ...emptyStats(), commits: 10, sources: ['git'] };
+    const outAbsent = renderCard(computeScore(stats), { colors: false, version: '0.1.0' });
+    expect(outAbsent).not.toContain('⏱');
+
+    const outZero = renderCard(computeScore(stats), { colors: false, version: '0.1.0', timeReport: { totalActiveMs: 0, totalWallMs: 1000, days: [], projects: [] } });
+    expect(outZero).not.toContain('⏱');
+  });
 });
