@@ -1,68 +1,146 @@
 # Show HN — launch sheet
 
+> Rewritten 2026-07-27 for **v0.7.0** (time metrics, `--share`, waste oracle).
+> All figures below were measured on the author's rig on 2026-07-27 — re-measure
+> the morning of the post and replace them if they moved.
+
+## The line (why this post exists now)
+
+A widely-shared list names ~10 GitHub repos promising to "cut Claude Code tokens by up
+to 90%". All of them are real projects. **None publishes a methodology behind its
+percentage.** They treat; nobody measures. That is the post:
+
+> **Don't take anyone's 90% — including mine. Measure it on your own transcripts.**
+
+Every honesty rule in the tool (no savings estimates, no total-waste sum, deltas labelled
+observation-not-causation, empty windows degrade instead of flattering) exists to earn
+that sentence. Lead with it, defend it in replies.
+
 ## Where
 
 **https://news.ycombinator.com/submit**
 
-- **URL:** `https://github.com/master5d/viberuler` — the repo, not the site. Show HN wants the thing itself; a landing page reads like marketing.
-- Leave the **text field empty**. HN lets you have a URL *or* text, not both. The write-up goes in as your **own first comment**, immediately after submitting.
+- **URL:** `https://github.com/master5d/viberuler` — the repo, not the site. Show HN
+  wants the thing itself; a landing page reads like marketing.
+- Leave the **text field empty**. HN allows a URL *or* text, not both. The write-up is
+  your **own first comment**, posted immediately after submitting.
 
 ## Title (≤ 80 chars — HN truncates silently)
 
-Pick one. My recommendation is **A**: understated, concrete, and it doesn't oversell — HN punishes a title that promises more than the first comment delivers.
-
 | | Title | chars |
 |---|---|---|
-| **A** ✅ | `Show HN: Viberuler – an npx one-liner that benchmarks your AI coding` | 68 |
-| B | `Show HN: I audited my AI coding rig and found 1.5GB of MCPs I never called` | 74 |
-| C | `Show HN: Viberuler – benchmark your AI coding, then audit what your rig costs` | 77 |
+| **A** ✅ | `Show HN: Viberuler – measure where your AI coding context actually goes` | 71 |
+| B | `Show HN: Everyone sells 90% token savings; this measures yours instead` | 70 |
+| C | `Show HN: Viberuler – an npx one-liner that benchmarks your AI coding` | 68 |
 
-B is the highest-ceiling title and the highest-variance one: it leads with the finding rather than the tool, which can read as blogspam if the repo underdelivers. It doesn't — but that's the risk.
+**A** recommended: concrete, promises no percentage, survives the first skeptical reply.
+**B** has the highest ceiling and the highest variance — it picks a fight with a whole
+category in the title, so use it only if you'll defend methodology for three hours
+straight. **C** is the old title: safe, undersells what the tool now does.
 
 ## When
 
-**Tuesday, Wednesday or Thursday, 08:00–09:00 PT** = **10:00–11:00 your time (Nashville, CT)**.
+**Tue / Wed / Thu, 08:00–09:00 PT** = **10:00–11:00 Nashville**. US morning crowd, soft
+front page. Avoid Fri–Sun (thin traffic, ages out before Monday) and Mon (weekend backlog).
 
-That's when the US morning crowd arrives and the front page is still soft. Avoid Friday–Sunday (thin traffic, and your post ages out before Monday). Avoid Monday (backlog of weekend submissions).
+## The first comment (post within 60 seconds of submitting)
 
-## The first comment (post it within 60 seconds of submitting)
+> Hi HN — I built a benchmark for the way a lot of us work now, and then it started
+> telling me things I didn't want to hear.
+>
+> `npx viberuler` scans locally — Claude Code / Codex / Cursor / Gemini / Cline session
+> logs (tokens + API-equivalent cost) plus your git repos — and scores you. The headline
+> is **tokens per dollar**: anyone can burn tokens; burning them efficiently is the
+> interesting part.
+>
+> Three things I'd actually defend:
+>
+> **1. It caught me inflating my own score.** LoC was the size of my repo trees
+> (`git ls-files`), so it credited me with vendored code I never touched and every line a
+> compiler emitted — one `wrangler types` run writes a 548KB `.d.ts`. I changed it to
+> count only lines I added in my own commits. My headline dropped 17%
+> (393,750 → 328,419) and I shipped the smaller number. The excluded lines aren't hidden,
+> they're reported: **33% of everything I committed was machine output**. A number you
+> can't see is a number you can't reduce.
+>
+> **2. `viberuler audit` scores your setup, not your output.** Reads transcripts locally,
+> sends nothing. On my rig, across **11,801 sessions**: context amplification **1378×**
+> (how many times an admitted token gets re-fed — main-thread only, because pooling
+> short-lived subagent contexts halves the number and lies to you), plus cold context
+> before you type a word, and MCP servers that load every session and get called *zero*
+> times — it found two burning 1.5GB across 76 processes for 0 calls.
+>
+> **3. The part I care about most: it measures context waste without promising savings.**
+> There's a well-shared list of ~10 repos promising to cut Claude Code tokens by up to
+> 90%. All real projects; none publishes a methodology. So `audit` prints named waste
+> classes with calls, tokens, and the *lever* that would shrink each one. Mine right now:
+>
+> ```
+> oversized single results          5.7M tok · 2,555 calls  → slice / grep before read
+> subagent-returned tokens          2.2M tok · 4,068 calls  → tighter subagent contracts
+> whole-file reads never edited     1.9M tok · 3,394 calls  → outline-first / symbol reads
+> repeat reads of unchanged files   199K tok ·   301 calls  → cache tool output
+> ```
+>
+> And that's where it stops:
+>
+> - **No "you would save N%".** The counterfactual is unknowable: a read that changed
+>   nothing may be the read that told you *not* to change something.
+> - **No total-waste sum.** Those classes overlap by construction, so a sum would
+>   double-count and manufacture a headline. The output says so on screen.
+> - `audit --compare A..B` puts two windows side by side — install an optimizer, compare
+>   before/after on your own logs — and labels the delta an observation, not causation,
+>   because workload differs between windows. A window with no sessions prints "not
+>   enough data" instead of a flattering zero. That guard exists because review caught it
+>   rendering an empty *future* window as a −2.3K "improvement" — exactly the lie the
+>   feature was built to refute.
+>
+> Also new: **your own hours**, derived from transcript timestamps — no daemon, nothing
+> watching your screen. Mine: **1,001 hours of attention across 3,136 hours of
+> wall-clock**. And `--share` prints a card URL you can post without signing into
+> anything; that card is branded SELF-REPORTED · UNVERIFIED and carries no rank — the
+> leaderboard stays GitHub-verified.
+>
+> Privacy, since it's the first thing I'd ask: default run makes **zero network calls**.
+> `--submit` is opt-in, sends fourteen aggregate fields, and prints the exact JSON before
+> anything leaves the machine (`viberuler payload` shows the same without sending). Tool
+> names and MCP config are a fingerprint of how you work — not in the payload, ever.
+> Backend (CF Worker + D1) is in the same repo.
+>
+> One runtime dependency (picocolors). Collectors are a two-method interface; Windsurf
+> and Aider are open `good first issue`s.
+>
+> Happy to go into the JSONL replay dedup (Claude Code replays >50% of its usage records
+> — miss it and every number doubles), why I refuse to print a savings percentage, or
+> rendering OG images with satori inside a Worker.
 
-> Hi HN — I built a benchmark for the way a lot of us actually work now.
->
-> `npx viberuler` scans your machine locally — Claude Code / Codex / Cursor / Gemini / Cline session logs (tokens + API-equivalent cost) and your git repos — and computes a score. The headline is **tokens per dollar**: anyone can burn tokens; burning them efficiently is the interesting number.
->
-> The part I'd actually defend is what happened when I pointed it at myself.
->
-> **It was inflating my own score.** LoC was the size of my repo trees (`git ls-files`), which meant it credited me with vendored code I never touched and with every line a compiler emitted — one `wrangler types` run writes a 548KB `.d.ts`. I changed it to count only lines I added in my own commits, generated output excluded. My headline number dropped 17% (393,750 → 328,419) and I shipped the smaller one. A benchmark that flatters its author is the one thing this can't be.
->
-> The excluded lines aren't thrown away, they're reported: **33% of everything I committed was machine output** — regenerated types, bundles, lockfiles. Not scored, never sent. A number you can't see is a number you can't reduce.
->
-> Then there's `npx viberuler audit`, which scores your *setup* instead of your output. It reads your Claude Code transcripts locally (sends nothing) and reports:
->
-> - **Context amplification** — how many times a token you admit into context gets re-fed to the model. **1088×** on my rig. Main-thread only: pooling short-lived subagent contexts halves that number and lies to you.
-> - **Subagent compression** — 15×, at an honest ~18% overhead. The pitch isn't "free", it's "pay 18% to dodge a 1000× multiplier."
-> - **Cold context** — 50K tokens before you type a word, re-paid on every subagent spawn.
-> - **Dead weight** — MCP servers that load every session, spawn processes, inject schemas, and get called *zero* times. It found two burning 1.5GB across 76 processes for 0 calls in 10,700 sessions. I'd been paying for them for months.
->
-> Privacy, since it's the first thing I'd ask: the default run makes **zero network calls**. `--submit` is opt-in, sends fourteen aggregate fields, and prints the exact JSON before anything leaves the machine (`viberuler payload` shows the same without sending). Tool names and MCP config are a fingerprint of how you work — they are not in the payload and never will be. Backend (CF Worker + D1) is in the same repo.
->
-> One runtime dependency (picocolors). Collectors are a two-method interface; Windsurf and Aider are open `good first issue`s if you want your tool on the board.
->
-> Happy to go into the JSONL replay dedup (Claude Code replays >50% of its usage records — miss it and every number doubles), the D1 percentile queries, or rendering OG images with satori inside a Worker.
+## Re-measure before posting
+
+Run these the morning of the post; if a number moved, edit the comment before submitting.
+The whole thesis is measurement — never post a figure you haven't just re-taken.
+
+```bash
+npx viberuler@latest audit          # amplification, waste classes, hours
+npx viberuler@latest --share        # card URL, sanity-check it renders
+```
+
+Measured 2026-07-27: sessions 11,801 · amplification 1378× · attention 1,001h / wall
+3,136h · waste: oversized 5.7M, subagent-returned 2.2M, exploratory 1.9M, repeat 199K.
 
 ## First hour — this is where it's won or lost
 
-1. **Stay at the keyboard for 2–3 hours.** Reply to every comment, fast. Response latency is the single biggest thing you control.
-2. **Never ask for upvotes.** Not on X, not in Slack, not to friends. HN detects voting rings and will bury the post silently. Sharing the *link* is fine; asking for votes is not.
-3. **Agree with good criticism, out loud.** The self-reported-data objection is coming — don't get defensive, just concede it: sanity caps catch the blatant, the clever are only lying to the group chat. The LoC story is your proof you'll fix things when they're wrong.
-4. **Expect "vanity metric" pushback.** Your answer is the honest-LoC change and the audit — both are cases of the tool telling its own author something he didn't want to hear.
-5. If it lands flat with **zero comments**, HN permits **one** repost days later, ideally with a different title. Don't repost something that got engagement and died — that reads as gaming.
-
-## Pre-flight (all ✅ as of v0.6.0)
-
-- [x] `npx viberuler` works from a cold cache — verified against the published 0.6.0
-- [x] README demo gifs re-rendered on 0.6.0 (they showed the old inflated LoC)
-- [x] 3-OS CI green
-- [x] LICENSE present
-- [x] METHODOLOGY explains every number, including what LoC still *can't* see
-- [ ] LinkedIn Post Inspector — flush the cached og:image (it holds the pre-honesty certificate)
+1. **Stay at the keyboard 2–3 hours.** Reply fast; latency is the one thing you control.
+2. **Never ask for upvotes.** Sharing the link is fine; asking is a silent bury.
+3. **Concede good criticism out loud.** Self-reported data: sanity caps catch the
+   blatant; clever cheaters are only lying to their group chat. The LoC story is proof
+   you fix things that flatter you.
+4. **The category fight is coming** ("another vanity metric" / "why not just use $TOOL
+   that saves 90%"). Answer with the constraints, not with claims: no savings estimate,
+   no total sum, deltas are observations. You're not competing with those tools — you're
+   the instrument that checks them.
+5. **"Isn't the time tracking creepy?"** — derived from timestamps already in your
+   transcripts; nothing watches your screen, nothing leaves the machine.
+6. **"1378× amplification, really?"** — explain the definition before defending the
+   number: tokens re-fed ÷ tokens admitted, main thread only, and the code is right there.
+7. If it lands with **zero comments**, HN permits **one** repost days later with a
+   different title. Don't repost something that got engagement and died.
