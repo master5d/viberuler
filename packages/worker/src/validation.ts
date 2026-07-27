@@ -5,6 +5,14 @@ export const KNOWN_ACHIEVEMENTS = [
   'monorepo-menace', 'streak-freak', '3am-committer', 'yolo-force-pusher',
 ] as const;
 
+export const SANITY_CAPS = {
+  loc: 50_000_000,
+  tokens: 100_000_000_000,
+  tok_per_usd: 100_000_000,
+  tok_per_loc: 100_000_000,
+  vibe_score: 50_000,
+} as const;
+
 export const submitPayloadSchema = z
   .object({
     client_version: z.string().max(20),
@@ -26,14 +34,30 @@ export const submitPayloadSchema = z
 
 export type SubmitPayload = z.infer<typeof submitPayloadSchema>;
 
+export const shareCardSchema = z
+  .object({
+    v: z.string().max(20),
+    s: z.number().nonnegative(),
+    tpu: z.number().nonnegative().nullable(),
+    tpl: z.number().nonnegative().nullable(),
+    loc: z.number().int().nonnegative(),
+    streak: z.number().int().nonnegative(),
+    hours: z.number().nonnegative().optional(),
+    agents: z.array(z.string().max(40)).max(32).optional(),
+    ach: z.array(z.string().max(40)).max(32).optional(),
+  })
+  .strict();
+
+export type ShareCardPayload = z.infer<typeof shareCardSchema>;
+
 const KNOWN = new Set<string>(KNOWN_ACHIEVEMENTS);
 
 export function susReason(p: SubmitPayload): string | null {
-  if (p.loc > 50_000_000) return 'loc';
-  if (p.tokens > 100_000_000_000) return 'tokens';
+  if (p.loc > SANITY_CAPS.loc) return 'loc';
+  if (p.tokens > SANITY_CAPS.tokens) return 'tokens';
   if (p.tokens > 1_000_000 && p.cost_usd < 0.01) return 'cost';
-  if (p.tok_per_usd !== null && p.tok_per_usd > 100_000_000) return 'efficiency';
-  if (p.vibe_score > 50_000) return 'vibe';
+  if (p.tok_per_usd !== null && p.tok_per_usd > SANITY_CAPS.tok_per_usd) return 'efficiency';
+  if (p.vibe_score > SANITY_CAPS.vibe_score) return 'vibe';
   if (p.achievements.some((a) => !KNOWN.has(a))) return 'achievements';
   return null;
 }

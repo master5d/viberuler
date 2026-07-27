@@ -7,6 +7,7 @@ import { handleBadge } from './routes/badge.js';
 import { handleOg } from './routes/og.js';
 import { handleStory } from './routes/story.js';
 import { handleContact } from './routes/contact.js';
+import { handleCard } from './routes/card.js';
 
 export interface Env {
   DB: D1Database;
@@ -51,6 +52,7 @@ export default {
         return handleContact(request, env);
       }
       if (request.method === 'GET' && pathname.startsWith('/u/')) return handleShare(request, env, url);
+      if (request.method === 'GET' && pathname === '/card') return handleCard(request, env, url);
       if (request.method === 'GET' && pathname.startsWith('/og/')) return handleOg(request, env, url);
       if (request.method === 'GET' && pathname.startsWith('/story/')) return handleStory(request, env, url);
       return json({ error: 'not found' }, 404);
