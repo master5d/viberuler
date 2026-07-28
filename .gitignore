@@ -7,3 +7,8 @@ packages/worker/.wrangler/
 # demo intermediates — regenerate with assets/gen-cast.mjs
 assets/*.ansi
 assets/*.cast
+
+# Реестровый метафайл лаборатории (loop-доктрина NAUTILUS): его читают локальные
+# сенсоры, но в ПУБЛИЧНОМ репо продукта он лишний шум для контрибьюторов.
+# Комментарий отдельной строкой: в конце строки gitignore его не понимает.
+/meta.json
