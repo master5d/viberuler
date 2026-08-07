@@ -16,6 +16,21 @@ Every honesty rule in the tool (no savings estimates, no total-waste sum, deltas
 observation-not-causation, empty windows degrade instead of flattering) exists to earn
 that sentence. Lead with it, defend it in replies.
 
+### The casino angle (ammo for replies, not for the title)
+
+Tokens are priced like casino chips: a denomination designed so spending them doesn't
+feel like spending money. Agents make it worse — the burn happens off-screen while the
+wheel spins. And notice that every celebrated new workflow (vibe-code it, ramble at the
+model, hand the agent an idea file) lowers the effort per attempt and raises the tokens
+per attempt. None of that is a conspiracy; it's just incentives — the vendors sell
+tokens, and the ecosystem's advice trends toward burning more of them.
+
+Viberuler's role in that frame: **the cashier's window**. It converts chips back into
+dollars (API-equivalent, total and per platform) and shows the growth multiple between
+two windows as a plain fact. Use this angle when someone asks "why measure at all?" or
+"isn't this just a vanity metric?" — the vanity metric is the *unconverted* chip count.
+Don't use it to accuse any vendor; the tool measures, it doesn't editorialize.
+
 ## Where
 
 **https://news.ycombinator.com/submit**
