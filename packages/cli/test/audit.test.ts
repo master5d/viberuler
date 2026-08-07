@@ -538,8 +538,14 @@ describe('time metrics in runAudit and renderAudit', () => {
     expect(out.indexOf('Smart')).toBeLessThan(out.indexOf('Mystery')); // unscored trail
     const valueLine = out.split('\n').find((l) => l.includes('Value'))!;
     expect(valueLine).toContain('intel 45.0');
-    expect(valueLine).toContain('150 intel/$');
+    expect(valueLine).toContain('$0.0067/pt'); // $0.30 mix ÷ 45 index points
     expect(valueLine).toContain('max AI per dollar');
+    // the unit must survive a real-scale mix, where points-per-dollar reads 0.00
+    const bigLine = renderAudit(
+      { ...base, tokens: { input: 34_000_000, output: 123_000_000, cacheWrite: 835_000_000, cacheRead: 25_850_000_000 } },
+      { colors: false, version: '1.0.0' },
+    ).split('\n').find((l) => l.includes('Smart'))!;
+    expect(bigLine).toMatch(/\$\d{3,}\/pt/);
     expect(out.match(/max AI per dollar/g)).toHaveLength(1); // exactly one crown
     expect(out).toContain('Artificial Analysis intelligence index');
   });

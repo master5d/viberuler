@@ -187,8 +187,11 @@ quality, and cache mechanics differ, so the table says what your volume costs pe
 counter, never what you would save.
 
 The same table answers **maximum AI performance per dollar**: where the catalog carries
-an Artificial Analysis intelligence index, each counter shows `intel/$` for *your* mix,
-the ranking is by that number, and the best one wears 🏆. Models without a published
+an Artificial Analysis intelligence index, each counter shows what **one index point
+costs** on *your* mix (`$/pt`), the ranking is by that, and the cheapest wears 🏆 —
+points-per-dollar was the first cut, but it reads `0.00` on every row once a mix gets
+into the billions of tokens, while `$12.77/pt vs $688.51/pt` stays legible at any
+scale (same ordering, upside down). Models without a published
 score say so and trail the list — an unknown is not a zero. The index is a third-party
 benchmark of the model, not of your workload; the crown marks the cheapest intelligence,
 not the most of it.

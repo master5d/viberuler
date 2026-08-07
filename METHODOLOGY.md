@@ -72,7 +72,10 @@ input. Model ids are matched on their **last path segment**, so
   network calls.
 - **AI performance per dollar** rides the same catalog: where OpenRouter republishes an
   Artificial Analysis intelligence index for a model, the market table adds
-  `intel/$ = index ÷ cost-of-your-mix`, ranks by it, and crowns the maximum. The index
+  the price of one index point on your mix (`cost-of-your-mix ÷ index`), ranks by it
+  ascending, and crowns the cheapest. Points-per-dollar is the same ratio inverted, but
+  it degenerates to `0.00` once the mix reaches billions of tokens, so the printed unit
+  is dollars-per-point. The index
   is a third-party benchmark (source + date = the catalog fetch), never our measurement;
   models without one are labelled "no published score" and sorted after the scored ones
   rather than treated as zero.

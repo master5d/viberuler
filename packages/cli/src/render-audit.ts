@@ -297,11 +297,16 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
     });
     const bestPerf = priced.find((p) => p.perf !== undefined);
     const width = Math.max(...priced.map((p) => p.rate.label.length));
-    const fmtPerf = (n: number): string => (n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(2));
+    // Price of ONE index point, not points per dollar: on a real full-history mix
+    // (tens of billions of tokens) intel/$ collapses to "0.00" on every row, while
+    // "$12.77 vs $688.51 per point" stays legible at any scale. Same ordering —
+    // max(intel/$) is min($/point).
+    const fmtPoint = (n: number): string =>
+      n >= 100 ? `$${n.toFixed(0)}` : n >= 1 ? `$${n.toFixed(2)}` : `$${n.toPrecision(2)}`;
     for (const p of priced) {
       const perfStr =
         p.perf !== undefined
-          ? `intel ${p.rate.intelligence!.toFixed(1)} · ${fmtPerf(p.perf)} intel/$`
+          ? `intel ${p.rate.intelligence!.toFixed(1)} · ${fmtPoint(p.usd / p.rate.intelligence!)}/pt`
           : 'no published score';
       const crown = bestPerf && p === bestPerf ? ` 🏆 ${c.bold('max AI per dollar')}` : '';
       rows.push(`  ${p.rate.label.padEnd(width)}  ${fmtUsd(p.usd).padStart(12)}   ${c.dim(perfStr)}${crown}`);
