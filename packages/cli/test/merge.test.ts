@@ -44,6 +44,12 @@ describe('mergeStats', () => {
     expect(b.warnings).toEqual(['w1']);
   });
 
+  it('sum-merges costByAgent like tokensByAgent', () => {
+    const a = mergeStats(emptyStats(), { costByAgent: { 'Claude Code': 1.5, Codex: 0.5 } });
+    const b = mergeStats(a, { costByAgent: { 'Claude Code': 0.5, Cursor: 2 } });
+    expect(b.costByAgent).toEqual({ 'Claude Code': 2, Codex: 0.5, Cursor: 2 });
+  });
+
   it('unions agents without duplicates', () => {
     const a = mergeStats(emptyStats(), { agents: ['Claude Code', 'Codex'] });
     const b = mergeStats(a, { agents: ['Codex', 'Cursor'] });

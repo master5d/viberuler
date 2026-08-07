@@ -17,6 +17,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'streak-freak', title: 'Streak Freak', emoji: '🔥', test: (s) => s.streakDays >= 100 },
   { id: '3am-committer', title: '3AM Committer', emoji: '🌙', test: (s) => s.lateNightCommits >= 10 },
   { id: 'yolo-force-pusher', title: 'YOLO Force Pusher', emoji: '💥', test: (s) => s.historyRewrites >= 20 },
+  // The casino wing. Tokens are chips — denominated so you don't feel the money
+  // leaving. These two turn the chips back into dollars.
+  { id: 'high-roller', title: 'High Roller', emoji: '🎰', test: (s) => s.costUsd >= 1000 },
+  { id: 'table-hopper', title: 'Table Hopper', emoji: '🎲', test: (s) => Object.values(s.costByAgent).filter((v) => v >= 1).length >= 3 },
 ];
 
 export function evalAchievements(s: RawStats): Achievement[] {

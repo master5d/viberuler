@@ -22,22 +22,61 @@ Collectors are plugins behind a 2-method interface (`detect` / `collect`). Winds
 
 ## 2. Cost model
 
-Costs are computed from a **bundled static price table** (USD per million tokens), snapshotted **2026-07-08** (`PRICES_SNAPSHOT_DATE`) and refreshed together with its date each release. Historical usage is priced at the snapshot rates — we do not model per-date price history, so month-old tokens are valued at today's prices (same tradeoff as ccusage; keeps the scan dependency-free and offline). Source: [`packages/cli/src/pricing.ts`](packages/cli/src/pricing.ts).
+Costs are computed from a **bundled static price table** (USD per million tokens), snapshotted **2026-08-07** (`PRICES_SNAPSHOT_DATE`) and refreshed together with its date each release. Historical usage is priced at the snapshot rates — we do not model per-date price history, so month-old tokens are valued at today's prices (same tradeoff as ccusage; keeps the scan dependency-free and offline). Source: [`packages/cli/src/pricing.ts`](packages/cli/src/pricing.ts).
 
 | Model family (prefix match) | Input | Output | Cache write | Cache read |
 |---|---|---|---|---|
-| `claude-opus` | 15 | 75 | 18.75 | 1.50 |
+| `claude-opus` | 5 | 25 | 6.25 | 0.50 |
 | `claude-sonnet` | 3 | 15 | 3.75 | 0.30 |
+| `claude-sonnet-5` | 2 | 10 | 2.50 | 0.20 |
 | `claude-haiku` | 1 | 5 | 1.25 | 0.10 |
-| `claude-fable` | 15 | 75 | 18.75 | 1.50 |
+| `claude-fable` / `claude-mythos` | 10 | 50 | 12.50 | 1.00 |
 | `codex-default` | 1.25 | 10 | 1.25 | 0.125 |
 | `gemini-2.5-pro` | 1.25 | 10 | 1.25 | 0.31 |
 | `gemini` (flash/default) | 0.30 | 2.50 | 0.30 | 0.075 |
+| `kimi-k3` | 3 | 15 | 3 | 0.30 |
+| `kimi-k2` | 0.70 | 3.50 | 0.70 | 0.15 |
+| `deepseek-v4-pro` | 0.44 | 0.87 | 0.44 | 0.004 |
+| `deepseek` (flash/default) | 0.09 | 0.18 | 0.09 | 0.018 |
+| `glm-5.2` / `glm` | 0.69 / 0.95 | 2.15 / 2.55 | = input | 0.13 / 0.20 |
+| `qwen3.8-max` / `qwen` | 2 / 0.32 | 6 / 1.28 | 2.50 / 0.40 | 0.25 / 0.064 |
+| `llama-4` | 0.20 | 0.80 | 0.20 | 0.20 |
+| `minimax-m3` | 0.30 | 1.20 | 0.30 | 0.06 |
+| `grok` | 2 | 6 | 2 | 0.30 |
+
+The open-weight rows exist for the LiteLLM-gateway lane: a self-hosted rig routing
+Kimi/DeepSeek/GLM/Qwen used to count those tokens at $0 ("no known price"), which
+inflated tok/$. List rates are taken from the OpenRouter public catalog on the snapshot
+date; where a provider publishes no separate cache rate, reads and writes bill as plain
+input. Model ids are matched on their **last path segment**, so
+`openrouter/moonshotai/kimi-k3` and `kimi-k3` price identically.
 
 - **Cache writes are tiered.** The Claude rows' cache-write column is the 5-minute (1.25× input) rate. When Claude Code logs carry the `usage.cache_creation` breakdown, the 1-hour portion is billed at **2× input** (`ephemeral_1h_input_tokens`). Legacy logs without the breakdown fall back to the 5-minute rate, which **undercounts** 1h-heavy sessions — a documented, conservative-for-your-wallet simplification.
 - Unknown Claude models fall back to the **sonnet** tier.
 - Codex tokens are costed at the fixed `codex-default` rate.
+- Claude rates reflect the **June-2026 Anthropic repricing**: Opus 4.x dropped to 5/25, and the Fable/Mythos 5 tier bills at 2× Opus. Usage recorded before the repricing is still valued at these snapshot rates (see the snapshot policy above).
 - **If you're on a subscription**, this is *API-equivalent value*, not what you actually paid. That's deliberate — "I extracted $18,000 of API value from a $200 subscription" **is** the flex, and tokens-per-dollar rewards exactly that.
+- **Self-hosted models aren't free either** — they cost watts and iron. Opt-in
+  `VIBERULER_LOCAL_RATE=<USD per Mtok>` prices gateway models matching
+  `VIBERULER_LOCAL_MODELS` prefixes (default `local`) at *your own* blended
+  electricity + amortization rate. You compute the number, we only apply it — and the
+  scan says so out loud (`priced at your own $/Mtok, self-reported`). Without the env
+  var those tokens stay an honest $0.
+- **`audit --market` (opt-in network call)** reprices your measured token mix at current
+  market list rates: one anonymous GET to the OpenRouter public catalog, cached locally
+  for a day, degrading to the cache and then to a bundled snapshot when offline — the
+  output labels which one answered. It is arithmetic, not advice: the same token counts
+  at each list price. Another model would tokenize the same work differently, answer
+  differently, and cache differently, so the table deliberately says "what your volume
+  costs per counter", never "what you would save". The default run still makes zero
+  network calls.
+- **AI performance per dollar** rides the same catalog: where OpenRouter republishes an
+  Artificial Analysis intelligence index for a model, the market table adds
+  `intel/$ = index ÷ cost-of-your-mix`, ranks by it, and crowns the maximum. The index
+  is a third-party benchmark (source + date = the catalog fetch), never our measurement;
+  models without one are labelled "no published score" and sorted after the scored ones
+  rather than treated as zero.
+- **Multiple subscriptions** are the normal case on a serious rig — a Claude plan *and* a ChatGPT/Codex one, maybe Cursor on top. Each platform is its own collector, so the card's per-agent legend shows the API-equivalent value **per platform**: that's what each subscription's traffic was worth. Two accounts of the *same* platform (say, a work and a personal Claude plan) merge into one line — transcripts carry no account identity, so attribution stops at the platform. To split them, run once per account with `VIBERULER_AGENT_HOMES` pointing at a single home. The headline `$ burned` stays the sum across everything, and the flex denominator is *all* your subscriptions together, not the biggest one.
 
 ## 3. The formula
 

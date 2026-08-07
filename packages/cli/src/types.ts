@@ -28,6 +28,15 @@ export interface RawStats {
   spanDays: number;
   tokens: TokenUsage;
   tokensByAgent: Record<string, number>; // total tokens attributed per agent (distribution strip)
+  /**
+   * API-equivalent USD attributed per agent, same keys as tokensByAgent. This is
+   * what makes a multi-subscription rig legible: each platform's line (Claude
+   * Code, Codex, Cursor, ...) is the value THAT subscription's traffic was worth.
+   * Two accounts of the same agent (e.g. two Claude subscriptions via
+   * --agent-home) still merge into one line — attribution is per platform,
+   * not per account; METHODOLOGY documents the limitation.
+   */
+  costByAgent: Record<string, number>;
   costUsd: number;
   ghStars: number;
   agents: string[];           // coding agents detected on this rig (display names)

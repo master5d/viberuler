@@ -3,6 +3,7 @@ import type { AuditReport } from './audit.js';
 import { railCard } from './render.js';
 import { fmtCompact, fmtInt, fmtUsd } from './format.js';
 import type { RootCause } from './root-cause.js';
+import { repriceMix } from './market.js';
 
 const TOP_TOOLS = 8;
 
@@ -94,6 +95,17 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
       }
     } else {
       rows.push(c.dim('  no waste recorded in either window'));
+    }
+
+    // Total burn per window, stated as a fact. The multiple is workload growth
+    // as much as anything — the note below already owns that caveat.
+    if ((!comp.insufficient || comp.insufficient.length === 0) && (comp.windows.a.tokens > 0 || comp.windows.b.tokens > 0)) {
+      const mult =
+        comp.windows.a.tokens > 0 && comp.windows.b.tokens > 0
+          ? `   (×${(comp.windows.b.tokens / comp.windows.a.tokens).toFixed(1)})`
+          : '';
+      rows.push('');
+      rows.push(`  total burn: ${fmtCompact(comp.windows.a.tokens)} tok → ${fmtCompact(comp.windows.b.tokens)} tok${mult}`);
     }
 
     rows.push(c.dim('  classes overlap — an oversized read can also be exploratory; do not sum them'));
@@ -259,6 +271,46 @@ export function renderAudit(r: AuditReport, opts: { colors: boolean; version: st
     rows.push(c.dim('  skills may still be earning their keep.'));
   } else if (r.surfaces.length > 0) {
     rows.push(`${c.green('✅')} all ${c.bold(String(r.surfaces.length))} MCP surfaces earn their keep`);
+  }
+
+  // 8. Opt-in (--market): the same mix, repriced at market list rates. Pure
+  // arithmetic on YOUR measured token counts — deliberately not a savings
+  // estimate: another model would tokenize differently, answer differently,
+  // and cache differently. It answers one question only: what does this
+  // volume cost at each counter of the exchange.
+  if (r.market && r.market.rates.length > 0) {
+    rows.push('');
+    const srcLabel = r.market.source === 'live' ? 'live' : r.market.source === 'cache' ? 'cached' : 'bundled snapshot';
+    rows.push(c.bold('YOUR MIX AT MARKET RATES') + c.dim(` (${srcLabel} · as of ${r.market.asOf})`));
+    const priced = r.market.rates.map((rate) => {
+      const usd = repriceMix(r.tokens, rate);
+      const perf = rate.intelligence !== undefined && usd > 0 ? rate.intelligence / usd : undefined;
+      return { rate, usd, perf };
+    });
+    // Scored counters rank by AI-performance-per-dollar of YOUR mix, best
+    // first; unscored ones trail, cheapest first, and say so.
+    priced.sort((a, b) => {
+      if (a.perf !== undefined && b.perf !== undefined) return b.perf - a.perf;
+      if (a.perf !== undefined) return -1;
+      if (b.perf !== undefined) return 1;
+      return a.usd - b.usd;
+    });
+    const bestPerf = priced.find((p) => p.perf !== undefined);
+    const width = Math.max(...priced.map((p) => p.rate.label.length));
+    const fmtPerf = (n: number): string => (n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(2));
+    for (const p of priced) {
+      const perfStr =
+        p.perf !== undefined
+          ? `intel ${p.rate.intelligence!.toFixed(1)} · ${fmtPerf(p.perf)} intel/$`
+          : 'no published score';
+      const crown = bestPerf && p === bestPerf ? ` 🏆 ${c.bold('max AI per dollar')}` : '';
+      rows.push(`  ${p.rate.label.padEnd(width)}  ${fmtUsd(p.usd).padStart(12)}   ${c.dim(perfStr)}${crown}`);
+    }
+    rows.push(c.dim('  arithmetic, not advice: same token counts at each list price.'));
+    rows.push(c.dim('  tokenizers, quality, and cache mechanics all differ — this is'));
+    rows.push(c.dim('  what your volume costs per counter, not what you would save.'));
+    rows.push(c.dim('  intel = Artificial Analysis intelligence index as republished in'));
+    rows.push(c.dim('  the catalog — a third-party benchmark, not your workload.'));
   }
 
   rows.push('');

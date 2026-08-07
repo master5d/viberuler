@@ -23,12 +23,35 @@ describe('aggregateRows', () => {
   it('prefers logged spend, prices known models, zero-counts the rest with a flag', () => {
     const r = aggregateRows([
       { model: 'openai/gpt-5', prompt: 100, completion: 50, spend: 0.42 },
-      { model: 'claude-sonnet-5', prompt: 1_000_000, completion: 0, spend: 0 }, // priced at $3/MTok input
+      { model: 'claude-sonnet-5', prompt: 1_000_000, completion: 0, spend: 0 }, // priced at $2/MTok input (sonnet-5 row)
       { model: 'groq/llama-free', prompt: 500, completion: 500, spend: 0 },
     ]);
     expect(r.tokens).toEqual({ input: 1_000_600, output: 550, cacheWrite: 0, cacheRead: 0 });
-    expect(r.costUsd).toBeCloseTo(0.42 + 3, 10);
+    expect(r.costUsd).toBeCloseTo(0.42 + 2, 10);
     expect(r.unpricedTokens).toBe(1000);
+  });
+
+  it('prices open-weight market models behind provider path prefixes', () => {
+    const r = aggregateRows([
+      { model: 'openrouter/moonshotai/kimi-k3', prompt: 1_000_000, completion: 1_000_000, spend: 0 }, // 3 + 15
+      { model: 'deepseek/deepseek-v4-flash', prompt: 1_000_000, completion: 0, spend: 0 }, // 0.09
+    ]);
+    expect(r.costUsd).toBeCloseTo(3 + 15 + 0.09, 10);
+    expect(r.unpricedTokens).toBe(0);
+  });
+
+  it('prices local models at the user-supplied electricity/hardware rate, beating logged $0', () => {
+    const rate = { usdPerMtok: 0.5, prefixes: ['local'] };
+    const r = aggregateRows(
+      [
+        { model: 'local-floor', prompt: 1_000_000, completion: 1_000_000, spend: 0 },
+        { model: 'groq/llama-free', prompt: 500, completion: 500, spend: 0 },
+      ],
+      rate,
+    );
+    expect(r.costUsd).toBeCloseTo(1.0, 10); // 2M tok × $0.5/Mtok
+    expect(r.localTokens).toBe(2_000_000);
+    expect(r.unpricedTokens).toBe(1000); // non-local unknowns still honest $0
   });
 });
 

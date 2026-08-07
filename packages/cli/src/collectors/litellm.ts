@@ -1,5 +1,5 @@
 import type { Collector, ScanContext, TokenUsage } from '../types.js';
-import { PRICES, costForUsage } from '../pricing.js';
+import { costForUsage, hasKnownPrice, normalizeModel } from '../pricing.js';
 
 // Opt-in collector for self-built agents routed through a LiteLLM gateway.
 // Activates ONLY when the user sets one of:
@@ -18,18 +18,42 @@ function env(ctx: ScanContext): Record<string, string | undefined> {
   return ctx.env ?? process.env;
 }
 
-function hasExplicitPrice(model: string): boolean {
-  return Object.keys(PRICES).some((prefix) => model.startsWith(prefix));
+// hasKnownPrice normalizes provider path prefixes ("openrouter/moonshotai/kimi-k3")
+// and covers the open-weight market rows, so gateway traffic on Kimi/DeepSeek/GLM/
+// Qwen/... is priced at list rates instead of inflating tok/$ as $0.
+const hasExplicitPrice = hasKnownPrice;
+
+export interface LocalRate {
+  /** Blended USD per million tokens (prompt+completion) the user computed for
+   *  their own hardware: electricity + amortization. Theirs to estimate —
+   *  viberuler only applies the number, it does not invent one. */
+  usdPerMtok: number;
+  /** Model-name prefixes (after provider-path normalization) billed at that rate. */
+  prefixes: string[];
 }
 
-export function aggregateRows(rows: ModelRow[]): { tokens: TokenUsage; costUsd: number; unpricedTokens: number } {
+function isLocalModel(model: string, rate: LocalRate): boolean {
+  const m = normalizeModel(model);
+  return rate.prefixes.some((p) => m.startsWith(p));
+}
+
+export function aggregateRows(
+  rows: ModelRow[],
+  localRate?: LocalRate,
+): { tokens: TokenUsage; costUsd: number; unpricedTokens: number; localTokens: number } {
   const tokens: TokenUsage = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 };
   let costUsd = 0;
   let unpricedTokens = 0;
+  let localTokens = 0;
   for (const r of rows) {
     tokens.input += r.prompt;
     tokens.output += r.completion;
-    if (r.spend > 0) {
+    // Local models are checked before logged spend: a gateway logs $0 for its
+    // own hardware, but watts and iron are not free — the user's rate wins.
+    if (localRate && isLocalModel(r.model, localRate)) {
+      costUsd += ((r.prompt + r.completion) * localRate.usdPerMtok) / 1e6;
+      localTokens += r.prompt + r.completion;
+    } else if (r.spend > 0) {
       costUsd += r.spend;
     } else if (hasExplicitPrice(r.model)) {
       costUsd += costForUsage(r.model, { input: r.prompt, output: r.completion, cacheWrite: 0, cacheRead: 0 });
@@ -37,7 +61,7 @@ export function aggregateRows(rows: ModelRow[]): { tokens: TokenUsage; costUsd: 
       unpricedTokens += r.prompt + r.completion;
     }
   }
-  return { tokens, costUsd, unpricedTokens };
+  return { tokens, costUsd, unpricedTokens, localTokens };
 }
 
 const TABLE_CANDIDATES = ['litellm_spendlogs', 'usage', 'spend_logs'];
@@ -130,8 +154,33 @@ export const litellmCollector: Collector = {
       : await readSpendApi(e.LITELLM_BASE_URL!, e.LITELLM_API_KEY);
     if ('error' in result) return { warnings: [`litellm: ${result.error}`] };
 
-    const { tokens, costUsd, unpricedTokens } = aggregateRows(result.rows);
+    // Opt-in electricity/hardware rate for self-hosted models. The user computes
+    // their own blended $/Mtok (labwatch-style: watts × $/kWh ÷ throughput +
+    // amortization) and hands it over; VIBERULER_LOCAL_MODELS narrows which
+    // model prefixes it covers (default: "local").
+    let localRate: LocalRate | undefined;
+    const rateRaw = e.VIBERULER_LOCAL_RATE;
+    if (rateRaw !== undefined) {
+      const usdPerMtok = Number(rateRaw);
+      if (Number.isFinite(usdPerMtok) && usdPerMtok >= 0) {
+        const prefixes = (e.VIBERULER_LOCAL_MODELS ?? 'local')
+          .split(',')
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean);
+        localRate = { usdPerMtok, prefixes };
+      }
+    }
+
+    const { tokens, costUsd, unpricedTokens, localTokens } = aggregateRows(result.rows, localRate);
     const warnings: string[] = [];
+    if (rateRaw !== undefined && !localRate) {
+      warnings.push(`litellm: VIBERULER_LOCAL_RATE=${rateRaw} is not a number — local models left unpriced`);
+    }
+    if (localTokens > 0 && localRate) {
+      warnings.push(
+        `litellm: ${localTokens.toLocaleString('en-US')} local tokens priced at your own $${localRate.usdPerMtok}/Mtok (electricity+hardware, self-reported)`,
+      );
+    }
     if (unpricedTokens > 0) {
       warnings.push(
         `litellm: ${unpricedTokens.toLocaleString('en-US')} tokens had no logged spend and no known price — counted at $0 (free-tier flex)`,

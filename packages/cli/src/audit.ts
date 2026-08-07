@@ -5,6 +5,8 @@ import { costForUsage } from './pricing.js';
 import { attributeRootCauses, type RootCause, type WasteEvent } from './root-cause.js';
 import { createTimeAccumulator, type TimeReport } from './time-collect.js';
 import { resolveRoots } from './roots.js';
+import { totalTokens } from './merge.js';
+import type { MarketData } from './market.js';
 import { PROJECTS, walkJsonl } from './collectors/claude-code.js';
 
 // Tool results are raw text; 4 chars/token is the standard rough conversion.
@@ -111,6 +113,8 @@ export interface WasteCompareWindow {
   since: string;
   until: string;
   sessions: number;
+  /** Total tokens burned in the window (all four buckets) — a fact, not a verdict. */
+  tokens: number;
 }
 
 export interface WasteCompareClass {
@@ -151,6 +155,12 @@ export interface AuditReport {
   ghosts: GhostStats;
   tools: ToolStat[];
   surfaces: McpSurface[];
+  /**
+   * Present only under `--market` (an explicit opt-in network call): current
+   * market rates for repricing this report's token mix. The rendering states
+   * the caveats — same token counts, different tokenizers, arithmetic only.
+   */
+  market?: MarketData;
   /** Configured + enabled MCP surfaces with zero tool calls — pure overhead. */
   dead: McpSurface[];
   warnings: string[];
@@ -721,8 +731,8 @@ export async function runAuditCompare(
 
   const compare: WasteCompare = {
     windows: {
-      a: { since: windowA.since.toISOString(), until: windowA.until.toISOString(), sessions: reportA.sessions },
-      b: { since: windowB.since.toISOString(), until: windowB.until.toISOString(), sessions: reportB.sessions },
+      a: { since: windowA.since.toISOString(), until: windowA.until.toISOString(), sessions: reportA.sessions, tokens: totalTokens(reportA.tokens) },
+      b: { since: windowB.since.toISOString(), until: windowB.until.toISOString(), sessions: reportB.sessions, tokens: totalTokens(reportB.tokens) },
     },
     classes: compareClasses,
     note: 'Two windows, not an experiment: workload differs between them, so a delta shows what changed, not what caused it. Classes overlap — an oversized read can also be exploratory; do not sum them.',

@@ -83,6 +83,21 @@ describe('renderCard', () => {
     expect(out.indexOf('Claude Code 60%')).toBeLessThan(out.indexOf('Codex 30%'));
   });
 
+  it('appends per-agent API-equivalent value to the legend when costByAgent is present', () => {
+    const stats = {
+      ...emptyStats(),
+      commits: 10, tokens: { input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 4.25,
+      tokensByAgent: { 'Claude Code': 600, Codex: 300, Antigravity: 100 },
+      costByAgent: { 'Claude Code': 3, Codex: 1.25 },
+      sources: ['claude-code'],
+    };
+    const out = stripAnsi(renderCard(computeScore(stats), { colors: false, version: '0.1.0' }));
+    expect(out).toContain('Claude Code 60% $3.00');
+    expect(out).toContain('Codex 30% $1.25');
+    // no dollar line for an agent without attributed cost
+    expect(out).toMatch(/Antigravity 10%(?!.*\$)/);
+  });
+
   it('shows <1% for a token-bearing agent below one percent, never 0%', () => {
     const stats = {
       ...emptyStats(),

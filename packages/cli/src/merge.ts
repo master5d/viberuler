@@ -6,6 +6,7 @@ export function emptyStats(): RawStats {
     locTotal: 0, locByLang: {}, maxRepoLoc: 0, locGenerated: 0, activeDays: 0, spanDays: 0,
     tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
     tokensByAgent: {},
+    costByAgent: {},
     costUsd: 0, ghStars: 0, agents: [], sources: [], warnings: [],
     busiestDay: null, busiestDayCount: 0,
   };
@@ -23,6 +24,10 @@ export function mergeStats(base: RawStats, add: Partial<RawStats>): RawStats {
   const tokensByAgent = { ...base.tokensByAgent };
   for (const [agent, n] of Object.entries(add.tokensByAgent ?? {})) {
     tokensByAgent[agent] = (tokensByAgent[agent] ?? 0) + n;
+  }
+  const costByAgent = { ...base.costByAgent };
+  for (const [agent, n] of Object.entries(add.costByAgent ?? {})) {
+    costByAgent[agent] = (costByAgent[agent] ?? 0) + n;
   }
   const t = add.tokens;
   return {
@@ -49,6 +54,7 @@ export function mergeStats(base: RawStats, add: Partial<RawStats>): RawStats {
       cacheRead: base.tokens.cacheRead + (t?.cacheRead ?? 0),
     },
     tokensByAgent,
+    costByAgent,
     costUsd: base.costUsd + (add.costUsd ?? 0),
     ghStars: base.ghStars + (add.ghStars ?? 0),
     agents: [...new Set([...base.agents, ...(add.agents ?? [])])],

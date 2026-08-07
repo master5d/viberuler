@@ -26,6 +26,18 @@ describe('evalAchievements', () => {
     expect(evalAchievements(s).map((a) => a.id)).toContain('cache-whisperer');
   });
 
+  it('high-roller at $1000+ API-equivalent burn', () => {
+    expect(evalAchievements(withStats({ costUsd: 1000 })).map((a) => a.id)).toContain('high-roller');
+    expect(evalAchievements(withStats({ costUsd: 999.99 })).map((a) => a.id)).not.toContain('high-roller');
+  });
+
+  it('table-hopper needs $1+ of attributed burn on 3+ platforms', () => {
+    const yes = withStats({ costByAgent: { 'Claude Code': 50, Codex: 2, Cursor: 1 } });
+    const twoOnly = withStats({ costByAgent: { 'Claude Code': 50, Codex: 2, Cursor: 0.5 } });
+    expect(evalAchievements(yes).map((a) => a.id)).toContain('table-hopper');
+    expect(evalAchievements(twoOnly).map((a) => a.id)).not.toContain('table-hopper');
+  });
+
   it('polyglot, monorepo-menace, streak-freak, 3am, yolo', () => {
     const s = withStats({
       locByLang: { a: 1, b: 1, c: 1, d: 1, e: 1 },

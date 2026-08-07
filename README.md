@@ -37,6 +37,12 @@ Then it prints a scorecard you'll screenshot before you can stop yourself.
 
 **`tokens per dollar` is the headline stat.** Anyone can burn tokens. Burning them *efficiently* is the game.
 
+**Tokens are casino chips.** They're denominated the way they are so spending them
+doesn't feel like spending money — and every new way of working (vibe it, ramble it,
+let the agent figure it out) lowers the effort and raises the burn. viberuler is the
+cashier's window: it converts the chips back into dollars — API-equivalent, total and
+per platform — *before* you sit back down at the table.
+
 **LoC counts what you wrote, not what you have.** It used to be the size of your repo trees — which credited you with vendored code you never touched and with every line a compiler emitted. Now it's the lines you added in your own commits, generated output excluded. That cut the author's own headline number by 17%, and we shipped the smaller true one. [Why, in detail →](METHODOLOGY.md#loc-is-what-you-wrote)
 
 **The excluded lines are still shown.** A third of the author's diff turned out to be machine output — regenerated types, bundles, lockfiles. It isn't scored and never leaves your machine; it's a baseline to shrink. A number you can't see is a number you can't reduce.
@@ -57,7 +63,8 @@ Then it prints a scorecard you'll screenshot before you can stop yourself.
 |---|---|---|
 | 💰 **Token Billionaire** — ≥1B tokens | 🪦 **Free Tier Martyr** — ≥1M tokens under $1 | 🗄️ **Cache Whisperer** — >90% cache reads |
 | 🌐 **Polyglot** — 5+ languages | 🐘 **Monorepo Menace** — 100K+ lines authored in one repo | 🔥 **Streak Freak** — 100-day streak |
-| 🌙 **3AM Committer** — 10+ night commits | 💥 **YOLO Force Pusher** — 20+ history rewrites | |
+| 🌙 **3AM Committer** — 10+ night commits | 💥 **YOLO Force Pusher** — 20+ history rewrites | 🎰 **High Roller** — $1,000+ API-equivalent burned |
+| 🎲 **Table Hopper** — $1+ of burn on 3+ platforms | | |
 
 ## The leaderboard
 
@@ -114,6 +121,7 @@ npx viberuler --github <handle>   # add your stars (the only other network call)
 npx viberuler --share        # print a shareable card URL (nothing is sent)
 npx viberuler audit --idle-gap 5             # pause (minutes) that stops counting as attention
 npx viberuler audit --compare 2026-06-01..2026-07-01   # that window vs the equally long one after it
+npx viberuler audit --market   # reprice your mix at live market rates (one catalog GET, opt-in)
 ```
 
 A bare run scans every git repo under your **home dir**. If your code lives elsewhere (or in several places), point `--scan-dir` at each root — it's repeatable, and every metric (LoC, commits, features, PRs) is summed across all repos found, so your certificate reflects your whole body of work, not one project.
@@ -166,6 +174,29 @@ Three rules hold this honest, and they are enforced in the output, not just in d
   compare before and after — and labels the delta an *observation, not causation*,
   because workload differs between windows. A window with no sessions says "not enough
   data" instead of printing a flattering zero.
+
+### Your mix at market rates (`audit --market`)
+
+The chips-to-dollars view, extended to the whole exchange: your measured token mix,
+repriced at the list rates of a curated set of current models — open-weight flagships
+(Kimi K3, DeepSeek, GLM, Qwen, Llama, MiniMax) and the closed tiers. Rates come from
+**one anonymous GET** to the OpenRouter public catalog (this flag is opt-in network,
+like `--github`), cached locally for a day, with an offline fallback to a bundled
+snapshot — the output labels which source answered. Arithmetic, not advice: tokenizers,
+quality, and cache mechanics differ, so the table says what your volume costs per
+counter, never what you would save.
+
+The same table answers **maximum AI performance per dollar**: where the catalog carries
+an Artificial Analysis intelligence index, each counter shows `intel/$` for *your* mix,
+the ranking is by that number, and the best one wears 🏆. Models without a published
+score say so and trail the list — an unknown is not a zero. The index is a third-party
+benchmark of the model, not of your workload; the crown marks the cheapest intelligence,
+not the most of it.
+
+Self-hosted models get the same honesty: set `VIBERULER_LOCAL_RATE=<USD/Mtok>` (and
+optionally `VIBERULER_LOCAL_MODELS=local,mlx` prefixes) to price your gateway's local
+models at your own electricity + hardware rate instead of $0. You compute the rate;
+viberuler applies it and marks it self-reported.
 
 ### Share without signing in
 
@@ -223,6 +254,14 @@ npx viberuler --agent-home C:\agents\Claude --agent-home C:\agents\codex
 
 `CODEX_HOME` and `CLAUDE_CONFIG_DIR` are honoured automatically, so if you already
 relocate your agents the normal way, there is nothing to pass.
+
+**Several subscriptions?** Normal. A Claude plan plus a ChatGPT/Codex one plus
+Cursor all land on the same card: each platform is its own collector, and the
+per-agent legend prices each platform's traffic separately — that dollar figure
+is what *that* subscription was worth in API-equivalent terms. Two accounts of
+the same platform (work + personal Claude) merge into one line; to split them,
+run once per account with `VIBERULER_AGENT_HOMES` pointing at a single home
+(details in [METHODOLOGY](METHODOLOGY.md#2-cost-model)).
 
 ## Stack
 

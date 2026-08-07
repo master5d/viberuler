@@ -68,6 +68,17 @@ describe('collectAll per-agent token attribution', () => {
     const stats = await collectAll({ home: '/', scanDirs: [] }, () => {}, collectors);
     expect(stats.tokensByAgent).toEqual({ 'Claude Code': 600, Antigravity: 300 });
   });
+
+  it('attributes API-equivalent cost per agent under the same labels (multi-subscription rig)', async () => {
+    const collectors = [
+      mk('a', { tokens: { input: 600, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 3, sources: ['claude-code'] }),
+      mk('b', { tokens: { input: 300, output: 0, cacheWrite: 0, cacheRead: 0 }, costUsd: 1.25, sources: ['codex'] }),
+      // tokens but zero cost (unpriced) → no dollar line for it
+      mk('c', { tokens: { input: 100, output: 0, cacheWrite: 0, cacheRead: 0 }, sources: ['gemini'], agents: ['Antigravity'] }),
+    ];
+    const stats = await collectAll({ home: '/', scanDirs: [] }, () => {}, collectors);
+    expect(stats.costByAgent).toEqual({ 'Claude Code': 3, Codex: 1.25 });
+  });
 });
 
 describe('main', () => {

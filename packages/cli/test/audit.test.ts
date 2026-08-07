@@ -474,6 +474,76 @@ describe('time metrics in runAudit and renderAudit', () => {
     expect(r3.time!.totalActiveMs).toBe(120_000);
   });
 
+  it('renders the market-reprice section only when --market attached rates, cheapest first, caveats stated', () => {
+    const base: any = {
+      sessions: 1,
+      main: { admittedTokens: 0, inputSideTokens: 0, amplification: 0 },
+      sub: { admittedTokens: 0, inputSideTokens: 0, amplification: 0 },
+      tokens: { input: 1_000_000, output: 1_000_000, cacheWrite: 0, cacheRead: 0 },
+      costUsd: 1, costNoCacheUsd: 1, cacheHitPct: 0,
+      subagents: { calls: 0 }, coldMain: { sessions: 0 }, coldSub: { sessions: 0 },
+      ghosts: { readCalls: 0, oversizedCalls: 0 }, tools: [], surfaces: [], dead: [], warnings: [],
+    };
+    const noMarket = renderAudit(base, { colors: false, version: '1.0.0' });
+    expect(noMarket).not.toContain('MARKET RATES');
+
+    const withMarket = renderAudit(
+      {
+        ...base,
+        market: {
+          asOf: '2026-08-07', source: 'bundled',
+          rates: [
+            { id: 'a/expensive', label: 'Expensive', input: 10, output: 50, cacheRead: 1, cacheWrite: 10 },
+            { id: 'b/cheap', label: 'Cheap', input: 0.1, output: 0.2, cacheRead: 0.1, cacheWrite: 0.1 },
+          ],
+        },
+      },
+      { colors: false, version: '1.0.0' },
+    );
+    expect(withMarket).toContain('YOUR MIX AT MARKET RATES');
+    expect(withMarket).toContain('bundled snapshot · as of 2026-08-07');
+    // both rows unscored → sorted by cost ascending, labelled honestly, no crown
+    expect(withMarket.indexOf('Cheap')).toBeLessThan(withMarket.indexOf('Expensive'));
+    expect(withMarket).toContain('$0.30'); // cheap: 1M×0.1 + 1M×0.2
+    expect(withMarket).toContain('$60.00'); // expensive: 1M×10 + 1M×50
+    expect(withMarket).toContain('no published score');
+    expect(withMarket).not.toContain('max AI per dollar');
+    expect(withMarket).toContain('arithmetic, not advice');
+    expect(withMarket).toContain('not what you would save');
+  });
+
+  it('ranks scored counters by AI performance per dollar of the mix and crowns the max', () => {
+    const base: any = {
+      sessions: 1,
+      main: { admittedTokens: 0, inputSideTokens: 0, amplification: 0 },
+      sub: { admittedTokens: 0, inputSideTokens: 0, amplification: 0 },
+      tokens: { input: 1_000_000, output: 1_000_000, cacheWrite: 0, cacheRead: 0 },
+      costUsd: 1, costNoCacheUsd: 1, cacheHitPct: 0,
+      subagents: { calls: 0 }, coldMain: { sessions: 0 }, coldSub: { sessions: 0 },
+      ghosts: { readCalls: 0, oversizedCalls: 0 }, tools: [], surfaces: [], dead: [], warnings: [],
+      market: {
+        asOf: '2026-08-07', source: 'live',
+        rates: [
+          // smart but pricey: 60 intel / $60 = 1 intel/$
+          { id: 'a/smart', label: 'Smart', input: 10, output: 50, cacheRead: 1, cacheWrite: 10, intelligence: 60 },
+          // mid brain, tiny price: 45 intel / $0.30 = 150 intel/$ → the crown
+          { id: 'b/value', label: 'Value', input: 0.1, output: 0.2, cacheRead: 0.1, cacheWrite: 0.1, intelligence: 45 },
+          // no score → trails the scored rows regardless of price
+          { id: 'c/mystery', label: 'Mystery', input: 0.05, output: 0.1, cacheRead: 0.05, cacheWrite: 0.05 },
+        ],
+      },
+    };
+    const out = renderAudit(base, { colors: false, version: '1.0.0' });
+    expect(out.indexOf('Value')).toBeLessThan(out.indexOf('Smart')); // perf/$ desc, not price asc
+    expect(out.indexOf('Smart')).toBeLessThan(out.indexOf('Mystery')); // unscored trail
+    const valueLine = out.split('\n').find((l) => l.includes('Value'))!;
+    expect(valueLine).toContain('intel 45.0');
+    expect(valueLine).toContain('150 intel/$');
+    expect(valueLine).toContain('max AI per dollar');
+    expect(out.match(/max AI per dollar/g)).toHaveLength(1); // exactly one crown
+    expect(out).toContain('Artificial Analysis intelligence index');
+  });
+
   it('renders session time section when present and omits when absent or totalActiveMs === 0', () => {
     const reportWithTime: any = {
       sessions: 1,
@@ -766,9 +836,12 @@ describe('audit --compare two-window comparison', () => {
     const comp = await runAuditCompare({ home, scanDirs: [] }, windowA, windowB);
 
     expect(comp.windows).toEqual({
-      a: { since: '2026-01-01T00:00:00.000Z', until: '2026-01-10T00:00:00.000Z', sessions: 1 },
-      b: { since: '2026-01-10T00:00:00.000Z', until: '2026-01-19T00:00:00.000Z', sessions: 1 },
+      a: { since: '2026-01-01T00:00:00.000Z', until: '2026-01-10T00:00:00.000Z', sessions: 1, tokens: expect.any(Number) },
+      b: { since: '2026-01-10T00:00:00.000Z', until: '2026-01-19T00:00:00.000Z', sessions: 1, tokens: expect.any(Number) },
     });
+    // total burn per window is a fact both in JSON and on screen
+    expect(comp.windows.a.tokens).toBeGreaterThan(0);
+    expect(comp.windows.b.tokens).toBeGreaterThan(0);
 
     const oversized = comp.classes.find((c) => c.id === 'oversized');
     expect(oversized).toBeDefined();
@@ -796,6 +869,7 @@ describe('audit --compare two-window comparison', () => {
     expect(rendered).not.toContain('CONTEXT WASTE\n');
     expect(rendered).toContain(expectedDisclaimer);
     expect(rendered).toContain('classes overlap — an oversized read can also be exploratory; do not sum them');
+    expect(rendered).toMatch(/total burn: .+ tok → .+ tok\s+\(×\d+(\.\d+)?\)/);
   });
 
   it('handles empty rig + --compare with not enough data for both windows and no class rows', async () => {
@@ -810,6 +884,8 @@ describe('audit --compare two-window comparison', () => {
     const rendered = renderAudit({ compare: comp } as any, { colors: false, version: '1.0.0' });
     expect(rendered).toContain('not enough data in window A (0 sessions)');
     expect(rendered).toContain('not enough data in window B (0 sessions)');
+    // an empty pair of windows must not print a burn line (nothing to state)
+    expect(rendered).not.toContain('total burn');
   });
 
   it('handles window A with data and window B empty with not-enough-data for B and no deltas printed', async () => {

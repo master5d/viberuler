@@ -19,6 +19,7 @@ import { renderCard } from './render.js';
 import { renderWrapped } from './wrapped.js';
 import { createColors } from 'picocolors';
 import { runAudit, runAuditCompare } from './audit.js';
+import { loadMarketRates } from './market.js';
 import { renderAudit } from './render-audit.js';
 import { buildPayload } from './payload.js';
 import {
@@ -95,6 +96,8 @@ Options:
                        CODEX_HOME / CLAUDE_CONFIG_DIR are honoured automatically.
   --since <date>       only count activity since YYYY-MM-DD
   --compare A..B       two windows: the range, then the equally long span after it
+  --market             (audit) reprice your mix at current market rates — one
+                       anonymous catalog GET, cached a day, offline fallback
   --month <YYYY-MM>    the month for \`wrapped\`
   --idle-gap <min>     max pause before idle, in minutes (default: 3)
   --github <handle>    also pull public GitHub stars    (the only network call)
@@ -109,6 +112,9 @@ Options:
 
 Env (opt-in): LITELLM_SPEND_DB=<sqlite path> or LITELLM_BASE_URL(+LITELLM_API_KEY)
   count tokens your self-built agents burned through a LiteLLM gateway
+Env: VIBERULER_LOCAL_RATE=<usd per Mtok>  price self-hosted models at your own
+  electricity+hardware rate (VIBERULER_LOCAL_MODELS=<prefix,...> narrows which,
+  default "local") instead of an honest but silly $0
 Env: VIBERULER_AGENT_HOMES=<path list>  same as repeating --agent-home
 `;
 
@@ -138,6 +144,12 @@ export async function collectAll(
             ? res.agents[0]!
             : (res.sources && res.sources[0] && SOURCE_LABELS[res.sources[0]]) || res.sources?.[0] || 'other';
         stats.tokensByAgent[label] = (stats.tokensByAgent[label] ?? 0) + tt;
+        // Same attribution for API-equivalent value: on a multi-subscription rig
+        // (a Claude plan + a Codex/Cursor one) each platform's dollar line is
+        // what that subscription's traffic was worth.
+        if ((res.costUsd ?? 0) > 0) {
+          stats.costByAgent[label] = (stats.costByAgent[label] ?? 0) + (res.costUsd ?? 0);
+        }
       }
     } catch (err) {
       warn(`[viberuler] ${collector.id} failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -182,6 +194,7 @@ export async function main(
         api: { type: 'string' },
         yes: { type: 'boolean' },
         why: { type: 'boolean' },
+        market: { type: 'boolean' },
         version: { type: 'boolean' },
         help: { type: 'boolean' },
       },
@@ -251,6 +264,11 @@ export async function main(
     const actx: ScanContext = { home, agentHomes, scanDirs: [], since, authorEmail: undefined, env: process.env };
     actx.why = Boolean(values.why);
     const report = await runAudit(actx, gapMs);
+    if (values.market) {
+      // The one network call --market is allowed to make (anonymous catalog GET,
+      // cached for a day). Degrades to cache, then to the bundled snapshot.
+      report.market = await loadMarketRates({ fetchImpl: deps.fetchImpl });
+    }
     for (const w of report.warnings) process.stderr.write(`[viberuler] ${w}\n`);
     if (values.json) { out(JSON.stringify(report, null, 2)); return 0; }
     const colors = shouldColor(Boolean(values['no-color']));

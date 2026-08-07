@@ -82,6 +82,7 @@ function paint(
 // agents burned tokens (a single-agent strip carries no information).
 function tokenStrip(
   tokensByAgent: Record<string, number>,
+  costByAgent: Record<string, number>,
   colors: boolean,
   c: ReturnType<typeof createColors>,
 ): string[] {
@@ -108,7 +109,11 @@ function tokenStrip(
     .map(([name, n], i) => {
       const pct = (n / total) * 100;
       const label = pct < 1 ? '<1%' : `${Math.round(pct)}%`;
-      return `${paint('▓', i, colors, c)} ${name} ${label}`;
+      // Per-platform API-equivalent value: on a multi-subscription rig this is
+      // each subscription's share of the burn, not just its token share.
+      const cost = costByAgent[name];
+      const costLabel = cost !== undefined && cost > 0 ? ` ${fmtUsd(cost)}` : '';
+      return `${paint('▓', i, colors, c)} ${name} ${label}${costLabel}`;
     })
     .join('  ');
 
@@ -198,7 +203,7 @@ export function renderCard(
   }
 
   // Per-agent token distribution strip (skipped for <2 token-bearing agents).
-  const strip = tokenStrip(s.tokensByAgent, opts.colors, c);
+  const strip = tokenStrip(s.tokensByAgent, s.costByAgent, opts.colors, c);
   if (strip.length > 0) {
     rows.push('');
     for (const r of strip) rows.push(r);
