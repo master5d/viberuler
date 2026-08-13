@@ -82,3 +82,7 @@ Create one issue per collector (Cursor, Gemini CLI, Windsurf, Aider, Cline), eac
 - `npx wrangler d1 execute viberuler --remote --command "SELECT COUNT(*) FROM scores"` — submissions
 - sus queue: `SELECT u.gh_login, s.vibe_score FROM scores s JOIN users u ON u.id=s.user_id WHERE s.sus=1`
 - GitHub trending: stars velocity in first 24h decides project-of-the-day; reply to every issue fast
+
+## Долги (зафиксировано, не чинится отсюда)
+
+- undici ×5 под miniflare — ждёт мажорного бампа `@cloudflare/vitest-pool-workers` 0.21.x, решение владельца.

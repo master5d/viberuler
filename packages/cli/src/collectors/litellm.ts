@@ -125,7 +125,10 @@ async function readSpendApi(base: string, key?: string): Promise<{ rows: ModelRo
   const url = `${base.replace(/\/+$/, '')}/spend/logs`;
   let res: Response;
   try {
-    res = await fetch(url, { headers: key ? { authorization: `Bearer ${key}` } : {} });
+    res = await fetch(url, {
+      headers: key ? { authorization: `Bearer ${key}` } : {},
+      signal: AbortSignal.timeout(10_000),
+    });
   } catch (err) {
     return { error: `${url} unreachable: ${err instanceof Error ? err.message : String(err)}` };
   }
