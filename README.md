@@ -47,6 +47,8 @@ per platform — *before* you sit back down at the table.
 
 **The excluded lines are still shown.** A third of the author's diff turned out to be machine output — regenerated types, bundles, lockfiles. It isn't scored and never leaves your machine; it's a baseline to shrink. A number you can't see is a number you can't reduce.
 
+**It's a mirror, not a performance review.** Every number here is scoped to one machine and one person: yours. Score a junior on tokens burned and you'll get a junior who burns tokens — Goodhart shows up inside a week, and you paid for the tokens. Screenshot it, flex it, compare it with people who opted in; the moment it lands in someone's perf review it stops measuring anything at all.
+
 <p align="center">
   <img src="assets/demo.gif" width="700" alt="viberuler scanning locally and printing the scorecard: projects, LoC, tokens, tokens-per-dollar, streak, rank">
 </p>
