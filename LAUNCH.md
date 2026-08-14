@@ -85,4 +85,4 @@ Create one issue per collector (Cursor, Gemini CLI, Windsurf, Aider, Cline), eac
 
 ## Долги (зафиксировано, не чинится отсюда)
 
-- undici ×5 под miniflare — ждёт мажорного бампа `@cloudflare/vitest-pool-workers` 0.21.x, решение владельца.
+- ~~undici ×5 под miniflare~~ — закрыт 2026-08-14: бамп `@cloudflare/vitest-pool-workers` 0.18.8 → 0.21.3 (miniflare 5.x, undici 7.29.0, wrangler 4.123.0); тесты 272+104 зелёные, `npm audit` чист.
