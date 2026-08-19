@@ -1,0 +1,15 @@
+{
+  "name": "viberuler",
+  "emoji": "📏",
+  "title": "Viberuler",
+  "tab": {
+    "mode": "embed",
+    "url": "https://viberuler.dev"
+  },
+  "links": [
+    {
+      "label": "prod",
+      "url": "https://viberuler.dev"
+    }
+  ]
+}
