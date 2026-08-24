@@ -1,4 +1,5 @@
 import { ImageResponse } from 'workers-og';
+import { fmtInt } from '../format.js';
 import type { Env } from '../index.js';
 import { json } from '../index.js';
 import { latestForLogin, type BoardRow } from '../db.js';
@@ -7,7 +8,6 @@ import { gaugeHtml, rankForVibe, certifyLine, PALETTE } from '../brand.js';
 // wrangler Data rule (wrangler.jsonc "rules") imports .ttf as ArrayBuffer
 import font from '../assets/JetBrainsMono-Regular.ttf';
 
-const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 type OgRow = BoardRow & {
   rank: number;

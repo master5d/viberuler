@@ -1,11 +1,11 @@
 import { ImageResponse } from 'workers-og';
+import { fmtInt } from '../format.js';
 import type { Env } from '../index.js';
 import { gaugeHtml, PALETTE } from '../brand.js';
 import font from '../assets/JetBrainsMono-Regular.ttf';
 import { shareCardSchema, SANITY_CAPS, type ShareCardPayload } from '../validation.js';
 import { escapeHtml } from './share.js';
 
-const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 export function sanitizeLabel(s: string): string {
   if (typeof s !== 'string') return '';

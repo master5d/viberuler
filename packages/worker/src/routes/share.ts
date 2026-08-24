@@ -1,4 +1,5 @@
 import type { Env } from '../index.js';
+import { fmtInt } from '../format.js';
 import { latestForLogin } from '../db.js';
 import { SEAL_SVG, guillocheCss, gaugeHtml, rankForVibe, certifyLine, PALETTE } from '../brand.js';
 
@@ -11,7 +12,6 @@ export function escapeHtml(s: string): string {
     .replaceAll("'", '&#39;');
 }
 
-const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 const PAGE_CSS = `
   ${guillocheCss()}

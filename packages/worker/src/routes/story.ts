@@ -4,19 +4,11 @@ import { json } from '../index.js';
 import { latestForLogin } from '../db.js';
 import { escapeHtml } from './share.js';
 import { gaugeHtml, rankForVibe, certifyLine, PALETTE } from '../brand.js';
+import { fmtCompact, fmtInt } from '../format.js';
 // wrangler Data rule (wrangler.jsonc "rules") imports .ttf as ArrayBuffer
 import font from '../assets/JetBrainsMono-Regular.ttf';
 
-const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
-// Punchy compact numbers for the Wrapped-style stat bands (10.9B, 450K).
-function fmtCompact(n: number): string {
-  const a = Math.abs(n);
-  if (a >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
-  if (a >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
-  if (a >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
-  return String(Math.round(n));
-}
 
 export type StoryRow = {
   gh_login: string;

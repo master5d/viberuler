@@ -1,10 +1,9 @@
 import type { Env } from '../index.js';
 import { leaderboard, totals } from '../db.js';
 import { escapeHtml } from './share.js';
-import { fmtCompact } from './badge.js';
+import { fmtCompact, fmtInt } from '../format.js';
 import { PALETTE, SEAL_SVG, guillocheCss, rankForVibe } from '../brand.js';
 
-const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 const HOME_CSS = `
   body{background:${PALETTE.base};color:#e6e6e6;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;
