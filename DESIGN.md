@@ -1,15 +1,12 @@
 ---
 desops: contract/v1
-status: draft
-descriptor: '> Наследует `GLOBAL_DESIGN.md` NAUTILUS (C:\telo\Efforts\Ongoing\NAUTILUS\core\desops\GLOBAL_DESIGN.md).
-  > Локальные расширения фиксируют ФАКТИЧЕСКУЮ визуальную ДНК проекта; core brand
-  > identity не п'
-dials: {variance: null, motion: null, density: null}
+status: ok
+descriptor: 'CLI-бенчмарк: визуальный слой — терминал. Чёрно-белый ASCII-вывод, цвет
+  только в статусах; интерфейса за пределами консоли нет.'
+dials: {variance: 1, motion: 2, density: 5}
 palette:
   dark: {bg: '#000000', accent: '#ffffff'}
 tokens: inherit
-rationale: палитра не найдена ни в DESIGN.md, ни в коде — заглушка, выставить при
-  касании
 ---
 # viberuler — DESIGN.md
 
@@ -19,6 +16,7 @@ rationale: палитра не найдена ни в DESIGN.md, ни в код�
 
 ## Решения
 
+- 2026-08-28: решение владельца — проект остаётся в реестре дизайна с пометкой «CLI, визуальный слой = терминал». dials описывают вывод консоли (декора нет, движение только в спиннере), а не вкус: генератору тут нечего рисовать
 - 2026-08-27: контракт заведён миграцией (спек 2026-08-27-design-consolidation); dials НЕ выставлены — status draft, выставить при первом касании
 
 ## Не делать
