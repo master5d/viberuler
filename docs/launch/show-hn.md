@@ -153,9 +153,16 @@ Measured 2026-07-27: sessions 11,801 · amplification 1378× · attention 1,001h
    that saves 90%"). Answer with the constraints, not with claims: no savings estimate,
    no total sum, deltas are observations. You're not competing with those tools — you're
    the instrument that checks them.
-5. **"Isn't the time tracking creepy?"** — derived from timestamps already in your
+5. **"How is this different from CodexBar?"** (steipete/CodexBar, MIT, ~22k★ — the
+   neighbour HN will name first). Different job, no fight: CodexBar
+   is a live **monitor** — menu bar, remaining 5h/weekly limits and reset times across
+   ~87 providers, some of them reached through optional browser-cookie / Keychain access.
+   Viberuler is a **mirror and an audit** — history, tokens per dollar, git-side output,
+   waste classes — with zero network calls by default and no credentials read. Use both;
+   credit it by name, never knock it.
+6. **"Isn't the time tracking creepy?"** — derived from timestamps already in your
    transcripts; nothing watches your screen, nothing leaves the machine.
-6. **"1378× amplification, really?"** — explain the definition before defending the
+7. **"1378× amplification, really?"** — explain the definition before defending the
    number: tokens re-fed ÷ tokens admitted, main thread only, and the code is right there.
-7. If it lands with **zero comments**, HN permits **one** repost days later with a
+8. If it lands with **zero comments**, HN permits **one** repost days later with a
    different title. Don't repost something that got engagement and died.
