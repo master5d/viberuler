@@ -85,4 +85,6 @@ Create one issue per collector (Cursor, Gemini CLI, Windsurf, Aider, Cline), eac
 
 ## Долги (зафиксировано, не чинится отсюда)
 
+- **dev-only high ×4 (2026-09-27):** `@cloudflare/vitest-pool-workers` 0.22.0 (последняя) жёстко пинит `wrangler` 4.124.0 → старые `miniflare`/`sharp`. Это тест-раннер worker'а: в npm-пакет CLI и в задеплоенный Worker не попадает (`npm audit --omit=dev` = 0). Закрыть бампом, когда pool-workers отпустит пин.
+
 - ~~undici ×5 под miniflare~~ — закрыт 2026-08-14: бамп `@cloudflare/vitest-pool-workers` 0.18.8 → 0.21.3 (miniflare 5.x, undici 7.29.0, wrangler 4.123.0); тесты 272+104 зелёные, `npm audit` чист.
