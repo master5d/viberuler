@@ -9,7 +9,7 @@ Everything is read **locally**. The scanner never uploads raw data (see [PRIVACY
 | Source | What we read | Notes |
 |---|---|---|
 | **Claude Code** | `~/.claude/projects/**/*.jsonl` — per-message `usage` records (input / output / cache-write / cache-read tokens, model id) | Deduplicated by `message.id + requestId`, so replayed or resumed sessions are never double-counted. Malformed lines are skipped and counted, never crash the scan. Source: [`packages/cli/src/collectors/claude-code.ts`](packages/cli/src/collectors/claude-code.ts) |
-| **Codex** | `~/.codex/sessions/**/*.jsonl` — `token_count` events | These are **cumulative** per session, so we take the *last* record per file, not the sum. Source: [`packages/cli/src/collectors/codex.ts`](packages/cli/src/collectors/codex.ts) |
+| **Codex** | `~/.codex/sessions/**/*.jsonl` — `token_count` events, plus `turn_context` for the model | These are **cumulative** per session, so the session total is the *last* record per file, not the sum; each model is charged the delta between consecutive records under the `turn_context` model that was active. `cached_input_tokens` is **part of** `input_tokens` (`total_tokens` = input + output), so fresh input = input − cached. Before 0.8.0 the two were added, which counted every cached token twice, once at the full input rate. Source: [`packages/cli/src/collectors/codex.ts`](packages/cli/src/collectors/codex.ts) |
 | **Cline family** | `…/globalStorage/<ext-id>/tasks/<taskId>/ui_messages.json` for Cline (`saoudrizwan.claude-dev`, `cline.cline`), Roo Code (`rooveterinaryinc.roo-cline`), KiloCode (`kilocode.kilo-code`), across VS Code / Insiders / VSCodium and `~/.cline/data` | Token counts come from `say:"api_req_started"` messages (a JSON object encoded inside the `text` string). Cost uses Cline's own logged `cost` when present, else the sonnet-tier table. Tasks synced across installs are de-duplicated by task id. Override the search roots with `VIBERULER_CLINE_STORAGE`. Source: [`packages/cli/src/collectors/cline.ts`](packages/cli/src/collectors/cline.ts) |
 | **Gemini CLI** | `${GEMINI_DATA_DIR:-~/.gemini}/tmp/<project>/chats/**/*.jsonl` — assistant-message `tokens` objects | Session logs replay the full message array, so tokens are de-duplicated by message id. Buckets map input→input, output+thoughts+tool→output, cached→cache-read. Priced at API-equivalent Gemini rates (flash/2.5-pro). Antigravity's own `~/.gemini/antigravity-cli` tree is never read (its agentic transcripts carry no token counts); but because Antigravity reuses the `~/.gemini` home, when it is present these `tmp/chats` sessions are attributed to **Antigravity** rather than Gemini CLI. Source: [`packages/cli/src/collectors/gemini.ts`](packages/cli/src/collectors/gemini.ts) |
 | **Cursor** (estimated) | `state.vscdb` (SQLite) in Cursor's globalStorage — `cursorDiskKV` rows keyed `composerData:*`, input tokens at `promptTokenBreakdown` | **Input-side lower bound only**: output and cache tokens aren't stored locally, so Cursor contributes input tokens (priced API-equivalent at the sonnet tier) with an `estimated` warning. Override the search dir with `VIBERULER_CURSOR_STORAGE`; needs Node 22.5+ (`node:sqlite`). Source: [`packages/cli/src/collectors/cursor.ts`](packages/cli/src/collectors/cursor.ts) |
@@ -22,7 +22,7 @@ Collectors are plugins behind a 2-method interface (`detect` / `collect`). Winds
 
 ## 2. Cost model
 
-Costs are computed from a **bundled static price table** (USD per million tokens), snapshotted **2026-08-07** (`PRICES_SNAPSHOT_DATE`) and refreshed together with its date each release. Historical usage is priced at the snapshot rates — we do not model per-date price history, so month-old tokens are valued at today's prices (same tradeoff as ccusage; keeps the scan dependency-free and offline). Source: [`packages/cli/src/pricing.ts`](packages/cli/src/pricing.ts).
+Costs are computed from a **bundled static price table** (USD per million tokens), snapshotted **2026-09-27** (`PRICES_SNAPSHOT_DATE`) and refreshed together with its date each release. Historical usage is priced at the snapshot rates — we do not model per-date price history, so month-old tokens are valued at today's prices (same tradeoff as ccusage; keeps the scan dependency-free and offline). Source: [`packages/cli/src/pricing.ts`](packages/cli/src/pricing.ts).
 
 | Model family (prefix match) | Input | Output | Cache write | Cache read |
 |---|---|---|---|---|
@@ -31,7 +31,14 @@ Costs are computed from a **bundled static price table** (USD per million tokens
 | `claude-sonnet-5` | 2 | 10 | 2.50 | 0.20 |
 | `claude-haiku` | 1 | 5 | 1.25 | 0.10 |
 | `claude-fable` / `claude-mythos` | 10 | 50 | 12.50 | 1.00 |
-| `codex-default` | 1.25 | 10 | 1.25 | 0.125 |
+| `claude-opus-5-5` | 4 | 20 | 5 | 0.20 |
+| `claude-fable-5-1` / `claude-mythos-5-1` | 10 | 50 | 12.50 | 0.25 |
+| `codex-default` (unknown Codex model) | 1.25 | 10 | 1.25 | 0.125 |
+| `gpt-6-astra` | 10 | 50 | = input | 1.00 |
+| `gpt-5.6-sol` | 4 | 20 | = input | 0.40 |
+| `gpt-5.6-luna` | 0.20 | 1.20 | = input | 0.02 |
+| `gpt-5.5` | 5 | 30 | = input | 0.50 |
+| `gpt-5.3-codex` | 1.75 | 14 | = input | 0.175 |
 | `gemini-2.5-pro` | 1.25 | 10 | 1.25 | 0.31 |
 | `gemini` (flash/default) | 0.30 | 2.50 | 0.30 | 0.075 |
 | `kimi-k3` | 3 | 15 | 3 | 0.30 |
@@ -53,7 +60,8 @@ input. Model ids are matched on their **last path segment**, so
 
 - **Cache writes are tiered.** The Claude rows' cache-write column is the 5-minute (1.25× input) rate. When Claude Code logs carry the `usage.cache_creation` breakdown, the 1-hour portion is billed at **2× input** (`ephemeral_1h_input_tokens`). Legacy logs without the breakdown fall back to the 5-minute rate, which **undercounts** 1h-heavy sessions — a documented, conservative-for-your-wallet simplification.
 - Unknown Claude models fall back to the **sonnet** tier.
-- Codex tokens are costed at the fixed `codex-default` rate.
+- **Two models break the 0.1× cache-read rule** (Anthropic pricing page, 2026-09-27): Opus 5.5 reads cache at 0.05× input and Fable/Mythos 5.1 at 0.025×. Cache reads are most of a heavy rig's tokens, so pricing these two through the generic `claude-opus` / `claude-fable` rows overstated them several times over; they have their own rows since 0.8.0.
+- Codex sessions are priced by the model their `turn_context` names. A model the table does not know is priced at `codex-default` (the gpt-5 rate), and the scan **names it in a warning** with its token count — it never silently falls to the sonnet tier. Gateway pool aliases (`codex-pool` and the like) land here: the table cannot know what a self-hosted pool routed to.
 - Claude rates reflect the **June-2026 Anthropic repricing**: Opus 4.x dropped to 5/25, and the Fable/Mythos 5 tier bills at 2× Opus. Usage recorded before the repricing is still valued at these snapshot rates (see the snapshot policy above).
 - **If you're on a subscription**, this is *API-equivalent value*, not what you actually paid. That's deliberate — "I extracted $18,000 of API value from a $200 subscription" **is** the flex, and tokens-per-dollar rewards exactly that.
 - **Self-hosted models aren't free either** — they cost watts and iron. Opt-in
@@ -217,7 +225,8 @@ We catch the blatant — client-side and now server-side, cross-checked against 
 
 - GitHub stars are capped at 500 repos (5 pages × 100).
 - The price table is a snapshot; provider price changes land with the next release.
-- Codex costs use one fixed rate regardless of the underlying model.
+- Codex costs are per model, but only for models in the table; the rest are priced at `codex-default` and named in a warning.
+- **Codex plan limits** (the `⏳` line) are the last `rate_limits` record Codex logged per home — what was used when it was written, not what is left now. A window whose reset time has passed prints "reset since last seen" instead of a stale percentage; no record means no line, never "0%". Claude Code logs carry no limit records, so there is no Claude line — getting one would need a network call, and the default run makes none.
 - LoC counts tracked text files by extension — generated code that you commit counts (we can't tell your `dist/` from your poetry; `.gitignore` it like an adult).
 - Offline percentile is a curve fit, not the real distribution — submit to get the real one.
 - Repos nested *inside* another git repo are not scanned (the walker stops at the first `.git` it meets). If your projects live under one umbrella repo, pass `--scan-dir` pointing below it (e.g. `--scan-dir ~/lab/projects`). Tracked as [#6](https://github.com/master5d/viberuler/issues/6).

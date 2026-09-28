@@ -241,6 +241,7 @@ Fable 5 · ⚡3982 Context Goblin · 481.5K tok/$
 - [x] Time metrics — session wall-clock & attention time from transcripts ([#21](https://github.com/master5d/viberuler/issues/21))
 - [x] `--share` — a self-reported card URL you can post without signing in (unverified by design)
 - [x] Context-waste classes in `audit` + `--compare A..B` — sizes and levers, never savings claims
+- [x] Codex plan headroom — 5h / weekly used share and time to reset, read from the `rate_limits` Codex already logs (no network), one line per Codex home
 - [ ] Team leaderboards
 
 **Want your agent on the board?** A collector is ~70 lines and a test: two methods,
