@@ -1,6 +1,12 @@
 # Show HN — launch sheet
 
 > Rewritten 2026-07-27 for **v0.7.0** (time metrics, `--share`, waste oracle).
+> **0.8.0 (2026-09-28) adds reply ammo, same theme as the LoC story:** the Codex
+> collector had been adding `cached_input_tokens` on top of `input_tokens`, though
+> cached is *part of* input — every cached token counted twice, once at the full
+> input rate. Fixing it (plus per-model Codex pricing and the new Opus 5.5 / Fable 5.1
+> cache rates) took the author's lifetime API-equivalent from **$19.5K to $14.6K**,
+> Codex alone from $1,260 to $487. Shipped the smaller number again.
 > All figures below were measured on the author's rig on 2026-07-27 — re-measure
 > the morning of the post and replace them if they moved.
 

@@ -21,6 +21,14 @@ npx viberuler --json --scan-dir C:\code > "$HOME\.viberuler\score.json"
 
 The JSON fields you'll want: `.vibe` (number), `.rank` (string), `.tokPerUsd` (number|null), `.stats.commits`, `.stats.streakDays`.
 
+**Codex plan headroom** (0.8.0+): `.stats.codexLimits` — one entry per Codex home, absent when Codex logged no `rate_limits`. Each has `.plan`, `.primary` / `.secondary` (`usedPercent`, `windowMinutes`, `resetsAt` ISO) and `.observedAt`. The cache is only as fresh as your last refresh, so check `resetsAt` before showing a percentage — a window that has already reset tells you nothing about what's used now:
+
+```bash
+jq -r '.stats.codexLimits[0].primary // empty
+  | select((.resetsAt | fromdateiso8601) > now)
+  | "codex 5h \(.usedPercent|round)%"' ~/.viberuler/score.json
+```
+
 ---
 
 ## Claude Code

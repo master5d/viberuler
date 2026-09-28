@@ -32,6 +32,7 @@ npx viberuler
 | 🔥 streak · cadence | consecutive commit days, and commits per **active** day | `212-day streak · 8.4/day` |
 | 🏆 achievements | see below | `Token Billionaire` |
 | 🤖 agents in the stable | marker dirs of known coding agents in your home | `4 agents · Claude Code · Codex · Antigravity` |
+| ⏳ Codex plan headroom | the `rate_limits` records Codex already writes to its session logs — not scored, not sent | `5h 12% used · resets in 45m · week 2% used` |
 
 Then it prints a scorecard you'll screenshot before you can stop yourself.
 
