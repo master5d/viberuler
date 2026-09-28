@@ -1,6 +1,7 @@
 import { createColors } from 'picocolors';
 import type { ScoreReport } from './score.js';
 import type { TimeReport } from './time-collect.js';
+import type { CodexLimits, LimitWindow } from './types.js';
 import { totalTokens } from './merge.js';
 import { fmtCompact, fmtInt, fmtUsd } from './format.js';
 
@@ -120,9 +121,45 @@ function tokenStrip(
   return [c.dim('TOKENS BY AGENT'), cells.join(''), legend];
 }
 
+function fmtIn(ms: number): string {
+  const m = Math.max(1, Math.round(ms / 60_000));
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return m % 60 ? `${h}h ${m % 60}m` : `${h}h`;
+  const d = Math.floor(h / 24);
+  return h % 24 ? `${d}d ${h % 24}h` : `${d}d`;
+}
+
+function windowName(w: LimitWindow, fallback: string): string {
+  if (w.windowMinutes === 300) return '5h';
+  if (w.windowMinutes === 10_080) return 'week';
+  return w.windowMinutes > 0 ? fmtIn(w.windowMinutes * 60_000) : fallback;
+}
+
+/**
+ * One line of plan headroom per Codex home. A window whose reset time has
+ * already passed says so instead of repeating a stale percentage — the log only
+ * knows what was used when it was written, not what is left now.
+ */
+export function formatCodexLimits(l: CodexLimits, now: Date): string {
+  const parts: string[] = [];
+  for (const [w, fallback] of [[l.primary, 'short'], [l.secondary, 'long']] as const) {
+    if (!w) continue;
+    const name = windowName(w, fallback);
+    const left = Date.parse(w.resetsAt) - now.getTime();
+    parts.push(
+      left <= 0
+        ? `${name} reset since last seen`
+        : `${name} ${Math.round(w.usedPercent)}% used · resets in ${fmtIn(left)}`,
+    );
+  }
+  const plan = l.plan ? ` (${l.plan})` : '';
+  return `⏳ Codex limits${plan} · ${parts.join(' · ')}`;
+}
+
 export function renderCard(
   report: ScoreReport,
-  opts: { colors: boolean; version: string; timeReport?: TimeReport },
+  opts: { colors: boolean; version: string; timeReport?: TimeReport; now?: Date },
 ): string {
   const c = createColors(opts.colors);
   const s = report.stats;
@@ -183,6 +220,7 @@ export function renderCard(
       const extra = s.agents.length > 3 ? ` +${s.agents.length - 3} more` : '';
       rows.push(`🤖 ${c.bold(String(s.agents.length))} agents in the stable · ${shown}${extra}`);
     }
+    for (const l of s.codexLimits ?? []) rows.push(formatCodexLimits(l, opts.now ?? new Date()));
   }
 
   rows.push('');
