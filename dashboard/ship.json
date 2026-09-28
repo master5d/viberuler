@@ -2,14 +2,20 @@
   "name": "viberuler",
   "emoji": "📏",
   "title": "Viberuler",
+  "producer": "dashboard/ship_snapshot.py",
   "tab": {
     "mode": "embed",
-    "url": "https://viberuler.dev"
+    "url": "https://viberuler.dev",
+    "snapshot": "dashboard/snapshot.json"
   },
   "links": [
     {
       "label": "prod",
       "url": "https://viberuler.dev"
+    },
+    {
+      "label": "npm",
+      "url": "https://www.npmjs.com/package/viberuler"
     }
   ]
 }
