@@ -25,7 +25,7 @@ The JSON fields you'll want: `.vibe` (number), `.rank` (string), `.tokPerUsd` (n
 
 ```bash
 jq -r '.stats.codexLimits[0].primary // empty
-  | select((.resetsAt | fromdateiso8601) > now)
+  | select((.resetsAt | sub("[.][0-9]+Z$"; "Z") | fromdateiso8601) > now)
   | "codex 5h \(.usedPercent|round)%"' ~/.viberuler/score.json
 ```
 
