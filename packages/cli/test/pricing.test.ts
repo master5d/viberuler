@@ -77,6 +77,30 @@ describe('gemini pricing', () => {
   });
 });
 
+describe('models whose cache reads break the 0.1x rule', () => {
+  it('prices Opus 5.5 on its own row, not the generic opus one', () => {
+    expect(priceFor('claude-opus-5-5')).toEqual({ input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 });
+    expect(priceFor('claude-opus-5-5[1m]').cacheRead).toBe(0.2);
+    expect(priceFor('claude-opus-5').cacheRead).toBe(0.5);
+    expect(priceFor('claude-opus-5[1m]').cacheRead).toBe(0.5);
+  });
+  it('prices Fable/Mythos 5.1 cache reads at 0.025x input; Fable 5 keeps 0.1x', () => {
+    expect(priceFor('claude-fable-5-1')).toEqual({ input: 10, output: 50, cacheWrite: 12.5, cacheRead: 0.25 });
+    expect(priceFor('claude-mythos-5-1')).toEqual(priceFor('claude-fable-5-1'));
+    expect(priceFor('claude-fable-5').cacheRead).toBe(1);
+  });
+});
+
+describe('OpenAI models seen in Codex sessions', () => {
+  it('knows the current list rates', () => {
+    expect(priceFor('gpt-6-astra')).toEqual({ input: 10, output: 50, cacheWrite: 10, cacheRead: 1 });
+    expect(priceFor('gpt-5.6-sol').output).toBe(20);
+    expect(priceFor('gpt-5.6-luna').cacheRead).toBeCloseTo(0.02, 10);
+    expect(priceFor('gpt-5.5').output).toBe(30);
+    expect(hasKnownPrice('gpt-5.1-codex-mini')).toBe(false);
+  });
+});
+
 describe('PRICES_SNAPSHOT_DATE', () => {
   it('is a YYYY-MM-DD date string', () => {
     expect(PRICES_SNAPSHOT_DATE).toMatch(/^\d{4}-\d{2}-\d{2}$/);

@@ -44,6 +44,31 @@ export interface RawStats {
   warnings: string[];
   busiestDay: string | null;   // YYYY-MM-DD with the most commits (windowed)
   busiestDayCount: number;
+  /**
+   * Plan-limit headroom as Codex itself logged it — one entry per Codex home
+   * (several homes = several accounts). Local only: never part of the submit
+   * payload. Absent when no session carries a `rate_limits` record.
+   */
+  codexLimits?: CodexLimits[];
+}
+
+export interface LimitWindow {
+  usedPercent: number;
+  windowMinutes: number;
+  /** When this window resets, ISO 8601. */
+  resetsAt: string;
+}
+
+export interface CodexLimits {
+  /** The Codex sessions root the record came from. */
+  root: string;
+  plan: string | null;
+  /** The short window (5h on current plans). */
+  primary: LimitWindow | null;
+  /** The long window (weekly on current plans). */
+  secondary: LimitWindow | null;
+  /** When Codex logged the record, ISO 8601 — the snapshot is only as fresh as this. */
+  observedAt: string;
 }
 
 export interface ScanContext {

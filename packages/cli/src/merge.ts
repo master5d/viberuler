@@ -62,5 +62,8 @@ export function mergeStats(base: RawStats, add: Partial<RawStats>): RawStats {
     warnings: [...base.warnings, ...(add.warnings ?? [])],
     busiestDay: (add.busiestDayCount ?? 0) > base.busiestDayCount ? (add.busiestDay ?? null) : base.busiestDay,
     busiestDayCount: Math.max(base.busiestDayCount, add.busiestDayCount ?? 0),
+    ...(base.codexLimits || add.codexLimits
+      ? { codexLimits: [...(base.codexLimits ?? []), ...(add.codexLimits ?? [])] }
+      : {}),
   };
 }

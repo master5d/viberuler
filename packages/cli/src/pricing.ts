@@ -13,7 +13,7 @@ export interface ModelPrice {
 // at the snapshot rates — we do not track per-date price history (documented in METHODOLOGY).
 // The cacheWrite column is the 5-MINUTE (1.25x input) rate; 1-hour writes bill at 2x input
 // via CostOptions.cacheWrite1h.
-export const PRICES_SNAPSHOT_DATE = '2026-08-07';
+export const PRICES_SNAPSHOT_DATE = '2026-09-27';
 
 export interface CostOptions {
   /** Portion of u.cacheWrite written with a 1-hour TTL (Claude Code:
@@ -32,7 +32,23 @@ export const PRICES: Record<string, ModelPrice> = {
   // Sonnet 5 launched below the 4.x price (2/10 vs 3/15) — the longer prefix
   // wins over the generic 'claude-sonnet' row above.
   'claude-sonnet-5': { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 },
+  // The two models whose cache reads break the 0.1x rule (Anthropic pricing page,
+  // 2026-09-27): Opus 5.5 reads at 0.05x of a cheaper input, Fable/Mythos 5.1 at
+  // 0.025x. Cache reads are most of a heavy rig's tokens, so the generic
+  // 'claude-opus' / 'claude-fable' rows overstated these two several times over.
+  'claude-opus-5-5':   { input: 4,  output: 20, cacheWrite: 5,    cacheRead: 0.2 },
+  'claude-fable-5-1':  { input: 10, output: 50, cacheWrite: 12.5, cacheRead: 0.25 },
+  'claude-mythos-5-1': { input: 10, output: 50, cacheWrite: 12.5, cacheRead: 0.25 },
+  // OpenAI list rates (developers.openai.com pricing, 2026-09-27). The Codex
+  // collector prices each session by the model named in its turn_context; a model
+  // missing here falls back to 'codex-default' (the gpt-5 rate) and says so.
+  // OpenAI publishes no separate cache-write rate, so cacheWrite = input.
   'codex-default': { input: 1.25, output: 10, cacheWrite: 1.25,  cacheRead: 0.125 },
+  'gpt-6-astra':   { input: 10,   output: 50, cacheWrite: 10,    cacheRead: 1 },
+  'gpt-5.6-sol':   { input: 4,    output: 20, cacheWrite: 4,     cacheRead: 0.4 },
+  'gpt-5.6-luna':  { input: 0.2,  output: 1.2, cacheWrite: 0.2,  cacheRead: 0.02 },
+  'gpt-5.5':       { input: 5,    output: 30, cacheWrite: 5,     cacheRead: 0.5 },
+  'gpt-5.3-codex': { input: 1.75, output: 14, cacheWrite: 1.75,  cacheRead: 0.175 },
   'gemini-2.5-pro': { input: 1.25, output: 10, cacheWrite: 1.25, cacheRead: 0.31 },
   'gemini':         { input: 0.3,  output: 2.5, cacheWrite: 0.3, cacheRead: 0.075 },
   // Open-weight / market models a self-hosted gateway (LiteLLM collector) is
