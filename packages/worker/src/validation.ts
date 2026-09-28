@@ -1,8 +1,13 @@
 import { z } from 'zod';
 
+// Must list every id the CLI can award (packages/cli/src/achievements.ts): an
+// unknown id marks the whole submission sus. high-roller and table-hopper shipped
+// in the CLI on 2026-08-07 without landing here, so every 0.8.0 submit that earned
+// them went "under review". packages/cli/test/achievements-drift.test.ts now reads this list.
 export const KNOWN_ACHIEVEMENTS = [
   'token-billionaire', 'free-tier-martyr', 'cache-whisperer', 'polyglot',
   'monorepo-menace', 'streak-freak', '3am-committer', 'yolo-force-pusher',
+  'high-roller', 'table-hopper',
 ] as const;
 
 export const SANITY_CAPS = {
