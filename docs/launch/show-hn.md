@@ -85,11 +85,12 @@ front page. Avoid Fri–Sun (thin traffic, ages out before Monday) and Mon (week
 > can't see is a number you can't reduce.
 >
 > **2. `viberuler audit` scores your setup, not your output.** Reads transcripts locally,
-> sends nothing. On my rig, across **11,801 sessions**: context amplification **1378×**
+> sends nothing. On my rig, over the transcripts still on disk (**1,839 sessions, last 44 days**): context
+> amplification **1634×**
 > (how many times an admitted token gets re-fed — main-thread only, because pooling
 > short-lived subagent contexts halves the number and lies to you), plus cold context
-> before you type a word, and MCP servers that load every session and get called *zero*
-> times — it found two burning 1.5GB across 76 processes for 0 calls.
+> before you type a word (68K tokens median, re-paid by every subagent spawn), and MCP servers that load every
+> session and get called *zero* times — 3 of my 7 right now.
 >
 > **3. The part I care about most: it measures context waste without promising savings.**
 > There's a well-shared list of ~10 repos promising to cut Claude Code tokens by up to
@@ -97,10 +98,10 @@ front page. Avoid Fri–Sun (thin traffic, ages out before Monday) and Mon (week
 > classes with calls, tokens, and the *lever* that would shrink each one. Mine right now:
 >
 > ```
-> oversized single results          5.7M tok · 2,555 calls  → slice / grep before read
-> subagent-returned tokens          2.2M tok · 4,068 calls  → tighter subagent contracts
-> whole-file reads never edited     1.9M tok · 3,394 calls  → outline-first / symbol reads
-> repeat reads of unchanged files   199K tok ·   301 calls  → cache tool output
+> oversized single results          5.8M tok · 2,763 calls  → slice / grep before read
+> whole-file reads never edited     542K tok ·   874 calls  → outline-first / symbol reads
+> subagent-returned tokens          429K tok · 1,619 calls  → tighter subagent contracts
+> repeat reads of unchanged files   8.8K tok ·    42 calls  → cache tool output
 > ```
 >
 > And that's where it stops:
@@ -117,8 +118,8 @@ front page. Avoid Fri–Sun (thin traffic, ages out before Monday) and Mon (week
 >   feature was built to refute.
 >
 > Also new: **your own hours**, derived from transcript timestamps — no daemon, nothing
-> watching your screen. Mine: **1,001 hours of attention across 3,136 hours of
-> wall-clock**. And `--share` prints a card URL you can post without signing into
+> watching your screen. Mine: **616 hours of attention across 2,197 hours of
+> wall-clock** (44 days). And `--share` prints a card URL you can post without signing into
 > anything; that card is branded SELF-REPORTED · UNVERIFIED and carries no rank — the
 > leaderboard stays GitHub-verified.
 >
@@ -148,6 +149,11 @@ npx viberuler@latest --share        # card URL, sanity-check it renders
 Measured 2026-07-27: sessions 11,801 · amplification 1378× · attention 1,001h / wall
 3,136h · waste: oversized 5.7M, subagent-returned 2.2M, exploratory 1.9M, repeat 199K.
 
+**Re-measured 2026-10-07 (v0.8.0, comment above updated):** sessions 1,839 over 44 days of transcripts on disk ·
+amplification 1634× · attention 615.6h / wall 2,197.0h · waste: oversized 5.8M, exploratory 542K, subagent-returned
+429K, repeat 8.8K · cold context 68.1K median · 3 of 7 MCP surfaces never called. The July session count was larger
+because older transcripts are no longer on disk — say so if asked; do not quote the July numbers.
+
 ## First hour — this is where it's won or lost
 
 1. **Stay at the keyboard 2–3 hours.** Reply fast; latency is the one thing you control.
@@ -168,7 +174,7 @@ Measured 2026-07-27: sessions 11,801 · amplification 1378× · attention 1,001h
    credit it by name, never knock it.
 6. **"Isn't the time tracking creepy?"** — derived from timestamps already in your
    transcripts; nothing watches your screen, nothing leaves the machine.
-7. **"1378× amplification, really?"** — explain the definition before defending the
+7. **"1634× amplification, really?"** — explain the definition before defending the
    number: tokens re-fed ÷ tokens admitted, main thread only, and the code is right there.
 8. If it lands with **zero comments**, HN permits **one** repost days later with a
    different title. Don't repost something that got engagement and died.
