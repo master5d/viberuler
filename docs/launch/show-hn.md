@@ -154,6 +154,16 @@ amplification 1634× · attention 615.6h / wall 2,197.0h · waste: oversized 5.8
 429K, repeat 8.8K · cold context 68.1K median · 3 of 7 MCP surfaces never called. The July session count was larger
 because older transcripts are no longer on disk — say so if asked; do not quote the July numbers.
 
+## Posted 2026-10-08 — what happened (read before any repost)
+
+Posted 17:48 UTC as `daocat` (karma 1) with title A: https://news.ycombinator.com/item?id=50009232.
+The ~4,000-char first comment (`first-comment-2026-10-08.txt`) was **auto-killed within 75 seconds**
+(`dead: true` in the Firebase API; the author still sees it as normal). The fix is an email to the moderators
+(Contact link in the HN footer) with both links — **never re-post the comment**, a duplicate reads as spam.
+Next time from a low-karma account: a short first comment (what it is + one honest number + link to README),
+and check `https://hacker-news.firebaseio.com/v0/item/<comment id>.json` for `dead` right after posting.
+HN renders no markdown: `**bold**` and backticks stay literal, paragraphs need a blank line, code = 2-space indent.
+
 ## First hour — this is where it's won or lost
 
 1. **Stay at the keyboard 2–3 hours.** Reply fast; latency is the one thing you control.

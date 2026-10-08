@@ -1,0 +1,32 @@
+Hi HN — I built a benchmark for the way a lot of us work now, and then it started telling me things I didn't want to hear.
+
+npx viberuler scans locally — Claude Code / Codex / Cursor / Gemini / Cline session logs (tokens + API-equivalent cost) plus your git repos — and scores you. The headline is tokens per dollar: anyone can burn tokens; burning them efficiently is the interesting part.
+
+Three things I'd actually defend:
+
+1. It caught me inflating my own score. LoC was the size of my repo trees (git ls-files), so it credited me with vendored code I never touched and every line a compiler emitted — one wrangler types run writes a 548KB .d.ts. I changed it to count only lines I added in my own commits. My headline dropped 17% (393,750 → 328,419) and I shipped the smaller number. The excluded lines aren't hidden, they're reported: 33% of everything I committed was machine output. A number you can't see is a number you can't reduce.
+
+2. viberuler audit scores your setup, not your output. Reads transcripts locally, sends nothing. On my rig, over the transcripts still on disk (1,839 sessions, last 44 days): context amplification 1634× (how many times an admitted token gets re-fed — main-thread only, because pooling short-lived subagent contexts halves the number and lies to you), plus cold context before you type a word (68K tokens median, re-paid by every subagent spawn), and MCP servers that load every session and get called *zero* times — 3 of my 7 right now.
+
+3. The part I care about most: it measures context waste without promising savings. There's a well-shared list of ~10 repos promising to cut Claude Code tokens by up to 90%. All real projects; none publishes a methodology. So audit prints named waste classes with calls, tokens, and the *lever* that would shrink each one. Mine right now:
+
+  oversized single results          5.8M tok · 2,763 calls  → slice / grep before read
+  whole-file reads never edited     542K tok ·   874 calls  → outline-first / symbol reads
+  subagent-returned tokens          429K tok · 1,619 calls  → tighter subagent contracts
+  repeat reads of unchanged files   8.8K tok ·    42 calls  → cache tool output
+
+And that's where it stops:
+
+- No "you would save N%". The counterfactual is unknowable: a read that changed nothing may be the read that told you *not* to change something.
+
+- No total-waste sum. Those classes overlap by construction, so a sum would double-count and manufacture a headline. The output says so on screen.
+
+- audit --compare A..B puts two windows side by side — install an optimizer, compare before/after on your own logs — and labels the delta an observation, not causation, because workload differs between windows. A window with no sessions prints "not enough data" instead of a flattering zero. That guard exists because review caught it rendering an empty *future* window as a −2.3K "improvement" — exactly the lie the feature was built to refute.
+
+Also new: your own hours, derived from transcript timestamps — no daemon, nothing watching your screen. Mine: 616 hours of attention across 2,197 hours of wall-clock (44 days). And --share prints a card URL you can post without signing into anything; that card is branded SELF-REPORTED · UNVERIFIED and carries no rank — the leaderboard stays GitHub-verified.
+
+Privacy, since it's the first thing I'd ask: default run makes zero network calls. --submit is opt-in, sends fourteen aggregate fields, and prints the exact JSON before anything leaves the machine (viberuler payload shows the same without sending). Tool names and MCP config are a fingerprint of how you work — not in the payload, ever. Backend (CF Worker + D1) is in the same repo.
+
+One runtime dependency (picocolors). Collectors are a two-method interface; Windsurf and Aider are open good first issues.
+
+Happy to go into the JSONL replay dedup (Claude Code replays >50% of its usage records — miss it and every number doubles), why I refuse to print a savings percentage, or rendering OG images with satori inside a Worker.
