@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parseCursorValues } from '../src/collectors/cursor.js';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { cursorCollector } from '../src/collectors/cursor.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 describe('parseCursorValues', () => {
   it('sums the numeric leaves of promptTokenBreakdown per conversation', () => {
@@ -38,7 +37,7 @@ const hasNodeSqlite = await import('node:sqlite' as string).then(() => true, () 
 
 describe('cursorCollector.detect', () => {
   it('is dormant when no storage dir is configured/found', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-nocursor-'));
+    const home = await makeTmpDir('vibe-nocursor-');
     expect(await cursorCollector.detect({ home, scanDirs: [], env: { VIBERULER_CURSOR_STORAGE: home } })).toBe(false);
   });
 });
@@ -46,7 +45,7 @@ describe('cursorCollector.detect', () => {
 describe.skipIf(!hasNodeSqlite)('cursorCollector — real state.vscdb', () => {
   async function makeDb(rows: Array<[string, string]>): Promise<string> {
     const { DatabaseSync } = await import('node:sqlite' as string);
-    const dir = await mkdtemp(join(tmpdir(), 'vibe-cursor-'));
+    const dir = await makeTmpDir('vibe-cursor-');
     const db = new DatabaseSync(join(dir, 'state.vscdb'));
     db.exec('CREATE TABLE cursorDiskKV (key TEXT PRIMARY KEY, value BLOB)');
     const ins = db.prepare('INSERT INTO cursorDiskKV (key, value) VALUES (?, ?)');

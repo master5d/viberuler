@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { collectTime, createTimeAccumulator } from '../src/time-collect.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 describe('createTimeAccumulator', () => {
   it('accumulates timestamps per file and outputs a aggregated TimeReport', () => {
@@ -22,7 +22,7 @@ describe('createTimeAccumulator', () => {
 describe('collectTime', () => {
 
   it('collects time metrics from multiple jsonl files and attributes projects', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-time-home-'));
+    const home = await makeTmpDir('vibe-time-home-');
     const proj = join(home, '.claude', 'projects', 'x');
     await mkdir(proj, { recursive: true });
 
@@ -58,7 +58,7 @@ describe('collectTime', () => {
   });
 
   it('handles events spanning two local days producing two day buckets with non-negative values', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-time-days-'));
+    const home = await makeTmpDir('vibe-time-days-');
     const proj = join(home, '.claude', 'projects', 'y');
     await mkdir(proj, { recursive: true });
 
@@ -93,7 +93,7 @@ describe('collectTime', () => {
   });
 
   it('excludes gaps larger than threshold from activeMs while wallMs remains intact', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-time-gap-'));
+    const home = await makeTmpDir('vibe-time-gap-');
     const proj = join(home, '.claude', 'projects', 'z');
     await mkdir(proj, { recursive: true });
 
@@ -114,7 +114,7 @@ describe('collectTime', () => {
   });
 
   it('returns a zero report on empty or missing roots without throwing', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-time-empty-'));
+    const home = await makeTmpDir('vibe-time-empty-');
     const report = await collectTime({ home, scanDirs: [] }, 120_000);
 
     expect(report).toEqual({

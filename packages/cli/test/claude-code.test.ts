@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { mkdtemp, mkdir, copyFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, copyFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseClaudeJsonl, claudeCodeCollector } from '../src/collectors/claude-code.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 const fixture = (name: string) =>
   fileURLToPath(new URL(`./fixtures/claude/${name}`, import.meta.url));
@@ -52,7 +52,7 @@ describe('cache-write tier pricing', () => {
 
 describe('claudeCodeCollector', () => {
   it('detects and aggregates a fake ~/.claude/projects tree', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-home-'));
+    const home = await makeTmpDir('vibe-home-');
     const proj = join(home, '.claude', 'projects', 'C--fake');
     await mkdir(proj, { recursive: true });
     await copyFile(fixture('session-a.jsonl'), join(proj, 'a.jsonl'));
@@ -66,7 +66,7 @@ describe('claudeCodeCollector', () => {
   });
 
   it('does not detect when ~/.claude/projects is absent', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-empty-'));
+    const home = await makeTmpDir('vibe-empty-');
     expect(await claudeCodeCollector.detect({ home, scanDirs: [] })).toBe(false);
   });
 });

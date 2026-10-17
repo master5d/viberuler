@@ -1,8 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { litellmCollector, aggregateRows } from '../src/collectors/litellm.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 const hasNodeSqlite = await import('node:sqlite' as string).then(
   () => true,
@@ -58,7 +57,7 @@ describe('aggregateRows', () => {
 describe.skipIf(!hasNodeSqlite)('litellmCollector — LITELLM_SPEND_DB (labwatch-style schema)', () => {
   it('sums a usage table grouped by model', async () => {
     const { DatabaseSync } = await import('node:sqlite' as string);
-    const dir = await mkdtemp(join(tmpdir(), 'vibe-litellm-'));
+    const dir = await makeTmpDir('vibe-litellm-');
     const dbPath = join(dir, 'usage.db');
     const db = new DatabaseSync(dbPath);
     db.exec(`CREATE TABLE usage (
@@ -82,7 +81,7 @@ describe.skipIf(!hasNodeSqlite)('litellmCollector — LITELLM_SPEND_DB (labwatch
 
   it('honors --since when the table has a ts column', async () => {
     const { DatabaseSync } = await import('node:sqlite' as string);
-    const dir = await mkdtemp(join(tmpdir(), 'vibe-litellm-since-'));
+    const dir = await makeTmpDir('vibe-litellm-since-');
     const dbPath = join(dir, 'usage.db');
     const db = new DatabaseSync(dbPath);
     db.exec('CREATE TABLE usage (ts TEXT, model TEXT, prompt_tokens INTEGER, completion_tokens INTEGER)');
@@ -98,7 +97,7 @@ describe.skipIf(!hasNodeSqlite)('litellmCollector — LITELLM_SPEND_DB (labwatch
 
   it('warns instead of throwing on a db without a spend table', async () => {
     const { DatabaseSync } = await import('node:sqlite' as string);
-    const dir = await mkdtemp(join(tmpdir(), 'vibe-litellm-bad-'));
+    const dir = await makeTmpDir('vibe-litellm-bad-');
     const dbPath = join(dir, 'other.db');
     const db = new DatabaseSync(dbPath);
     db.exec('CREATE TABLE unrelated (x INTEGER)');

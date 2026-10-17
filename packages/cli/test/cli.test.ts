@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtemp, mkdir, writeFile, copyFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile, copyFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { main, collectAll, parseCompareRange } from '../src/cli.js';
 import type { Collector } from '../src/types.js';
 import { decodeShareCard } from '../src/share-card.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 const fixture = fileURLToPath(new URL('./fixtures/claude/session-a.jsonl', import.meta.url));
 
@@ -14,7 +14,7 @@ let home: string;
 let repoDir: string;
 
 beforeAll(async () => {
-  home = await mkdtemp(join(tmpdir(), 'vibe-cli-'));
+  home = await makeTmpDir('vibe-cli-');
   // fake ~/.claude/projects
   const proj = join(home, '.claude', 'projects', 'p1');
   await mkdir(proj, { recursive: true });
@@ -218,7 +218,7 @@ describe('main', () => {
   });
 
   it('prints hint line on zero-projects inside nested repo, omits on non-zero projects', async () => {
-    const outerRepo = await mkdtemp(join(tmpdir(), 'vibe-outer-repo-'));
+    const outerRepo = await makeTmpDir('vibe-outer-repo-');
     execFileSync('git', ['-C', outerRepo, 'init']);
     const emptySub = join(outerRepo, 'subfolder');
     await mkdir(emptySub, { recursive: true });

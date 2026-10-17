@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { classifyExt, parseGitLog, gitCollector, isGenerated } from '../src/collectors/git.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 describe('isGenerated', () => {
   it('recognises machine-written files', () => {
@@ -77,7 +77,7 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
   const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args]);
 
   beforeAll(async () => {
-    scanRoot = await mkdtemp(join(tmpdir(), 'vibe-git-'));
+    scanRoot = await makeTmpDir('vibe-git-');
     repo = join(scanRoot, 'myproject');
     await mkdir(repo, { recursive: true });
     git('init');
@@ -109,7 +109,7 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
   });
 
   it('counts only lines YOU committed — not the tree, not other people, not machines', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'vibe-authored-'));
+    const root = await makeTmpDir('vibe-authored-');
     const r2 = join(root, 'proj');
     await mkdir(join(r2, 'dist'), { recursive: true });
     const g = (...args: string[]) => execFileSync('git', ['-C', r2, ...args]);
@@ -149,7 +149,7 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
   });
 
   it('reports machine noise separately instead of silently dropping it', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'vibe-noise-'));
+    const root = await makeTmpDir('vibe-noise-');
     const r = join(root, 'proj');
     await mkdir(join(r, 'dist'), { recursive: true });
     const g = (...args: string[]) => execFileSync('git', ['-C', r, ...args]);
@@ -168,7 +168,7 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
   });
 
   it('counts a day you touched three repos as ONE active day', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'vibe-cadence-'));
+    const root = await makeTmpDir('vibe-cadence-');
     for (const name of ['a', 'b', 'c']) {
       const r = join(root, name);
       await mkdir(r, { recursive: true });
@@ -189,7 +189,7 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
   });
 
   it('measures the span from first commit to last, inclusive', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'vibe-span-'));
+    const root = await makeTmpDir('vibe-span-');
     const r = join(root, 'proj');
     await mkdir(r, { recursive: true });
     const g = (...args: string[]) => execFileSync('git', ['-C', r, ...args]);
@@ -209,7 +209,7 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
   });
 
   it('does not let a merge commit re-count the branch it absorbs', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'vibe-merge-'));
+    const root = await makeTmpDir('vibe-merge-');
     const r3 = join(root, 'proj');
     await mkdir(r3, { recursive: true });
     const g = (...args: string[]) => execFileSync('git', ['-C', r3, ...args]);
@@ -240,7 +240,7 @@ describe('gitCollector (integration, sacrificial temp repo)', () => {
   it('finds a repo nested inside another repo, and counts each once', async () => {
     // The workspace-root case: people version the folder that HOLDS their repos.
     // Stopping at the first .git collapsed every project into one.
-    const outer = await mkdtemp(join(tmpdir(), 'vibe-nest-'));
+    const outer = await makeTmpDir('vibe-nest-');
     const inner = join(outer, 'projects', 'inner');
     await mkdir(inner, { recursive: true });
 

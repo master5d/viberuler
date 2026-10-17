@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { resolveRoots, parseHomeList, agentHomes } from '../src/roots.js';
 import { claudeCodeCollector } from '../src/collectors/claude-code.js';
 import { codexCollector } from '../src/collectors/codex.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 const PROJECTS = { under: ['.claude', 'projects'], env: 'CLAUDE_CONFIG_DIR', envUnder: ['projects'] };
 
-const fakeHome = () => mkdtemp(join(tmpdir(), 'vibe-roots-'));
+const fakeHome = () => makeTmpDir('vibe-roots-');
 
 async function claudeHomeWith(tokens: number): Promise<string> {
   const home = await fakeHome();

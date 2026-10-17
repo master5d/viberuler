@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stat, mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { stat } from 'node:fs/promises';
 import {
   githubDeviceFlow,
   fetchPercentile,
@@ -12,6 +10,7 @@ import {
   clearCachedToken,
   getTokenPath,
 } from '../src/submit.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 const PAYLOAD = {
   client_version: '0.1.0', vibe_score: 3101, loc: 100, projects: 1, tokens: 1_200_000_000,
@@ -105,7 +104,7 @@ describe('shareLinks', () => {
 
 describe('token cache', () => {
   it('writes cache file with 0600 mode and reads it back', async () => {
-    const tempHome = await mkdtemp(join(tmpdir(), 'vibe-token-test-'));
+    const tempHome = await makeTmpDir('vibe-token-test-');
     const p = getTokenPath(tempHome);
     await saveCachedToken('gho_test123', tempHome);
 

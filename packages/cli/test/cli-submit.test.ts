@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtemp, mkdir, copyFile, stat } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, copyFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { main } from '../src/cli.js';
 import { getTokenPath } from '../src/submit.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 const fixture = fileURLToPath(new URL('./fixtures/claude/session-a.jsonl', import.meta.url));
 let home: string;
 
 beforeAll(async () => {
-  home = await mkdtemp(join(tmpdir(), 'vibe-submit-'));
+  home = await makeTmpDir('vibe-submit-');
   const proj = join(home, '.claude', 'projects', 'p1');
   await mkdir(proj, { recursive: true });
   await copyFile(fixture, join(proj, 's.jsonl'));
@@ -68,7 +68,7 @@ describe('main --submit', () => {
   });
 
   it('token cache: first submit writes cache, second submit reuses without device flow, 401 clears cache and invokes device flow once', async () => {
-    const testHome = await mkdtemp(join(tmpdir(), 'vibe-submit-cache-'));
+    const testHome = await makeTmpDir('vibe-submit-cache-');
     process.env.VIBERULER_HOME = testHome;
 
     let deviceFlowCount = 0;

@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseAuditJsonl, emptyAcc, discoverSurfaces, runAudit, runAuditCompare } from '../src/audit.js';
 import { attributeRootCauses } from '../src/root-cause.js';
 import { renderRootCauses, renderAudit } from '../src/render-audit.js';
 import type { RootCause } from '../src/root-cause.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 const asst = (id: string, req: string, usage: object, content?: unknown[], side = false) =>
   JSON.stringify({
@@ -224,7 +224,7 @@ describe('cold context', () => {
 });
 
 async function fakeHome(): Promise<string> {
-  return mkdtemp(join(tmpdir(), 'vibe-audit-'));
+  return makeTmpDir('vibe-audit-');
 }
 
 describe('discoverSurfaces', () => {
@@ -381,7 +381,7 @@ describe('wasteEvents', () => {
 
 describe('runAudit rootCauses (--why)', () => {
   it('omits rootCauses without ctx.why and populates with it', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vr-why-'));
+    const home = await makeTmpDir('vr-why-');
     const proj = join(home, '.claude', 'projects', 'p');
     await mkdir(proj, { recursive: true });
     const readUse = JSON.stringify({
@@ -431,7 +431,7 @@ describe('renderRootCauses', () => {
 
 describe('time metrics in runAudit and renderAudit', () => {
   it('populates time metrics when transcripts with timestamps exist', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-audit-time-'));
+    const home = await makeTmpDir('vibe-audit-time-');
     const proj = join(home, '.claude', 'projects', 'p');
     await mkdir(proj, { recursive: true });
 
@@ -455,7 +455,7 @@ describe('time metrics in runAudit and renderAudit', () => {
   });
 
   it('changes activeMs when gap threshold changes via gapMs parameter', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-audit-gap-'));
+    const home = await makeTmpDir('vibe-audit-gap-');
     const proj = join(home, '.claude', 'projects', 'p');
     await mkdir(proj, { recursive: true });
 

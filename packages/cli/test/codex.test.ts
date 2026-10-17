@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { mkdtemp, mkdir, copyFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, copyFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCodexJsonl, parseCodexSession, codexCollector } from '../src/collectors/codex.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 const fixture = fileURLToPath(new URL('./fixtures/codex/rollout-a.jsonl', import.meta.url));
 
@@ -52,7 +52,7 @@ describe('parseCodexSession', () => {
 
 describe('codexCollector', () => {
   async function homeWith(content: string) {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-codex-'));
+    const home = await makeTmpDir('vibe-codex-');
     const sessions = join(home, '.codex', 'sessions', '2026', '06');
     await mkdir(sessions, { recursive: true });
     await writeFile(join(sessions, 'rollout.jsonl'), content);
@@ -60,7 +60,7 @@ describe('codexCollector', () => {
   }
 
   it('prices a session without turn_context at codex-default', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-codex-'));
+    const home = await makeTmpDir('vibe-codex-');
     const sessions = join(home, '.codex', 'sessions', '2026', '06');
     await mkdir(sessions, { recursive: true });
     await copyFile(fixture, join(sessions, 'rollout-a.jsonl'));
@@ -93,7 +93,7 @@ describe('codexCollector', () => {
   });
 
   it('does not detect without ~/.codex/sessions', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-nocodex-'));
+    const home = await makeTmpDir('vibe-nocodex-');
     expect(await codexCollector.detect({ home, scanDirs: [] })).toBe(false);
   });
 });

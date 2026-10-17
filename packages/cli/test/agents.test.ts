@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { detectAgents, agentsCollector } from '../src/collectors/agents.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 async function fakeHome(): Promise<string> {
-  return mkdtemp(join(tmpdir(), 'vibe-agents-'));
+  return makeTmpDir('vibe-agents-');
 }
 
 describe('detectAgents', () => {

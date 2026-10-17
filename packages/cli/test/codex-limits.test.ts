@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseCodexSession, codexCollector } from '../src/collectors/codex.js';
 import { formatCodexLimits } from '../src/render.js';
 import { buildPayload } from '../src/payload.js';
 import type { CodexLimits } from '../src/types.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 // Shape copied from a real Codex rollout (2026-09-27), values changed.
 const rlLine = (ts: string, used5h: number, usedWeek: number, resets5h: number, resetsWeek: number) =>
@@ -51,7 +51,7 @@ describe('Codex rate_limits', () => {
   });
 
   it('reports the newest snapshot per Codex home and never invents one', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'vibe-codex-rl-'));
+    const home = await makeTmpDir('vibe-codex-rl-');
     const dir = join(home, '.codex', 'sessions', '2026', '09');
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, 'a.jsonl'), rlLine('2026-09-27T09:00:00.000Z', 40, 9, sec(T0), sec(T0)));
@@ -60,7 +60,7 @@ describe('Codex rate_limits', () => {
     expect(r.codexLimits).toHaveLength(1);
     expect(r.codexLimits![0]!.primary!.usedPercent).toBe(12);
 
-    const bare = await mkdtemp(join(tmpdir(), 'vibe-codex-nolimits-'));
+    const bare = await makeTmpDir('vibe-codex-nolimits-');
     const d2 = join(bare, '.codex', 'sessions');
     await mkdir(d2, { recursive: true });
     await writeFile(

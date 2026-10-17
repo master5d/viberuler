@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseCatalog, repriceMix, loadMarketRates, MARKET_SNAPSHOT, CURATED } from '../src/market.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 const CATALOG = {
   data: [
@@ -70,7 +70,7 @@ describe('loadMarketRates', () => {
   }) as unknown as typeof fetch;
 
   it('live fetch parses, labels live, and writes the cache', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'vibe-market-'));
+    const dir = await makeTmpDir('vibe-market-');
     const cacheFile = join(dir, 'market.json');
     const d = await loadMarketRates({ fetchImpl: okFetch, cacheFile, now: () => 1_754_500_000_000 });
     expect(d.source).toBe('live');
@@ -80,7 +80,7 @@ describe('loadMarketRates', () => {
   });
 
   it('prefers a fresh cache without touching the network', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'vibe-market-'));
+    const dir = await makeTmpDir('vibe-market-');
     const cacheFile = join(dir, 'market.json');
     const rates = [{ id: 'a', label: 'A', input: 1, output: 2, cacheRead: 1, cacheWrite: 1 }];
     await writeFile(cacheFile, JSON.stringify({ fetchedAt: 1000, rates }));
@@ -96,7 +96,7 @@ describe('loadMarketRates', () => {
   });
 
   it('degrades offline: stale cache first, bundled snapshot last', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'vibe-market-'));
+    const dir = await makeTmpDir('vibe-market-');
     const cacheFile = join(dir, 'market.json');
     const rates = [{ id: 'a', label: 'A', input: 1, output: 2, cacheRead: 1, cacheWrite: 1 }];
     await writeFile(cacheFile, JSON.stringify({ fetchedAt: 1000, rates }));

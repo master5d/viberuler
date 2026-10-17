@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseGeminiSession, geminiCollector } from '../src/collectors/gemini.js';
+import { makeTmpDir } from './helpers/tmp.js';
 
 // Two $set lines that REPLAY the full messages array (Gemini's mutation log).
 // m2 appears on both lines; correct dedup counts it once.
@@ -48,7 +48,7 @@ describe('geminiCollector', () => {
   }
 
   it('scans tmp/*/chats recursively and reports the Gemini CLI agent', async () => {
-    const gdir = await mkdtemp(join(tmpdir(), 'vibe-gem-'));
+    const gdir = await makeTmpDir('vibe-gem-');
     await seed(gdir, 'proj-a', '.', sessionFile);                 // top-level
     await seed(gdir, 'proj-a', '11111111-2222-3333', sessionFile); // nested UUID subdir (distinct file, same ids → deduped)
     const ctx = { home: '/', scanDirs: [] as string[], env: { GEMINI_DATA_DIR: gdir } };
@@ -60,7 +60,7 @@ describe('geminiCollector', () => {
   });
 
   it('attributes the sessions to Antigravity when its dir shares the .gemini home', async () => {
-    const gdir = await mkdtemp(join(tmpdir(), 'vibe-gemag2-'));
+    const gdir = await makeTmpDir('vibe-gemag2-');
     await seed(gdir, 'proj-a', '.', sessionFile);
     await mkdir(join(gdir, 'antigravity-cli'), { recursive: true }); // Antigravity present
     const r = await geminiCollector.collect({ home: '/', scanDirs: [], env: { GEMINI_DATA_DIR: gdir } });
@@ -69,12 +69,12 @@ describe('geminiCollector', () => {
   });
 
   it('does not detect without a gemini tmp/chats tree', async () => {
-    const gdir = await mkdtemp(join(tmpdir(), 'vibe-nogem-'));
+    const gdir = await makeTmpDir('vibe-nogem-');
     expect(await geminiCollector.detect({ home: '/', scanDirs: [], env: { GEMINI_DATA_DIR: gdir } })).toBe(false);
   });
 
   it('never descends into antigravity-cli', async () => {
-    const gdir = await mkdtemp(join(tmpdir(), 'vibe-gemag-'));
+    const gdir = await makeTmpDir('vibe-gemag-');
     const ag = join(gdir, 'antigravity-cli', 'chats');
     await mkdir(ag, { recursive: true });
     await writeFile(join(ag, 'session-x.jsonl'), sessionFile);
